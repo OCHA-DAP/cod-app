@@ -178,7 +178,7 @@ async function emptyMicroIssues(conn: AsyncDuckDBConnection, issuesTable: string
 }
 
 // Per-row rebuild of `rebuilt` after the set-based union throws: a row that still
-// throws is retried with its own kept parts snapped onto the incoming parts.
+// throws is retried on the fallback grid, then with its kept parts snapped onto the incoming.
 async function rebuildRowwise(
   conn: AsyncDuckDBConnection,
   parts: string,
@@ -201,7 +201,9 @@ async function rebuildRowwise(
       WHERE NOT ST_IsEmpty(geom)
     `;
     try {
-      await conn.query(insert("COALESCE(ST_Union(own.g, incoming.g), own.g, incoming.g)"));
+      await queryOrGrid(conn, `rebuild row ${rnid}`, (g) =>
+        insert(`COALESCE(ST_Union(${g("own.g")}, ${g("incoming.g")}), own.g, incoming.g)`),
+      );
     } catch {
       await conn.query(
         insert(`ST_Union(ST_Snap(own.g, incoming.g, ${SNAP_TOLERANCE}), incoming.g)`),

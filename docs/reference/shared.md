@@ -139,8 +139,9 @@ name instead of repeating them.
   candidate polygons through `intersectPairs` (see Overlap measurement),
   with its snap and grid retries. When the set-based union that rebuilds
   the receiving polygons throws, the merge MUST rebuild them one by one,
-  retrying a polygon that still throws with its own parts snapped onto its
-  incoming micro parts at `SNAP_TOLERANCE`.
+  retrying a polygon that still throws on `ST_ReducePrecision(geom, 1e-11)`,
+  then with its own parts snapped onto its incoming parts at `SNAP_TOLERANCE`.
+  Merging detached parts MUST rebuild its receiving polygons the same way.
 - Every `buildCoverageClean` call MUST merge micro-polygons before
   `ST_CoverageClean` runs, so `edge-extend`, `edge-stitch`, `edge-match`, `edge-mosaic`,
   `topo-clean` and every cleaned input apply this rule. `edge-clip` applies it to
