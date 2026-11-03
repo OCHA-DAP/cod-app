@@ -1,0 +1,13 @@
+title: Netherlands admin4 (buurten) 2022
+description: 14317 buurten from the CBS Wijk- en Buurtkaart 2022, plus 94 water buurten (codes ending in `9997` or `9998`) and one `B` row for Belgian territory around Baarle-Nassau. Agents should start at [AGENTS.md](AGENTS.md).
+providers:
+- name: Statistics Netherlands (CBS)
+  roles:
+  - producer
+  - licensor
+  url: https://www.cbs.nl/en-gb
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues
+source_url: https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische-data/wijk-en-buurtkaart-2022

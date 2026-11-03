@@ -132,7 +132,7 @@ function countryDedupRank(status: string): number {
 }
 
 // Country's best-ever plan type outranks a lesser plan type from a more
-// recent year (mirrors hdx-boundaries-explorer's plan_status.py rank).
+// recent year (mirrors scripts/catalog/explorer/plan_status.py's rank).
 function planTypeRank(t: string): number {
   const upper = t.toUpperCase();
   if (upper === "HNRP") return 0;
@@ -583,7 +583,7 @@ export function loadData() {
       // No plan this cycle — fall back to the best-ever plan type across
       // prior years, tie-broken by the most recent year achieving it, so a
       // country's old HNRP/HRP/FA still outranks another country's old
-      // REG/Other (mirrors hdx-boundaries-explorer's plan_status.py).
+      // REG/Other (mirrors scripts/catalog/explorer/plan_status.py's).
       const best = bestPlanType(byYear);
       const hasPriority = best.types.some((t) => priorityTypes.has(t));
       bucket = hasPriority ? priorPriority : priorOther;

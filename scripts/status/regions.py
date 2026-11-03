@@ -1,13 +1,8 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["requests"]
-# ///
-
 import csv
 import sys
 from pathlib import Path
 
-import requests
+from shared import http
 
 OUTPUT_DIR = Path(__file__).parents[2] / "public" / "status" / "data"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -31,8 +26,7 @@ HDX_BASE = "https://data.humdata.org/api/3/action/package_search"
 
 
 def ckan_get(url: str, params: dict) -> dict:
-    res = requests.get(url, params=params, timeout=30)
-    res.raise_for_status()
+    res = http.get(url, params=params, timeout=30)
     return res.json()
 
 

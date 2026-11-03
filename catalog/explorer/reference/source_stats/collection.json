@@ -1,0 +1,120 @@
+{
+  "type": "Collection",
+  "id": "explorer/reference/source_stats",
+  "stac_version": "1.1.0",
+  "description": "Feature and vertex counts per source, location and level.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "https://creativecommons.org/licenses/by/4.0/",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json"
+  ],
+  "table:columns": [
+    {
+      "name": "source",
+      "type": "string"
+    },
+    {
+      "name": "level",
+      "type": "int32"
+    },
+    {
+      "name": "iso3",
+      "type": "string"
+    },
+    {
+      "name": "feature_count",
+      "type": "int64"
+    },
+    {
+      "name": "total_vertices",
+      "type": "int64"
+    },
+    {
+      "name": "avg_vertices",
+      "type": "double"
+    },
+    {
+      "name": "edge_vertices",
+      "type": "int64"
+    },
+    {
+      "name": "internal_vertices",
+      "type": "int64"
+    }
+  ],
+  "table:row_count": 2165,
+  "title": "Source stats",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180.0,
+          -90.0,
+          180.0,
+          90.0
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "producer",
+        "licensor",
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "source_stats": {
+      "href": "./source_stats.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 30893,
+      "file:checksum": "122060bae1e414a95db1d6012675143ef95ebfa5295fd9333e66aaa8a01d32dc8ec8",
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}

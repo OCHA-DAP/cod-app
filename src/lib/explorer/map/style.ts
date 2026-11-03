@@ -1,33 +1,33 @@
-import { ADMIN_SOURCES } from "$lib/explorer/sources";
+import { ADMIN_SOURCES, adminTiles } from "$lib/explorer/sources";
+import { explorerTilesUrl } from "$lib/utils/data";
 import type * as maplibregl from "maplibre-gl";
 import positron from "$lib/utils/basemap/positron.json";
 import { adminLayersForSource } from "./layers/admin";
 import { layers as countriesLayers } from "./layers/countries";
 import { layers as countryLineLayers } from "./layers/country-lines";
 
-const PMTILES_BASE =
-  import.meta.env.PUBLIC_PMTILES_BASE ?? "https://hdx-boundaries-explorer.fieldmaps.io/pmtiles";
-
-const pmtiles = (file: string) => `pmtiles://${PMTILES_BASE}/${file}`;
+const pmtiles = (layer: string, file?: string) => `pmtiles://${explorerTilesUrl(layer, file)}`;
 
 const admSources = Object.fromEntries(
   ADMIN_SOURCES.flatMap((src) =>
-    src.levels.flatMap((l) => [
-      [
-        `${src.id}-adm${l}`,
-        {
-          type: "vector" as const,
-          url: pmtiles(`${src.id}_adm${l}.pmtiles`),
-          // hover_id (a plain per-row index, computed at download time) lets
-          // MapLibre's promoteId/feature-state target one row precisely.
-          promoteId: { [`${src.id}_adm${l}`]: "hover_id" },
-        },
-      ],
-      [
-        `${src.id}-adm${l}-labels`,
-        { type: "vector" as const, url: pmtiles(`${src.id}_adm${l}_labels.pmtiles`) },
-      ],
-    ]),
+    src.levels.flatMap((l) => {
+      const tiles = adminTiles(src.id, l);
+      return [
+        [
+          `${src.id}-adm${l}`,
+          {
+            type: "vector" as const,
+            url: `pmtiles://${tiles.url}`,
+            // A unique per-row id lets MapLibre's promoteId/feature-state target one row.
+            promoteId: { [tiles.layer]: tiles.idField },
+          },
+        ],
+        [
+          `${src.id}-adm${l}-labels`,
+          { type: "vector" as const, url: `pmtiles://${tiles.labelsUrl}` },
+        ],
+      ];
+    }),
   ),
 );
 
@@ -39,12 +39,12 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
     ...(positron.sources as maplibregl.StyleSpecification["sources"]),
     countries: {
       type: "vector",
-      url: pmtiles("salb_adm0.pmtiles"),
-      promoteId: { salb_adm0: "objectid" },
+      url: pmtiles("ungeodata_adm0"),
+      promoteId: { ungeodata_adm0: "objectid" },
     },
     "country-lines": {
       type: "vector",
-      url: pmtiles("salb_lines.pmtiles"),
+      url: pmtiles("ungeodata_lines"),
     },
     ...admSources,
   },

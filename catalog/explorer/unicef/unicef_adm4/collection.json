@@ -1,0 +1,265 @@
+{
+  "type": "Collection",
+  "id": "explorer/unicef/unicef_adm4",
+  "stac_version": "1.1.0",
+  "description": "UNICEF admin 4 as GeoParquet, with polygon tiles, and label points at each unit's maximum inscribed circle in `unicef_adm4_labels.pmtiles`.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "../../TERMS.md",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "UNICEF"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./unicef_adm4.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "unicef_adm4"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "updated": "2026-11-03T02:42:10Z",
+  "geoparquet:geometry_type": "Polygon",
+  "geoparquet:feature_count": 123489,
+  "pmtiles:min_zoom": 0,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    63.8515337,
+    0.5027034,
+    5
+  ],
+  "pmtiles:layers": [
+    "unicef_adm4_labels"
+  ],
+  "table:row_count": 123489,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "ucode",
+      "type": "string"
+    },
+    {
+      "name": "uuid",
+      "type": "string"
+    },
+    {
+      "name": "concept_uuid",
+      "type": "string"
+    },
+    {
+      "name": "is_latest",
+      "type": "bool"
+    },
+    {
+      "name": "start_date",
+      "type": "timestamp[us, tz=UTC]"
+    },
+    {
+      "name": "end_date",
+      "type": "string"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "level",
+      "type": "int32"
+    },
+    {
+      "name": "level_name",
+      "type": "string"
+    },
+    {
+      "name": "type",
+      "type": "string"
+    },
+    {
+      "name": "WFP_ID",
+      "type": "string"
+    },
+    {
+      "name": "Source_ID",
+      "type": "string"
+    },
+    {
+      "name": "default",
+      "type": "string"
+    },
+    {
+      "name": "name_en",
+      "type": "string"
+    },
+    {
+      "name": "Alternative name",
+      "type": "string"
+    },
+    {
+      "name": "adm3_ucode",
+      "type": "string"
+    },
+    {
+      "name": "adm3_type",
+      "type": "string"
+    },
+    {
+      "name": "adm2_ucode",
+      "type": "string"
+    },
+    {
+      "name": "adm2_type",
+      "type": "string"
+    },
+    {
+      "name": "adm1_ucode",
+      "type": "string"
+    },
+    {
+      "name": "adm1_type",
+      "type": "string"
+    },
+    {
+      "name": "adm0_ucode",
+      "type": "string"
+    },
+    {
+      "name": "adm0_type",
+      "type": "string"
+    },
+    {
+      "name": "hover_id",
+      "type": "int64"
+    },
+    {
+      "name": "geometry",
+      "type": "binary"
+    }
+  ],
+  "title": "UNICEF admin 4",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -13.3023552,
+          -25.605753,
+          141.0194444,
+          26.634243
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "other",
+  "providers": [
+    {
+      "name": "UNICEF",
+      "roles": [
+        "producer",
+        "licensor"
+      ]
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "unicef_adm4_labels": {
+      "href": "./unicef_adm4_labels.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 173093549,
+      "file:checksum": "1220259bc84021134b0a68eda746ee88361b5bcab35bd762c26ff6d066876b50f805",
+      "roles": [
+        "data"
+      ]
+    },
+    "unicef_adm4-tiles": {
+      "href": "./unicef_adm4.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 182547946,
+      "file:checksum": "1220c2efb01ddfd2dd0d0a85086f0d386f6b7e0cafbdc27fac77ebed7b9f2dfd76cf",
+      "roles": [
+        "data"
+      ]
+    },
+    "unicef_adm4": {
+      "href": "./unicef_adm4.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 158128888,
+      "file:checksum": "12204d87e92fa1ab79991f6c59629298292dbc16d8f53e1e297367f78036c32b3b06",
+      "roles": [
+        "data"
+      ]
+    },
+    "documentation": {
+      "href": "./README.md",
+      "type": "text/markdown",
+      "file:size": 2068,
+      "file:checksum": "12206571092854ee24a45ceffbaad5ad2d772072f85535a6273fb77f2db81113d7f0",
+      "roles": [
+        "documentation"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "title": "Default",
+      "file:size": 466,
+      "file:checksum": "1220407917880f020ca764da818c8eb61ba3a15841a08afbd08c7307443030ca8109",
+      "roles": [
+        "style",
+        "default"
+      ]
+    },
+    "thumbnail": {
+      "href": "./unicef_adm4.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 4554,
+      "file:checksum": "122070933e3742a62ce15e029686cd0c84ec194f8dd6138a85d11dd7660518b77245",
+      "roles": [
+        "thumbnail"
+      ]
+    }
+  }
+}

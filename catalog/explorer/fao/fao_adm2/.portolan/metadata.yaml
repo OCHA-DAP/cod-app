@@ -1,0 +1,16 @@
+title: FAO admin 2
+description: FAO admin 2 as GeoParquet, with polygon tiles, and label points at each unit's maximum inscribed circle in `fao_adm2_labels.pmtiles`.
+providers:
+- name: FAO (GAUL 2025)
+  roles:
+  - producer
+  - licensor
+  url: https://storage.googleapis.com/fao-maps-catalog-data/boundaries/
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues
+source_url: https://data.apps.fao.org/catalog/dataset/global-administrative-unit-layers-gaul-2025
+processing_notes: Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Partner layers carry a `hover_id` row index for the map.
+license: other
+license_url: ../../TERMS.md

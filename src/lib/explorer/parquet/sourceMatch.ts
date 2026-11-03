@@ -1,6 +1,6 @@
 import { asyncBufferFromUrl, parquetRead } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
-import { parquetUrl } from "./url";
+import { referenceUrl } from "$lib/utils/data";
 
 export interface SourceMatch {
   source: string;
@@ -8,14 +8,14 @@ export interface SourceMatch {
   iso3: string;
   preferredSource: string;
   matchedCount: number;
-  // hover_id values (see scripts/match.py), not the source's own admin-unit code.
-  unmatchedCodes: number[];
+  // Values of the source's tile id field (adminTiles idField), as strings.
+  unmatchedCodes: string[];
 }
 
 let matchPromise: Promise<SourceMatch[]> | null = null;
 
 function loadMatch(): Promise<SourceMatch[]> {
-  return asyncBufferFromUrl({ url: parquetUrl("source_match") }).then(
+  return asyncBufferFromUrl({ url: referenceUrl("source_match") }).then(
     (asyncBuffer) =>
       new Promise((resolve) => {
         parquetRead({
@@ -38,16 +38,16 @@ function loadMatch(): Promise<SourceMatch[]> {
                 iso3: string;
                 preferred_source: string;
                 matched_count: bigint | number;
-                unmatched_codes: (bigint | number)[];
+                unmatched_codes: string[] | null;
               }>
             ).map((r) => ({
               source: r.source,
-              // BIGINT columns (a CSV round-trip in match.sh) decode as JS bigint; coerce to number.
+              // BIGINT columns decode as JS bigint; coerce to number.
               level: Number(r.level),
               iso3: r.iso3,
               preferredSource: r.preferred_source,
               matchedCount: Number(r.matched_count),
-              unmatchedCodes: (r.unmatched_codes ?? []).map(Number),
+              unmatchedCodes: r.unmatched_codes ?? [],
             }));
             resolve(matches);
           },

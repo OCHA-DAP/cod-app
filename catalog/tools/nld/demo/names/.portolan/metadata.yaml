@@ -1,0 +1,26 @@
+title: Gemeenten 2025 with name errors
+description: 'The `package` layer with six gemeente names edited, in OGC:CRS84. Each edit is one kind of name-detect finding: an encoding artifact, decomposed accents, a double space, non-breaking spaces, a name in capitals and a case-variant duplicate. Running name-detect reports all six. Running name-clean fixes the first four and leaves the other two for review. See [AGENTS.md](AGENTS.md).'
+keywords:
+- administrative boundaries
+- Netherlands
+- CBS
+- gemeenten
+- topo-tools
+- name-detect
+- name-clean
+processing_notes: Built by `scripts/catalog/tools/build_demo.py` in [cod-site](https://github.com/OCHA-DAP/cod-site) from `package/nld_admin2.parquet`, with the `adm2_name` of six gemeenten replaced as listed in AGENTS.md.
+providers:
+- name: Statistics Netherlands (CBS)
+  roles:
+  - producer
+  - licensor
+  url: https://www.cbs.nl/en-gb
+- name: Kadaster
+  roles:
+  - producer
+  - licensor
+  url: https://www.kadaster.nl/
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues

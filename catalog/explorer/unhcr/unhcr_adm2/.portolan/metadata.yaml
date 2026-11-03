@@ -1,0 +1,15 @@
+title: UNHCR admin 2
+description: UNHCR admin 2 as GeoParquet, with polygon tiles, and label points at each unit's maximum inscribed circle in `unhcr_adm2_labels.pmtiles`.
+providers:
+- name: UNHCR
+  roles:
+  - producer
+  - licensor
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues
+source_url: https://data.humdata.org/dataset/second-level-administrative-divisions-admin2
+processing_notes: Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Partner layers carry a `hover_id` row index for the map.
+license: other
+license_url: ../../TERMS.md

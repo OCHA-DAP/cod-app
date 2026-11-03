@@ -1,0 +1,44 @@
+title: Admin 1 boundaries by source
+description: Admin 1 units for 6 locations from more than one source each, in one file with `iso3` and `source` columns, simplified to about 100 m. See [AGENTS.md](AGENTS.md).
+keywords:
+- administrative boundaries
+- Central African Republic
+- Mali
+- Burkina Faso
+- Ghana
+- South Sudan
+- Madagascar
+- OCHA
+- FAO
+- WFP
+- UNICEF
+- World Bank
+providers:
+- name: OCHA (HDX COD-AB)
+  roles:
+  - producer
+  - licensor
+  url: https://data.humdata.org/dataset/cod-ab-global
+- name: FAO (GAUL 2025)
+  roles:
+  - producer
+  - licensor
+  url: https://storage.googleapis.com/fao-maps-catalog-data/boundaries/
+- name: World Food Programme (WFP)
+  roles:
+  - producer
+  - licensor
+- name: UNICEF
+  roles:
+  - producer
+  - licensor
+- name: World Bank Official Boundaries
+  roles:
+  - producer
+  - licensor
+  url: https://datacatalog.worldbank.org/search/dataset/0038272
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues
+processing_notes: 'Extracted from the explorer''s admin 1 collections: filler units dropped, `ST_CoverageSimplify` at 0.001 degrees, then `ST_CoverageClean` snapping.'

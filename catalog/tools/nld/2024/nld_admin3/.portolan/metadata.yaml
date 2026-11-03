@@ -1,0 +1,13 @@
+title: Netherlands admin3 (wijken) 2024
+description: 3393 wijken from the CBS Wijk- en Buurtkaart 2024, plus 81 water wijken and one `B` row for Belgian territory around Baarle-Nassau. Agents should start at [AGENTS.md](AGENTS.md).
+providers:
+- name: Statistics Netherlands (CBS)
+  roles:
+  - producer
+  - licensor
+  url: https://www.cbs.nl/en-gb
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues
+source_url: https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische-data/wijk-en-buurtkaart-2024

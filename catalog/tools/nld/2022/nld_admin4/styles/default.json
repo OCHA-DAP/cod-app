@@ -1,0 +1,47 @@
+{
+  "version": 8,
+  "name": "Land and water",
+  "sources": {
+    "data": {
+      "type": "vector",
+      "url": "pmtiles://../nld_admin4.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 13
+    }
+  },
+  "layers": [
+    {
+      "id": "nld_admin4-fill",
+      "type": "fill",
+      "source": "data",
+      "source-layer": "nld_admin4",
+      "paint": {
+        "fill-color": [
+          "match",
+          [
+            "get",
+            "water"
+          ],
+          "NEE",
+          "#8a63b8",
+          "JA",
+          "#7fb3d5",
+          "B",
+          "#b0b0b0",
+          "#cccccc"
+        ],
+        "fill-opacity": 0.7
+      }
+    },
+    {
+      "id": "nld_admin4-outline",
+      "type": "line",
+      "source": "data",
+      "source-layer": "nld_admin4",
+      "paint": {
+        "line-color": "#553a7a",
+        "line-width": 0.5
+      }
+    }
+  ]
+}

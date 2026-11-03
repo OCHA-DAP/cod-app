@@ -1,8 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["requests"]
-# ///
-
 import base64
 import csv
 import os
@@ -10,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-import requests
+from shared import http
 
 # Load .env if present (for local development)
 dotenv = Path(__file__).parents[2] / ".env"
@@ -68,13 +63,12 @@ def fetch_issues() -> list[dict]:
         params = {"jql": JQL, "fields": FIELDS, "maxResults": 100}
         if next_token:
             params["nextPageToken"] = next_token
-        res = requests.get(
+        res = http.get(
             f"{BASE_URL}/rest/api/3/search/jql",
             params=params,
             headers=HEADERS,
             timeout=30,
         )
-        res.raise_for_status()
         data = res.json()
         issues.extend(data.get("issues", []))
         next_token = data.get("nextPageToken")

@@ -1,0 +1,258 @@
+{
+  "type": "Collection",
+  "id": "explorer/unicef/unicef_adm3",
+  "stac_version": "1.1.0",
+  "description": "UNICEF admin 3 as GeoParquet, with polygon tiles, and label points at each unit's maximum inscribed circle in `unicef_adm3_labels.pmtiles`.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "../../TERMS.md",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "UNICEF"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./unicef_adm3.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "unicef_adm3"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "updated": "2026-11-03T02:42:08Z",
+  "geoparquet:geometry_type": "Polygon",
+  "geoparquet:feature_count": 84388,
+  "pmtiles:min_zoom": 0,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    33.4756696,
+    12.7324301,
+    5
+  ],
+  "pmtiles:layers": [
+    "unicef_adm3_labels"
+  ],
+  "table:row_count": 84388,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "ucode",
+      "type": "string"
+    },
+    {
+      "name": "uuid",
+      "type": "string"
+    },
+    {
+      "name": "concept_uuid",
+      "type": "string"
+    },
+    {
+      "name": "is_latest",
+      "type": "bool"
+    },
+    {
+      "name": "start_date",
+      "type": "timestamp[us, tz=UTC]"
+    },
+    {
+      "name": "end_date",
+      "type": "string"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "level",
+      "type": "int32"
+    },
+    {
+      "name": "level_name",
+      "type": "string"
+    },
+    {
+      "name": "type",
+      "type": "string"
+    },
+    {
+      "name": "WFP_ID",
+      "type": "string"
+    },
+    {
+      "name": "Source_ID",
+      "type": "string"
+    },
+    {
+      "name": "default",
+      "type": "string"
+    },
+    {
+      "name": "name_en",
+      "type": "string"
+    },
+    {
+      "name": "Alternative name",
+      "type": "string"
+    },
+    {
+      "name": "adm2_ucode",
+      "type": "string"
+    },
+    {
+      "name": "adm2_type",
+      "type": "string"
+    },
+    {
+      "name": "adm1_ucode",
+      "type": "string"
+    },
+    {
+      "name": "adm1_type",
+      "type": "string"
+    },
+    {
+      "name": "adm0_ucode",
+      "type": "string"
+    },
+    {
+      "name": "adm0_type",
+      "type": "string"
+    },
+    {
+      "name": "hover_id",
+      "type": "int64"
+    },
+    {
+      "name": "geometry",
+      "type": "binary"
+    }
+  ],
+  "title": "UNICEF admin 3",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -90.13410526,
+          -26.867041,
+          157.037781,
+          52.37937133
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "other",
+  "providers": [
+    {
+      "name": "UNICEF",
+      "roles": [
+        "producer",
+        "licensor"
+      ]
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "unicef_adm3": {
+      "href": "./unicef_adm3.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 332223470,
+      "file:checksum": "1220495189e505b779a4596e4fbfffcff87a8e9a07217f773a24e576ce5fe9aec56e",
+      "roles": [
+        "data"
+      ]
+    },
+    "unicef_adm3_labels": {
+      "href": "./unicef_adm3_labels.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 128623891,
+      "file:checksum": "1220635286936481935bfc749b76761c9b1bd5d9700760d3d38ddd97c4d9e3fcbf66",
+      "roles": [
+        "data"
+      ]
+    },
+    "unicef_adm3-tiles": {
+      "href": "./unicef_adm3.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "title": "unicef_adm3 (vector tiles)",
+      "file:size": 263206621,
+      "file:checksum": "12206ab2c7cedbd4cc03b6c1a16d1a7b0e965163274ca548b9576f91d9b5ed99cef7",
+      "roles": [
+        "visual"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "title": "Default",
+      "file:size": 466,
+      "file:checksum": "12208c77dac1882b4aebdab2bbb1beebf6485f0092aedb00f6d33dc73d6afdc796ab",
+      "roles": [
+        "style",
+        "default"
+      ]
+    },
+    "thumbnail": {
+      "href": "./unicef_adm3.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 6757,
+      "file:checksum": "1220b107f6a20c8c2c336e4443e364423ed08b0f7c76038ff592918fe9c2d5421ef6",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "documentation": {
+      "href": "./README.md",
+      "type": "text/markdown",
+      "file:size": 2010,
+      "file:checksum": "12208cc21ade4a9eeb4851598aa932f4aa9af068afd0e240f0df9d8ab9752331b188",
+      "roles": [
+        "documentation"
+      ]
+    }
+  }
+}

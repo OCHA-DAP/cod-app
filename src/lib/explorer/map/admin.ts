@@ -2,7 +2,7 @@ import { getBboxForIso3 } from "$lib/explorer/parquet/bbox";
 import { getMatchForCountry } from "$lib/explorer/parquet/sourceMatch";
 import { getStatsForCountry, type SourceStat } from "$lib/explorer/parquet/sourceStats";
 import { getDecisionForIso3, type Decision } from "$lib/explorer/sheet/decisions";
-import { ADMIN_SOURCES, getLevelsForSource } from "$lib/explorer/sources";
+import { ADMIN_SOURCES, adminTiles, getLevelsForSource } from "$lib/explorer/sources";
 import type { ViewState } from "$lib/explorer/urlState";
 import type * as maplibregl from "maplibre-gl";
 import { get } from "svelte/store";
@@ -283,12 +283,11 @@ export async function applyMismatchHighlight(map: maplibregl.Map, iso3: string):
       : undefined;
 
   if (match && match.unmatchedCodes.length) {
-    // hover_id is a string in the vector tile's properties (unlike the BIGINT
-    // it decodes as from parquet), and MapLibre's "in"/"==" are type-strict.
+    // MapLibre's "in" is type-strict and tile ids can decode as numbers, so compare strings.
     map.setFilter(layerId, [
       "all",
       ["==", ["slice", ["get", src.countryCodeField], 0, 3], iso3],
-      ["in", ["to-string", ["get", "hover_id"]], ["literal", match.unmatchedCodes.map(String)]],
+      ["in", ["to-string", ["get", adminTiles(activeSource, activeLevel).idField]], ["literal", match.unmatchedCodes]],
     ]);
     map.setLayoutProperty(layerId, "visibility", "visible");
   } else {

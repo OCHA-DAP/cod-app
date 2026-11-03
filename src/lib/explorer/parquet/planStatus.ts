@@ -1,6 +1,6 @@
 import { asyncBufferFromUrl, parquetRead } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
-import { parquetUrl } from "./url";
+import { referenceUrl } from "$lib/utils/data";
 
 export interface PlanStatus {
   iso3: string;
@@ -14,7 +14,7 @@ let planStatusPromise: Promise<Map<string, PlanStatus>> | null = null;
 export function getAllPlanStatus(): Promise<Map<string, PlanStatus>> {
   if (!planStatusPromise) {
     planStatusPromise = (async () => {
-      const asyncBuffer = await asyncBufferFromUrl({ url: parquetUrl("plan_status") });
+      const asyncBuffer = await asyncBufferFromUrl({ url: referenceUrl("plan_status") });
       return new Promise<Map<string, PlanStatus>>((resolve) => {
         parquetRead({
           file: asyncBuffer,

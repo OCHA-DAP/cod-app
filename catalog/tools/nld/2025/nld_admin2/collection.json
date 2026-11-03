@@ -1,0 +1,217 @@
+{
+  "type": "Collection",
+  "id": "tools/nld/2025/nld_admin2",
+  "stac_version": "1.1.0",
+  "description": "342 gemeenten from the CBS Wijk- en Buurtkaart 2025. 81 of them also have a water row sharing the gemeente code, and one `B` row (`GM0998` Buitenland) covers Belgian territory around Baarle-Nassau. Agents should start at [AGENTS.md](AGENTS.md).",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "https://creativecommons.org/licenses/by/4.0/",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "2025"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./nld_admin2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "nld_admin2"
+      ]
+    },
+    {
+      "rel": "via",
+      "href": "https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische-data/wijk-en-buurtkaart-2025",
+      "type": "text/html",
+      "title": "Original source"
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "geoparquet:geometry_type": "MultiPolygon",
+  "geoparquet:feature_count": 424,
+  "pmtiles:min_zoom": 1,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    5.267718,
+    52.1633953,
+    6
+  ],
+  "pmtiles:layers": [
+    "nld_admin2"
+  ],
+  "table:row_count": 424,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "geometry",
+      "type": "binary",
+      "description": "Polygon or MultiPolygon in OGC:CRS84, reprojected from EPSG:28992 (RD New). Gemeente boundaries come from Kadaster BRK and the land/water split from CBS Bestand Bodemgebruik. Not generalized."
+    },
+    {
+      "name": "gemeentecode",
+      "type": "string",
+      "description": "Gemeente (municipality) code: `GM` plus 4 digits, set by CBS with the Ministry of the Interior (BZK). A rename changes the code."
+    },
+    {
+      "name": "gemeentenaam",
+      "type": "string",
+      "description": "Official gemeente name."
+    },
+    {
+      "name": "water",
+      "type": "string",
+      "description": "`JA` water, `NEE` land, `B` Belgian territory around Baarle-Nassau (gemeente `GM0998` Buitenland)."
+    },
+    {
+      "name": "jaar",
+      "type": "int32",
+      "description": "Vintage year of the Wijk- en Buurtkaart."
+    }
+  ],
+  "updated": "2026-11-02T16:39:13Z",
+  "title": "Netherlands admin2 (gemeenten) 2025",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          3.3079377,
+          50.750367,
+          7.227498375153021,
+          53.576423271260545
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2025-01-01T00:00:00Z",
+          "2025-01-01T00:00:00Z"
+        ]
+      ]
+    }
+  },
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "Statistics Netherlands (CBS)",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.cbs.nl/en-gb"
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "thumbnail": {
+      "href": "./nld_admin2.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 19034,
+      "file:checksum": "122046beb81c7270ffc4a6c91994a5edcf311feffd442018f651d54437caee106505",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "title": "Land and water",
+      "file:size": 858,
+      "file:checksum": "1220040d4fafc3b568ab373d930d1f65067fb2496d92caadae7959756cdeda6f0d59",
+      "roles": [
+        "style",
+        "default"
+      ]
+    },
+    "nld_admin2-tiles": {
+      "href": "./nld_admin2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 2341262,
+      "file:checksum": "12209b230d534523223390baebc120d901d5d52862a6390a6d85e695aae346da008e",
+      "roles": [
+        "data"
+      ]
+    },
+    "nld_admin2": {
+      "href": "./nld_admin2.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 19272281,
+      "file:checksum": "12203c66034caa3e0cbd3c8681ea15c83cd69d23c847a4608d87a0e191e266947ebc",
+      "roles": [
+        "data"
+      ]
+    },
+    "documentation": {
+      "href": "./README.md",
+      "type": "text/markdown",
+      "file:size": 2647,
+      "file:checksum": "12204f240dcedf55baf0f378a59a34a651119890785a31ff8469c61f9c39cfe5b2c4",
+      "roles": [
+        "documentation"
+      ]
+    },
+    "source": {
+      "href": "https://service.pdok.nl/cbs/wijken-en-buurten-2025/atom/downloads/wijkenbuurten_2025.gpkg",
+      "type": "application/geopackage+sqlite3",
+      "roles": [
+        "source"
+      ],
+      "title": "Wijk- en Buurtkaart 2025 GeoPackage, PDOK Atom download",
+      "file:size": 219668480,
+      "file:checksum": "122011894edc9d7602786a829c281f9bc3cad395c450b66b41af6ebedfecf0741e34"
+    },
+    "iso-19115": {
+      "href": "https://www.nationaalgeoregister.nl/geonetwork/srv/dut/csw?service=CSW&version=2.0.2&request=GetRecordById&outputschema=http://www.isotc211.org/2005/gmd&elementsetname=full&id=4215aca9-0e91-4d64-8e28-4a20061901f2",
+      "type": "application/xml",
+      "roles": [
+        "metadata",
+        "iso-19115"
+      ],
+      "title": "Wijk- en Buurtkaart 2025 ISO 19115 record, Nationaal Georegister"
+    },
+    "toelichting": {
+      "href": "https://www.cbs.nl/-/media/cbs/onze-diensten/methoden/onderzoek/pdf/2025/toelichting-wijk-en-buurtkaart-2023-2024-en-2025.pdf",
+      "type": "application/pdf",
+      "roles": [
+        "metadata"
+      ],
+      "title": "CBS Toelichting Wijk- en Buurtkaart (column definitions)",
+      "file:size": 742161,
+      "file:checksum": "12207b6f2477ff5e2e6b2a3b68e660944c6baa63be46a672ead8254db8313af6fa2e"
+    }
+  }
+}

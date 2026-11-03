@@ -9,7 +9,7 @@ export function addHoverInteraction(map: maplibregl.Map): void {
   function clearHover() {
     if (hoveredId !== null) {
       map.setFeatureState(
-        { source: "countries", sourceLayer: "salb_adm0", id: hoveredId },
+        { source: "countries", sourceLayer: "ungeodata_adm0", id: hoveredId },
         { hover: false },
       );
     }
@@ -29,7 +29,7 @@ export function addHoverInteraction(map: maplibregl.Map): void {
     if (id === hoveredId) return;
     if (hoveredId !== null) {
       map.setFeatureState(
-        { source: "countries", sourceLayer: "salb_adm0", id: hoveredId },
+        { source: "countries", sourceLayer: "ungeodata_adm0", id: hoveredId },
         { hover: false },
       );
     }
@@ -44,7 +44,7 @@ export function addHoverInteraction(map: maplibregl.Map): void {
     hoveredIso3 = iso3;
     if (hoveredId !== null) {
       map.setFeatureState(
-        { source: "countries", sourceLayer: "salb_adm0", id: hoveredId },
+        { source: "countries", sourceLayer: "ungeodata_adm0", id: hoveredId },
         { hover: true },
       );
     }

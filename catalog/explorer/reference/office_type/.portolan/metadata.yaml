@@ -1,0 +1,11 @@
+title: Office type
+description: 'OCHA office type per location: country office, regional office or humanitarian advisory team.'
+providers:
+- name: OCHA
+  roles:
+  - producer
+  - licensor
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues

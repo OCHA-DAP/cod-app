@@ -7,12 +7,12 @@
   import { PMTiles } from "pmtiles";
   import { pmtilesProtocol, prefetchDirectories } from "$lib/utils/pmtiles";
   import { base } from "$lib/utils/paths";
+  import { codAbUrl } from "$lib/utils/data";
 
   const LEVELS = [1, 2, 3, 4] as const;
   type Level = (typeof LEVELS)[number];
 
-  const archiveUrl = (n: Level) =>
-    `https://data.source.coop/hdx/cod-ab/global/admin${n}/admin${n}.pmtiles`;
+  const archiveUrl = (n: Level) => codAbUrl(`global/admin${n}/admin${n}.pmtiles`);
   const DEGREES_PER_SECOND = 3;
   // The spin-in slows from SPIN_IN_PEAK to cruising speed over SPIN_IN_MS, passing SETTLE_LNG as it ends.
   const SPIN_IN_PEAK = 60;

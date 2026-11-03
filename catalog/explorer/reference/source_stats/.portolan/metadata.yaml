@@ -1,0 +1,9 @@
+title: Source stats
+description: Feature and vertex counts per source, location and level.
+providers:
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - producer
+  - licensor
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues

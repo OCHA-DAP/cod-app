@@ -1,0 +1,91 @@
+{
+  "spec_version": "1.0.0",
+  "current_version": "1.0.1",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "created": "2026-11-01T17:28:16.551971Z",
+      "breaking": false,
+      "assets": {
+        "unicef_adm1.pmtiles": {
+          "sha256": "a60b3b3c1daa5bb6f1a7aa94381500cd8804f05753ebd0b3b36ebb7ea36d64af",
+          "size_bytes": 150612499,
+          "href": "explorer/unicef/unicef_adm1/unicef_adm1.pmtiles",
+          "mtime": 1793553250.752589
+        },
+        "unicef_adm1.parquet": {
+          "sha256": "49b2bc8aded6e9c4f0be268de8fc65de3a4eab0bf2bd070fb8f78cc445d1b0aa",
+          "size_bytes": 208012711,
+          "href": "explorer/unicef/unicef_adm1/unicef_adm1.parquet",
+          "source_mtime": 1783286010.611663,
+          "mtime": 1783286010.611663,
+          "feature_count": 3567,
+          "schema_fingerprint": "a718432df6879b37"
+        },
+        "unicef_adm1_labels.pmtiles": {
+          "sha256": "b39b8443492e17f3c8ba9a582343a245767385c26ce904a6b389f96b43e3baf2",
+          "size_bytes": 16085675,
+          "href": "explorer/unicef/unicef_adm1/unicef_adm1_labels.pmtiles",
+          "mtime": 1793553250.75239
+        },
+        "unicef_adm1.thumb.jpg": {
+          "sha256": "247629ff7cdc5cca9adf36ba1aad8db59fd0af8dae408af1a317bc266ac15f57",
+          "size_bytes": 13983,
+          "href": "explorer/unicef/unicef_adm1/unicef_adm1.thumb.jpg",
+          "mtime": 1793554105.83822
+        }
+      },
+      "changes": [
+        "unicef_adm1.pmtiles",
+        "unicef_adm1.parquet",
+        "unicef_adm1_labels.pmtiles",
+        "unicef_adm1.thumb.jpg"
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "created": "2026-11-03T02:42:05.008261Z",
+      "breaking": false,
+      "assets": {
+        "unicef_adm1.pmtiles": {
+          "sha256": "f8b4e95e5194a1baaff1073c9f5509f4b076bba0e983a28ee146c3c58c960f58",
+          "size_bytes": 243062375,
+          "href": "explorer/unicef/unicef_adm1/unicef_adm1.pmtiles",
+          "mtime": 1793645685.0864096
+        },
+        "unicef_adm1.parquet": {
+          "sha256": "49b2bc8aded6e9c4f0be268de8fc65de3a4eab0bf2bd070fb8f78cc445d1b0aa",
+          "size_bytes": 208012711,
+          "href": "explorer/unicef/unicef_adm1/unicef_adm1.parquet",
+          "source_mtime": 1783286010.611663,
+          "mtime": 1783286010.611663,
+          "feature_count": 3567,
+          "schema_fingerprint": "a718432df6879b37"
+        },
+        "unicef_adm1_labels.pmtiles": {
+          "sha256": "f47492dbc98b859812bd8e4adc97ca48dd9469bf56351d3108afafc0c4bde0dc",
+          "size_bytes": 9416963,
+          "href": "explorer/unicef/unicef_adm1/unicef_adm1_labels.pmtiles",
+          "mtime": 1793645691.5614681
+        },
+        "unicef_adm1.thumb.jpg": {
+          "sha256": "247629ff7cdc5cca9adf36ba1aad8db59fd0af8dae408af1a317bc266ac15f57",
+          "size_bytes": 13983,
+          "href": "explorer/unicef/unicef_adm1/unicef_adm1.thumb.jpg",
+          "mtime": 1793554105.83822
+        },
+        "README.md": {
+          "sha256": "9a9eeab5d07726e5ea4d9a7fe0c0dc56f5ca53f1a3ef40cc1a0d55c9ec577fb4",
+          "size_bytes": 1974,
+          "href": "explorer/unicef/unicef_adm1/README.md",
+          "mtime": 1793637708.592282
+        }
+      },
+      "changes": [
+        "unicef_adm1.pmtiles",
+        "README.md",
+        "unicef_adm1_labels.pmtiles"
+      ]
+    }
+  ]
+}

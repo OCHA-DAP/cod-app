@@ -1,0 +1,91 @@
+{
+  "spec_version": "1.0.0",
+  "current_version": "1.0.1",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "created": "2026-11-01T17:24:25.368550Z",
+      "breaking": false,
+      "assets": {
+        "fao_adm2.pmtiles": {
+          "sha256": "cfb627c1be14f375a8e46423ff65278849b118357c734d66627c4b2e9a966191",
+          "size_bytes": 313215286,
+          "href": "explorer/fao/fao_adm2/fao_adm2.pmtiles",
+          "mtime": 1793553780.504279
+        },
+        "fao_adm2.parquet": {
+          "sha256": "2cc2edf304f6e43ac5a3e01cf0618eddbc195d81c8cdbccff88bf91c5ee52ec5",
+          "size_bytes": 577178972,
+          "href": "explorer/fao/fao_adm2/fao_adm2.parquet",
+          "source_mtime": 1783288016.781645,
+          "mtime": 1783288016.781645,
+          "feature_count": 43803,
+          "schema_fingerprint": "843dd707403a1b84"
+        },
+        "fao_adm2_labels.pmtiles": {
+          "sha256": "4e2c53390b066b3a6380651a5a6a945819b2b20cce2b3567fe77f69f791a56ea",
+          "size_bytes": 105816039,
+          "href": "explorer/fao/fao_adm2/fao_adm2_labels.pmtiles",
+          "mtime": 1793553780.503794
+        },
+        "fao_adm2.thumb.jpg": {
+          "sha256": "f26e1f45cc97bbe5c802c5f685bedb499ea84617d27b59a5412ba9c6efc9042a",
+          "size_bytes": 14632,
+          "href": "explorer/fao/fao_adm2/fao_adm2.thumb.jpg",
+          "mtime": 1793553896.4594245
+        }
+      },
+      "changes": [
+        "fao_adm2.pmtiles",
+        "fao_adm2.parquet",
+        "fao_adm2_labels.pmtiles",
+        "fao_adm2.thumb.jpg"
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "created": "2026-11-03T02:41:48.688419Z",
+      "breaking": false,
+      "assets": {
+        "fao_adm2.pmtiles": {
+          "sha256": "bd5a8bcfb3af2eb77dc1cadb837dce67d72ecd79626754604783ba7d300b608d",
+          "size_bytes": 398121605,
+          "href": "explorer/fao/fao_adm2/fao_adm2.pmtiles",
+          "mtime": 1793646012.829763
+        },
+        "fao_adm2.parquet": {
+          "sha256": "2cc2edf304f6e43ac5a3e01cf0618eddbc195d81c8cdbccff88bf91c5ee52ec5",
+          "size_bytes": 577178972,
+          "href": "explorer/fao/fao_adm2/fao_adm2.parquet",
+          "source_mtime": 1783288016.781645,
+          "mtime": 1783288016.781645,
+          "feature_count": 43803,
+          "schema_fingerprint": "843dd707403a1b84"
+        },
+        "fao_adm2_labels.pmtiles": {
+          "sha256": "b99901c5b15ef80c05c5ed4c03639f496dcc7bce11f7f82b43623c6c93df00d1",
+          "size_bytes": 45836474,
+          "href": "explorer/fao/fao_adm2/fao_adm2_labels.pmtiles",
+          "mtime": 1793646060.2111146
+        },
+        "fao_adm2.thumb.jpg": {
+          "sha256": "f26e1f45cc97bbe5c802c5f685bedb499ea84617d27b59a5412ba9c6efc9042a",
+          "size_bytes": 14632,
+          "href": "explorer/fao/fao_adm2/fao_adm2.thumb.jpg",
+          "mtime": 1793553896.4594245
+        },
+        "README.md": {
+          "sha256": "3824b72fbc5ac0a88c20463345f9ab8cda8fdb392684aff994c9e47de8d1b06c",
+          "size_bytes": 1863,
+          "href": "explorer/fao/fao_adm2/README.md",
+          "mtime": 1793637708.5484257
+        }
+      },
+      "changes": [
+        "fao_adm2.pmtiles",
+        "README.md",
+        "fao_adm2_labels.pmtiles"
+      ]
+    }
+  ]
+}

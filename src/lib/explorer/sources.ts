@@ -1,4 +1,5 @@
 import type { AdminLevel } from "$lib/explorer/map/layers/admin";
+import { codAbUrl, explorerTilesUrl } from "$lib/utils/data";
 
 export const ADMIN_SOURCES = [
   {
@@ -69,4 +70,34 @@ export const ADMIN_SOURCES = [
 
 export function getLevelsForSource(sourceId: string): AdminLevel[] {
   return ADMIN_SOURCES.find((s) => s.id === sourceId)?.levels ?? [];
+}
+
+export interface AdminTiles {
+  url: string;
+  layer: string;
+  labelsUrl: string;
+  labelsLayer: string;
+  idField: string;
+}
+
+// OCHA reads COD-AB's global layers; partner layers carry a per-row hover_id.
+export function adminTiles(sourceId: string, level: number): AdminTiles {
+  if (sourceId === "ocha") {
+    const dir = `global/admin${level}`;
+    return {
+      url: codAbUrl(`${dir}/admin${level}.pmtiles`),
+      layer: `admin${level}`,
+      labelsUrl: codAbUrl(`${dir}/admin${level}_points.pmtiles`),
+      labelsLayer: `admin${level}_points`,
+      idField: `adm${level}_pcode`,
+    };
+  }
+  const layer = `${sourceId}_adm${level}`;
+  return {
+    url: explorerTilesUrl(layer),
+    layer,
+    labelsUrl: explorerTilesUrl(layer, `${layer}_labels.pmtiles`),
+    labelsLayer: `${layer}_labels`,
+    idField: "hover_id",
+  };
 }

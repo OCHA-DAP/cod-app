@@ -1,12 +1,7 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["requests"]
-# ///
-
 import csv
 from pathlib import Path
 
-import requests
+from shared import http
 
 OUTPUT_DIR = Path(__file__).parents[2] / "public" / "status" / "data"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -21,12 +16,11 @@ def fetch_hdx_iso3() -> list[str]:
     iso3_set: set[str] = set()
     start = 0
     while True:
-        res = requests.get(
+        res = http.get(
             BASE_URL,
             params={"q": f"name:{PREFIX}*", "rows": PAGE_SIZE, "start": start},
             timeout=30,
         )
-        res.raise_for_status()
         data = res.json()
         results = data.get("result", {}).get("results", [])
         for dataset in results:

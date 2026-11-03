@@ -1,6 +1,6 @@
 import { asyncBufferFromUrl, parquetRead } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
-import { parquetUrl } from "./url";
+import { referenceUrl } from "$lib/utils/data";
 
 export interface SourceProvenance {
   source: string;
@@ -12,7 +12,7 @@ export interface SourceProvenance {
 let provenancePromise: Promise<SourceProvenance[]> | null = null;
 
 function loadProvenance(): Promise<SourceProvenance[]> {
-  return asyncBufferFromUrl({ url: parquetUrl("source_provenance") }).then(
+  return asyncBufferFromUrl({ url: referenceUrl("source_provenance") }).then(
     (asyncBuffer) =>
       new Promise((resolve) => {
         parquetRead({

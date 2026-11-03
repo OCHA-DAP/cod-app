@@ -1,0 +1,108 @@
+{
+  "spec_version": "1.0.0",
+  "current_version": "1.0.2",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "created": "2026-11-01T19:11:09.136445Z",
+      "breaking": false,
+      "assets": {
+        "ungeodata_lines.parquet": {
+          "sha256": "9f00d75ada93c53c9b1709541198a0d03807de5cfbc19ec91b566be7b8d3a548",
+          "size_bytes": 51491302,
+          "href": "explorer/ungeodata/ungeodata_lines/ungeodata_lines.parquet",
+          "source_mtime": 1793560189.5213196,
+          "mtime": 1793560189.5213196,
+          "feature_count": 43450,
+          "schema_fingerprint": "5f43cc745ecf8614"
+        },
+        "ungeodata_lines.pmtiles": {
+          "sha256": "2b0373182728db54eff238c0faa9f81eb0c0536e26e881c0d5af94d78a61a3ea",
+          "size_bytes": 44025990,
+          "href": "explorer/ungeodata/ungeodata_lines/ungeodata_lines.pmtiles",
+          "mtime": 1793560205.5293138
+        }
+      },
+      "changes": [
+        "ungeodata_lines.parquet",
+        "ungeodata_lines.pmtiles"
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "created": "2026-11-01T19:11:10.788332Z",
+      "breaking": false,
+      "assets": {
+        "ungeodata_lines.parquet": {
+          "sha256": "9f00d75ada93c53c9b1709541198a0d03807de5cfbc19ec91b566be7b8d3a548",
+          "size_bytes": 51491302,
+          "href": "explorer/ungeodata/ungeodata_lines/ungeodata_lines.parquet",
+          "source_mtime": 1793560189.5213196,
+          "mtime": 1793560189.5213196,
+          "feature_count": 43450,
+          "schema_fingerprint": "5f43cc745ecf8614"
+        },
+        "ungeodata_lines.pmtiles": {
+          "sha256": "2b0373182728db54eff238c0faa9f81eb0c0536e26e881c0d5af94d78a61a3ea",
+          "size_bytes": 44025990,
+          "href": "explorer/ungeodata/ungeodata_lines/ungeodata_lines.pmtiles",
+          "mtime": 1793560205.5293138
+        },
+        "README.md": {
+          "sha256": "5f4c4edcd4cd3de3cc8dfb70d77c0a4c710485e1f0b89f7421c230dc5dd2dab0",
+          "size_bytes": 847,
+          "href": "explorer/ungeodata/ungeodata_lines/README.md",
+          "mtime": 1793560269.3122296
+        },
+        "ungeodata_lines.thumb.jpg": {
+          "sha256": "9f6a7c6cfed7961774b3db77199ea3c9f9927d3e25d8c952209c99e24ab1182e",
+          "size_bytes": 18352,
+          "href": "explorer/ungeodata/ungeodata_lines/ungeodata_lines.thumb.jpg",
+          "mtime": 1793560273.6792521
+        }
+      },
+      "changes": [
+        "README.md",
+        "ungeodata_lines.thumb.jpg"
+      ]
+    },
+    {
+      "version": "1.0.2",
+      "created": "2026-11-03T02:41:57.623621Z",
+      "breaking": false,
+      "assets": {
+        "ungeodata_lines.parquet": {
+          "sha256": "9f00d75ada93c53c9b1709541198a0d03807de5cfbc19ec91b566be7b8d3a548",
+          "size_bytes": 51491302,
+          "href": "explorer/ungeodata/ungeodata_lines/ungeodata_lines.parquet",
+          "source_mtime": 1793560189.5213196,
+          "mtime": 1793560189.5213196,
+          "feature_count": 43450,
+          "schema_fingerprint": "5f43cc745ecf8614"
+        },
+        "ungeodata_lines.pmtiles": {
+          "sha256": "8ecad4c92febb7a6f3868f01fe409a711ad63babef721a5dad130315d6afab84",
+          "size_bytes": 93496323,
+          "href": "explorer/ungeodata/ungeodata_lines/ungeodata_lines.pmtiles",
+          "mtime": 1793646088.4307609
+        },
+        "README.md": {
+          "sha256": "27cb6aadb666911f2ecd3fef6c8e2294f2d44f86cc2b65775f293c51df9f64ee",
+          "size_bytes": 1450,
+          "href": "explorer/ungeodata/ungeodata_lines/README.md",
+          "mtime": 1793637708.5799446
+        },
+        "ungeodata_lines.thumb.jpg": {
+          "sha256": "9f6a7c6cfed7961774b3db77199ea3c9f9927d3e25d8c952209c99e24ab1182e",
+          "size_bytes": 18352,
+          "href": "explorer/ungeodata/ungeodata_lines/ungeodata_lines.thumb.jpg",
+          "mtime": 1793560273.6792521
+        }
+      },
+      "changes": [
+        "README.md",
+        "ungeodata_lines.pmtiles"
+      ]
+    }
+  ]
+}

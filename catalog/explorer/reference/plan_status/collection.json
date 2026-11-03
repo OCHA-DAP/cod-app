@@ -1,0 +1,117 @@
+{
+  "type": "Collection",
+  "id": "explorer/reference/plan_status",
+  "stac_version": "1.1.0",
+  "description": "Best humanitarian plan type ever recorded per location, from OCHA's HPC Tools.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "https://creativecommons.org/licenses/by/4.0/",
+      "title": "License"
+    },
+    {
+      "rel": "via",
+      "href": "https://hpc.tools/",
+      "type": "text/html",
+      "title": "Original source"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json"
+  ],
+  "updated": "2026-11-01T19:18:43Z",
+  "table:columns": [
+    {
+      "name": "iso3",
+      "type": "string"
+    },
+    {
+      "name": "plan_type",
+      "type": "string"
+    },
+    {
+      "name": "plan_year",
+      "type": "int64"
+    },
+    {
+      "name": "rank",
+      "type": "int32"
+    }
+  ],
+  "table:row_count": 248,
+  "title": "Plan status",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180.0,
+          -90.0,
+          180.0,
+          90.0
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "OCHA",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://hpc.tools/"
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "plan_status": {
+      "href": "./plan_status.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 1905,
+      "file:checksum": "1220a059bea03155c759ea4e455e84fd28abbb571b1ef708d02242152bd4215a16d7",
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}

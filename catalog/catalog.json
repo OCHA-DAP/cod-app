@@ -1,0 +1,43 @@
+{
+  "type": "Catalog",
+  "id": "cod-site",
+  "stac_version": "1.1.0",
+  "description": "Data behind the CODs site: partner admin boundaries and reference tables for the Boundaries Explorer in explorer/, and sample inputs for the tools in tools/. Agents should start at [AGENTS.md](AGENTS.md).",
+  "links": [
+    {
+      "rel": "root",
+      "href": "./catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "child",
+      "href": "./explorer/catalog.json",
+      "type": "application/json",
+      "title": "Boundaries Explorer data"
+    },
+    {
+      "rel": "child",
+      "href": "./tools/catalog.json",
+      "type": "application/json",
+      "title": "Tools sample data"
+    }
+  ],
+  "title": "COD site data",
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
+  ],
+  "updated": "2026-11-01T17:25:09Z"
+}

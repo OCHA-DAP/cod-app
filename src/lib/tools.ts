@@ -1,3 +1,5 @@
+import { toolsUrl } from "$lib/utils/data";
+
 export interface Tool {
   slug: string;
   name: string;
@@ -15,7 +17,7 @@ export const tools: Tool[] = [
       "Detect overlaps and gaps in a polygon coverage and clean them automatically, with an adjustable gap-width threshold.",
     iconHref: "/icons/tools/topo-clean.svg",
     demo: {
-      url: "https://data.source.coop/hdx/topo-tools/nld/demo/topo/nld_admin2.parquet",
+      url: toolsUrl("nld/demo/topo/nld_admin2.parquet"),
       gap: "thin",
     },
   },
@@ -33,8 +35,8 @@ export const tools: Tool[] = [
       "Match fine polygons to their best-overlapping coarse boundary (admin 4 into 3, admin 4 into 0, or any other pair), then extend each group to fit its boundary exactly.",
     iconHref: "/icons/tools/edge-match.svg",
     demo: {
-      input: "https://data.source.coop/hdx/topo-tools/nld/demo/edge/nld_admin2.parquet",
-      overlay: "https://data.source.coop/hdx/topo-tools/nld/demo/edge/nld_admin1.parquet",
+      input: toolsUrl("nld/demo/edge/nld_admin2.parquet"),
+      overlay: toolsUrl("nld/demo/edge/nld_admin1.parquet"),
     },
   },
   {
@@ -44,8 +46,8 @@ export const tools: Tool[] = [
       "Compare two versions of a polygon layer and classify each unit as unchanged, modified, merged, split, created, or removed.",
     iconHref: "/icons/tools/change.svg",
     demo: {
-      old: "https://data.source.coop/hdx/topo-tools/nld/demo/code/nld_admin2_2022.parquet",
-      new: "https://data.source.coop/hdx/topo-tools/nld/demo/code/nld_admin2_2023.parquet",
+      old: toolsUrl("nld/demo/code/nld_admin2_2022.parquet"),
+      new: toolsUrl("nld/demo/code/nld_admin2_2023.parquet"),
       "code-a": "adm2_code",
       "name-a": "adm2_name",
       "code-b": "adm2_code",
@@ -66,7 +68,7 @@ export const tools: Tool[] = [
       "Scan a polygon layer for gaps and overlaps and report them without fixing anything (read-only).",
     iconHref: "/icons/tools/topo-detect.svg",
     demo: {
-      url: "https://data.source.coop/hdx/topo-tools/nld/demo/topo/nld_admin2.parquet",
+      url: toolsUrl("nld/demo/topo/nld_admin2.parquet"),
     },
   },
   {
@@ -90,7 +92,7 @@ export const tools: Tool[] = [
       "Run Package Polygons, Package Points, and Package Lines against the same layer in one pass.",
     iconHref: "/icons/tools/package.svg",
     demo: {
-      url: "https://data.source.coop/hdx/topo-tools/nld/demo/package/nld_admin2.parquet",
+      url: toolsUrl("nld/demo/package/nld_admin2.parquet"),
       name: "adm{n}_name",
       code: "adm{n}_code",
     },
@@ -123,7 +125,7 @@ export const tools: Tool[] = [
       "Infer a polygon layer's admin hierarchy crosswalk, review and edit it in place, and apply it to download the renamed layer, the crosswalk CSV, or both.",
     iconHref: "/icons/tools/schema-map.svg",
     demo: {
-      url: "https://data.source.coop/hdx/topo-tools/nld/demo/schema-map/nld_admin2.parquet",
+      url: toolsUrl("nld/demo/schema-map/nld_admin2.parquet"),
     },
   },
   {
@@ -133,8 +135,8 @@ export const tools: Tool[] = [
       "Copy a join layer's admin hierarchy columns onto each input polygon by largest overlap, keeping conflicting values as numbered siblings.",
     iconHref: "/icons/tools/schema-join.svg",
     demo: {
-      input: "https://data.source.coop/hdx/topo-tools/nld/demo/schema-join/nld_admin2.parquet",
-      join: "https://data.source.coop/hdx/topo-tools/nld/demo/schema-join/nld_admin1.parquet",
+      input: toolsUrl("nld/demo/schema-join/nld_admin2.parquet"),
+      join: toolsUrl("nld/demo/schema-join/nld_admin1.parquet"),
     },
   },
   {
@@ -165,8 +167,8 @@ export const tools: Tool[] = [
       "Reconcile an already-coded layer against an uncoded candidate: retain codes for unchanged units, assign fresh ones for the rest.",
     iconHref: "/icons/tools/code-update.svg",
     demo: {
-      old: "https://data.source.coop/hdx/topo-tools/nld/demo/code/nld_admin2_2022.parquet",
-      new: "https://data.source.coop/hdx/topo-tools/nld/demo/code/nld_admin2_2023.parquet",
+      old: toolsUrl("nld/demo/code/nld_admin2_2022.parquet"),
+      new: toolsUrl("nld/demo/code/nld_admin2_2023.parquet"),
     },
   },
   {
@@ -183,7 +185,7 @@ export const tools: Tool[] = [
       "Check a coded layer's unit names for blanks, placeholders, duplicates under one parent, encoding errors and invisible characters, without changing anything.",
     iconHref: "/icons/tools/name-detect.svg",
     demo: {
-      url: "https://data.source.coop/hdx/topo-tools/nld/demo/names/nld_admin2.parquet",
+      url: toolsUrl("nld/demo/names/nld_admin2.parquet"),
     },
   },
   {
@@ -193,7 +195,7 @@ export const tools: Tool[] = [
       "Fix the name defects that can't change a name's meaning (spacing, invisible characters, Unicode normalization, encoding repairs) and report the rest for review.",
     iconHref: "/icons/tools/name-clean.svg",
     demo: {
-      url: "https://data.source.coop/hdx/topo-tools/nld/demo/names/nld_admin2.parquet",
+      url: toolsUrl("nld/demo/names/nld_admin2.parquet"),
     },
   },
   {

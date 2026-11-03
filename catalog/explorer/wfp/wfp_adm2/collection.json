@@ -1,0 +1,261 @@
+{
+  "type": "Collection",
+  "id": "explorer/wfp/wfp_adm2",
+  "stac_version": "1.1.0",
+  "description": "WFP admin 2 as GeoParquet, with polygon tiles, and label points at each unit's maximum inscribed circle in `wfp_adm2_labels.pmtiles`.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "../../TERMS.md",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "WFP"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./wfp_adm2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "wfp_adm2"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "updated": "2026-11-03T02:42:13Z",
+  "geoparquet:geometry_type": "MultiPolygon",
+  "geoparquet:feature_count": 40899,
+  "pmtiles:min_zoom": 0,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    0.3064019,
+    1.4396551,
+    5
+  ],
+  "pmtiles:layers": [
+    "wfp_adm2_labels"
+  ],
+  "table:row_count": 40899,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "objectid",
+      "type": "int32"
+    },
+    {
+      "name": "iso3",
+      "type": "string"
+    },
+    {
+      "name": "adm2_name",
+      "type": "string"
+    },
+    {
+      "name": "adm2_altnm",
+      "type": "string"
+    },
+    {
+      "name": "adm2_id",
+      "type": "int32"
+    },
+    {
+      "name": "adm1_name",
+      "type": "string"
+    },
+    {
+      "name": "adm1_id",
+      "type": "int32"
+    },
+    {
+      "name": "adm0_name",
+      "type": "string"
+    },
+    {
+      "name": "adm0_id",
+      "type": "int16"
+    },
+    {
+      "name": "mapclr",
+      "type": "string"
+    },
+    {
+      "name": "rb",
+      "type": "string"
+    },
+    {
+      "name": "disp_area",
+      "type": "string"
+    },
+    {
+      "name": "salb_id",
+      "type": "string"
+    },
+    {
+      "name": "source",
+      "type": "string"
+    },
+    {
+      "name": "source_id",
+      "type": "string"
+    },
+    {
+      "name": "source_date",
+      "type": "date32[day]"
+    },
+    {
+      "name": "lst_update",
+      "type": "date32[day]"
+    },
+    {
+      "name": "validity",
+      "type": "int16"
+    },
+    {
+      "name": "created_user",
+      "type": "string"
+    },
+    {
+      "name": "last_edited_user",
+      "type": "string"
+    },
+    {
+      "name": "gdb_geomattr_data",
+      "type": "string"
+    },
+    {
+      "name": "globalid",
+      "type": "string"
+    },
+    {
+      "name": "hover_id",
+      "type": "int64"
+    },
+    {
+      "name": "geometry",
+      "type": "binary"
+    }
+  ],
+  "title": "WFP admin 2",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180.0,
+          -89.90000152599998,
+          180.0,
+          83.627419
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "other",
+  "providers": [
+    {
+      "name": "World Food Programme (WFP)",
+      "roles": [
+        "producer",
+        "licensor"
+      ]
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "wfp_adm2_labels": {
+      "href": "./wfp_adm2_labels.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 67949592,
+      "file:checksum": "12201e6d91ec66f0644c019fd1cb0cedc6de3751ab01f0333378eb73329a679c8034",
+      "roles": [
+        "data"
+      ]
+    },
+    "wfp_adm2-tiles": {
+      "href": "./wfp_adm2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 493939484,
+      "file:checksum": "1220ac51a9b5ac124de6e8172316bdf20c25a19d63f008241b24ca9a49237e62fa1f",
+      "roles": [
+        "data"
+      ]
+    },
+    "wfp_adm2": {
+      "href": "./wfp_adm2.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 536716625,
+      "file:checksum": "1220c508dfe61defdfa82f69c5594e29cfc2725e81b5c56709dd65d25fc0d8f46cc0",
+      "roles": [
+        "data"
+      ]
+    },
+    "documentation": {
+      "href": "./README.md",
+      "type": "text/markdown",
+      "file:size": 2016,
+      "file:checksum": "1220741261266b6c86cde4ecf12f8a3f5711727df8aca23c2219a066016a0f178542",
+      "roles": [
+        "documentation"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "title": "Default",
+      "file:size": 457,
+      "file:checksum": "12204f4be605304752d50629d56fb6cc224224a4cb49ebed19a69f3b133d92f944dc",
+      "roles": [
+        "style",
+        "default"
+      ]
+    },
+    "thumbnail": {
+      "href": "./wfp_adm2.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 14486,
+      "file:checksum": "1220fc503a22458567f7b8aa5eee1a1bbf5100c3fd30b96d6112a12360fb4c9ed9c3",
+      "roles": [
+        "thumbnail"
+      ]
+    }
+  }
+}

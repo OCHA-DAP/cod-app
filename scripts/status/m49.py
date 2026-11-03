@@ -1,14 +1,9 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["requests"]
-# ///
-
 import csv
 import re
 import sys
 from pathlib import Path
 
-import requests
+from shared import http
 
 OUTPUT_DIR = Path(__file__).parents[2] / "public" / "status" / "data"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -18,8 +13,7 @@ URL = "https://unstats.un.org/unsd/methodology/m49/overview/"
 TABLE_ID = "downloadTableEN"
 
 print(f"Fetching {URL} ...")
-res = requests.get(URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
-res.raise_for_status()
+res = http.get(URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
 html = res.text
 
 # Extract the target table's HTML

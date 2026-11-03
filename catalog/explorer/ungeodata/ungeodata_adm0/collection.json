@@ -1,0 +1,205 @@
+{
+  "type": "Collection",
+  "id": "explorer/ungeodata/ungeodata_adm0",
+  "stac_version": "1.1.0",
+  "description": "UN Geodata 1M country outlines as GeoParquet, with polygon tiles.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "../../TERMS.md",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "UN Geodata"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./ungeodata_adm0.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "ungeodata_adm0"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "updated": "2026-11-03T02:41:56Z",
+  "geoparquet:geometry_type": "MultiPolygon",
+  "geoparquet:feature_count": 260,
+  "pmtiles:min_zoom": 0,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    0.0,
+    -0.7118551,
+    5
+  ],
+  "pmtiles:layers": [
+    "ungeodata_adm0"
+  ],
+  "table:row_count": 260,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "objectid",
+      "type": "int64"
+    },
+    {
+      "name": "iso3cd",
+      "type": "string"
+    },
+    {
+      "name": "romnam",
+      "type": "string"
+    },
+    {
+      "name": "maplab",
+      "type": "string"
+    },
+    {
+      "name": "contcd",
+      "type": "string"
+    },
+    {
+      "name": "stscod",
+      "type": "int16"
+    },
+    {
+      "name": "typ005",
+      "type": "int16"
+    },
+    {
+      "name": "typ025",
+      "type": "int16"
+    },
+    {
+      "name": "del025",
+      "type": "int16"
+    },
+    {
+      "name": "isoclr",
+      "type": "string"
+    },
+    {
+      "name": "globalid",
+      "type": "string"
+    },
+    {
+      "name": "geometry",
+      "type": "binary"
+    }
+  ],
+  "title": "UN Geodata country outlines",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180.0,
+          -89.90000152599998,
+          180.0,
+          83.627419
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "other",
+  "providers": [
+    {
+      "name": "United Nations Geospatial",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.un.org/geospatial/"
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "ungeodata_adm0-tiles": {
+      "href": "./ungeodata_adm0.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 101518010,
+      "file:checksum": "12202f61302928a18f8f61a73b2b95f1ed0cb89a837069f68470e5c01c110f69054d",
+      "roles": [
+        "data"
+      ]
+    },
+    "ungeodata_adm0": {
+      "href": "./ungeodata_adm0.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 60891868,
+      "file:checksum": "1220e52d78909c3c2be22682df0afb7b50f14b2b58bd69cb73c64d7998dca99c81a2",
+      "roles": [
+        "data"
+      ]
+    },
+    "documentation": {
+      "href": "./README.md",
+      "type": "text/markdown",
+      "file:size": 1579,
+      "file:checksum": "1220d1cf63c613b8ea3db4af5d2fb18b8aeeb91d7b07f1975a18d2178668a3b692aa",
+      "roles": [
+        "documentation"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "title": "Default",
+      "file:size": 474,
+      "file:checksum": "122093042cbb0e359c54e1fab46f1497b70aa7ed8f738ab6b0914b8d06f07100a4af",
+      "roles": [
+        "style",
+        "default"
+      ]
+    },
+    "thumbnail": {
+      "href": "./ungeodata_adm0.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 15128,
+      "file:checksum": "12206371c8faa92ef35334c6e2fed32d56393e3f42fadae218d6d015d2ed626f1b0a",
+      "roles": [
+        "thumbnail"
+      ]
+    }
+  }
+}

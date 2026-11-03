@@ -1,0 +1,22 @@
+title: Netherlands demo inputs
+description: Input layers for trying each topo-tools tool on Dutch boundaries. Each folder is named after the tool or tool family it's for and holds the files that tool takes, simplified to 100 m. Running a tool on its input produces the output, which is never stored here. See [AGENTS.md](AGENTS.md).
+keywords:
+- administrative boundaries
+- Netherlands
+- CBS
+- topo-tools
+providers:
+- name: Statistics Netherlands (CBS)
+  roles:
+  - producer
+  - licensor
+  url: https://www.cbs.nl/en-gb
+- name: Kadaster
+  roles:
+  - producer
+  - licensor
+  url: https://www.kadaster.nl/
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues

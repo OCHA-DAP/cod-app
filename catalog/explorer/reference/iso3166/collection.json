@@ -1,0 +1,113 @@
+{
+  "type": "Collection",
+  "id": "explorer/reference/iso3166",
+  "stac_version": "1.1.0",
+  "description": "ISO 3166-2 subdivision counts per location, from Debian's iso-codes.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "../../TERMS.md",
+      "title": "License"
+    },
+    {
+      "rel": "via",
+      "href": "https://salsa.debian.org/iso-codes-team/iso-codes",
+      "type": "text/html",
+      "title": "Original source"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json"
+  ],
+  "updated": "2026-11-01T19:41:49Z",
+  "table:columns": [
+    {
+      "name": "iso3",
+      "type": "string"
+    },
+    {
+      "name": "iso2",
+      "type": "string"
+    },
+    {
+      "name": "subdivision_count",
+      "type": "int64"
+    }
+  ],
+  "table:row_count": 248,
+  "title": "Iso3166",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180.0,
+          -90.0,
+          180.0,
+          90.0
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "other",
+  "providers": [
+    {
+      "name": "Debian iso-codes",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://salsa.debian.org/iso-codes-team/iso-codes"
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "iso3166": {
+      "href": "./iso3166.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 1941,
+      "file:checksum": "1220d547def95ef991449c08d7bb3b8c93f3610ae162e0a6c1d5448b274f06d26619",
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}

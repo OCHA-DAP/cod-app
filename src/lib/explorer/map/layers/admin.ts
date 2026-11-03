@@ -1,4 +1,5 @@
 import type * as maplibregl from "maplibre-gl";
+import { adminTiles } from "$lib/explorer/sources";
 import { MAP_COLORS, MAP_STATUS_OPACITY, MAP_TINT_OPACITY } from "$lib/utils/mapColors";
 
 export const ADMIN_LEVELS = [1, 2, 3, 4] as const;
@@ -12,7 +13,7 @@ export function adminLayersForSource(
   countryCodeField: string,
 ): maplibregl.LayerSpecification[] {
   const source = `${sourceId}-adm${level}`;
-  const sourceLayer = `${sourceId}_adm${level}`;
+  const { layer: sourceLayer, labelsLayer } = adminTiles(sourceId, level);
   return [
     {
       id: `${sourceId}-adm${level}-fill`,
@@ -39,7 +40,7 @@ export function adminLayersForSource(
       "source-layer": sourceLayer,
       // Scoped to the selected country like -fill/-line; which feature within
       // that is highlighted is driven by feature-state (see hover-admin.ts),
-      // keyed off the source's promoted hover_id.
+      // keyed off the source's promoted id (see adminTiles).
       filter: ["==", ["get", countryCodeField], ""],
       layout: { visibility: "none" },
       paint: {
@@ -61,7 +62,7 @@ export function adminLayersForSource(
       id: `${sourceId}-adm${level}-label`,
       type: "symbol",
       source: `${sourceId}-adm${level}-labels`,
-      "source-layer": `${sourceId}_adm${level}_labels`,
+      "source-layer": labelsLayer,
       filter: ["==", ["get", countryCodeField], ""],
       layout: {
         visibility: "none",

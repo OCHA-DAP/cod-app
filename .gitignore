@@ -34,3 +34,12 @@ src/content/docs/tools/docs
 public/status/data/
 
 scripts/add-geom-ids.mjs
+
+# Catalog data; its metadata is committed
+catalog/**/*.parquet
+catalog/**/*.pmtiles
+catalog/**/*.thumb.*
+catalog/**/.portolan/.versions.lock
+catalog/**/.state/
+.venv/
+__pycache__/

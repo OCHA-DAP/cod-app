@@ -1,0 +1,76 @@
+{
+  "type": "Catalog",
+  "id": "tools/nld/demo",
+  "stac_version": "1.1.0",
+  "title": "Netherlands demo inputs",
+  "description": "Input layers for trying each topo-tools tool on Dutch boundaries. Each folder is named after the tool or tool family it's for and holds the files that tool takes, simplified to 100 m. Running a tool on its input produces the output, which is never stored here. See [AGENTS.md](AGENTS.md).",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "child",
+      "href": "./code/collection.json",
+      "type": "application/json",
+      "title": "Gemeenten 2022 and 2023 for code-update"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "child",
+      "href": "./edge/collection.json",
+      "type": "application/json",
+      "title": "Gemeenten and provincies 2025 for edge-match"
+    },
+    {
+      "rel": "child",
+      "href": "./names/collection.json",
+      "type": "application/json",
+      "title": "Gemeenten 2025 with name errors"
+    },
+    {
+      "rel": "child",
+      "href": "./package/collection.json",
+      "type": "application/json",
+      "title": "Gemeenten 2025 for package"
+    },
+    {
+      "rel": "child",
+      "href": "./schema-join/collection.json",
+      "type": "application/json",
+      "title": "Gemeenten and provincies 2025"
+    },
+    {
+      "rel": "child",
+      "href": "./schema-map/collection.json",
+      "type": "application/json",
+      "title": "Gemeenten 2025"
+    },
+    {
+      "rel": "child",
+      "href": "./topo/collection.json",
+      "type": "application/json",
+      "title": "Gemeenten 2025 with digitization errors"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
+  ]
+}

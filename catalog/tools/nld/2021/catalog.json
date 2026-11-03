@@ -1,0 +1,52 @@
+{
+  "type": "Catalog",
+  "id": "tools/nld/2021",
+  "stac_version": "1.1.0",
+  "title": "2021",
+  "description": "CBS Wijk- en Buurtkaart 2021: gemeenten (admin2), wijken (admin3) and buurten (admin4).",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "child",
+      "href": "./nld_admin2/collection.json",
+      "type": "application/json",
+      "title": "Netherlands admin2 (gemeenten) 2021"
+    },
+    {
+      "rel": "child",
+      "href": "./nld_admin3/collection.json",
+      "type": "application/json",
+      "title": "Netherlands admin3 (wijken) 2021"
+    },
+    {
+      "rel": "child",
+      "href": "./nld_admin4/collection.json",
+      "type": "application/json",
+      "title": "Netherlands admin4 (buurten) 2021"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "type": "Collection",
+  "id": "tools/nld/demo/names",
+  "stac_version": "1.1.0",
+  "description": "The `package` layer with six gemeente names edited, in OGC:CRS84. Each edit is one kind of name-detect finding: an encoding artifact, decomposed accents, a double space, non-breaking spaces, a name in capitals and a case-variant duplicate. Running name-detect reports all six. Running name-clean fixes the first four and leaves the other two for review. See [AGENTS.md](AGENTS.md).",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "https://creativecommons.org/licenses/by/4.0/",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "Netherlands demo inputs"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./nld_admin2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "nld_admin2"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "geoparquet:geometry_type": "Polygon",
+  "geoparquet:feature_count": 342,
+  "pmtiles:min_zoom": 0,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    5.2676633,
+    52.1633953,
+    5
+  ],
+  "pmtiles:layers": [
+    "nld_admin2"
+  ],
+  "table:row_count": 342,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "geometry",
+      "type": "binary",
+      "description": "Polygon or MultiPolygon in OGC:CRS84, simplified to 100 m in OGC:CRS84 (RD New) with `ST_CoverageSimplify` so neighbours keep shared edges."
+    },
+    {
+      "name": "adm0_code",
+      "type": "string",
+      "description": "Country code, always `NL`."
+    },
+    {
+      "name": "adm0_name",
+      "type": "string",
+      "description": "Country name, always `Nederland`."
+    },
+    {
+      "name": "adm1_code",
+      "type": "string",
+      "description": "Provincie code: `PV` plus 2 digits, from Kadaster (`identificatie`)."
+    },
+    {
+      "name": "adm1_name",
+      "type": "string",
+      "description": "Provincie name, from Kadaster."
+    },
+    {
+      "name": "adm2_code",
+      "type": "string",
+      "description": "Gemeente code: `GM` plus 4 digits, from CBS."
+    },
+    {
+      "name": "adm2_name",
+      "type": "string",
+      "description": "Official gemeente name, from CBS, with the edits listed in AGENTS.md."
+    }
+  ],
+  "updated": "2026-11-03T10:34:27Z",
+  "title": "Gemeenten 2025 with name errors",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          3.3079377,
+          50.750367,
+          7.227389,
+          53.57642327126048
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2025-01-01T00:00:00Z",
+          "2025-01-01T00:00:00Z"
+        ]
+      ]
+    }
+  },
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "Statistics Netherlands (CBS)",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.cbs.nl/en-gb"
+    },
+    {
+      "name": "Kadaster",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.kadaster.nl/"
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "thumbnail": {
+      "href": "./nld_admin2.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 17459,
+      "file:checksum": "1220e5dd98cdb9769ffa8cb867ff6ac265fa95634f8fbd6749d7197cdbeeab32db61",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "title": "Default",
+      "file:size": 462,
+      "file:checksum": "12208612f3f78f31e3a32b7f4b5c0cb4769a0367210b160fbac25e742094dff082d9",
+      "roles": [
+        "style",
+        "default"
+      ]
+    },
+    "nld_admin2-tiles": {
+      "href": "./nld_admin2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 667636,
+      "file:checksum": "1220802ed0c98e39c71bcf4c4b5ac39f08a8c8f009efe30c5558cae7c241d427ef6d",
+      "roles": [
+        "data"
+      ]
+    },
+    "nld_admin2": {
+      "href": "./nld_admin2.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 657898,
+      "file:checksum": "12204f441ffb08195a6161f588972cd09af9900f6bfe359fa474d7832673a2e513dc",
+      "roles": [
+        "data"
+      ]
+    },
+    "documentation": {
+      "href": "./README.md",
+      "type": "text/markdown",
+      "file:size": 2715,
+      "file:checksum": "1220cd6195ebd7d939224ac70c0999d1e192c074b4bb157e0804dbce6b23c0263b6e",
+      "roles": [
+        "documentation"
+      ]
+    }
+  }
+}

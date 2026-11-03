@@ -1,0 +1,26 @@
+title: Gemeenten 2025
+description: The 342 land gemeenten from the CBS Wijk- en Buurtkaart 2025, in OGC:CRS84 with the CBS column names. Boundaries are simplified to 100 m, with neighbouring gemeenten still sharing their edges. The provincie code and name come from CBS StatLine table 86059NED (Gebieden in Nederland 2025). Running schema-map on it maps the gemeente columns to adm2 and the provincie columns to adm1. It drops `landcode`, `landnaam`, `water` and `jaar` because each holds a single value. See [AGENTS.md](AGENTS.md).
+keywords:
+- administrative boundaries
+- Netherlands
+- CBS
+- gemeenten
+- provincies
+- topo-tools
+- schema-map
+processing_notes: 'Built by `scripts/catalog/tools/build_demo.py` in [cod-site](https://github.com/OCHA-DAP/cod-site) from the land rows of `nld/2025/nld_admin2`: `ST_CoverageSimplify` at 100 m, then `ST_CoverageClean` with 0.01 m snapping and no gap filling. Provincie columns joined on `gemeentecode` from the CBS StatLine [OData table 86059NED](https://opendata.cbs.nl/ODataApi/odata/86059NED/TypedDataSet?$format=json&$select=RegioS,Code_28,Naam_29).'
+providers:
+- name: Statistics Netherlands (CBS)
+  roles:
+  - producer
+  - licensor
+  url: https://www.cbs.nl/en-gb
+- name: Kadaster
+  roles:
+  - producer
+  - licensor
+  url: https://www.kadaster.nl/
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues

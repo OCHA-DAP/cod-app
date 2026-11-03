@@ -1,0 +1,150 @@
+{
+  "spec_version": "1.0.0",
+  "current_version": "1.5.0",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "created": "2026-11-01T17:27:57.039775Z",
+      "breaking": false,
+      "assets": {
+        "source_comparison.parquet": {
+          "sha256": "d5f49b08ddd5df5f776d9ab27c061d3bfb8976aee8cbc8fe4ec27427ff15eb43",
+          "size_bytes": 54796,
+          "href": "explorer/reference/source_comparison/source_comparison.parquet",
+          "mtime": 1792628983.6880322
+        }
+      },
+      "changes": [
+        "source_comparison.parquet"
+      ],
+      "schema": {
+        "type": "unknown",
+        "fingerprint": {
+          "columns": [],
+          "types": {}
+        }
+      },
+      "message": ""
+    },
+    {
+      "version": "1.1.0",
+      "created": "2026-11-01T19:13:53.754735Z",
+      "breaking": false,
+      "assets": {
+        "source_comparison.parquet": {
+          "sha256": "20d03454503b39b2312f502f714e2fd9afbf1af4a55406259d97baf688d3c46c",
+          "size_bytes": 58650,
+          "href": "explorer/reference/source_comparison/source_comparison.parquet",
+          "mtime": 1793560337.9613714
+        }
+      },
+      "changes": [
+        "source_comparison.parquet"
+      ],
+      "schema": {
+        "type": "unknown",
+        "fingerprint": {
+          "columns": [],
+          "types": {}
+        }
+      },
+      "message": ""
+    },
+    {
+      "version": "1.2.0",
+      "created": "2026-11-01T19:17:51.513356Z",
+      "breaking": false,
+      "assets": {
+        "source_comparison.parquet": {
+          "sha256": "d5f49b08ddd5df5f776d9ab27c061d3bfb8976aee8cbc8fe4ec27427ff15eb43",
+          "size_bytes": 54796,
+          "href": "explorer/reference/source_comparison/source_comparison.parquet",
+          "mtime": 1792628983.6880322
+        }
+      },
+      "changes": [
+        "source_comparison.parquet"
+      ],
+      "schema": {
+        "type": "unknown",
+        "fingerprint": {
+          "columns": [],
+          "types": {}
+        }
+      },
+      "message": ""
+    },
+    {
+      "version": "1.3.0",
+      "created": "2026-11-02T05:24:22.353561Z",
+      "breaking": false,
+      "assets": {
+        "source_comparison.parquet": {
+          "sha256": "629fc634708db7542a3a3623146a8ad72714f9b21a3b9f5e381dec3ecd11d8b7",
+          "size_bytes": 57585,
+          "href": "explorer/reference/source_comparison/source_comparison.parquet",
+          "mtime": 1793597005.173797
+        }
+      },
+      "changes": [
+        "source_comparison.parquet"
+      ],
+      "schema": {
+        "type": "unknown",
+        "fingerprint": {
+          "columns": [],
+          "types": {}
+        }
+      },
+      "message": ""
+    },
+    {
+      "version": "1.4.0",
+      "created": "2026-11-02T16:38:56.644203Z",
+      "breaking": false,
+      "assets": {
+        "source_comparison.parquet": {
+          "sha256": "3049574b894fdda008dbf0db19b0220264c57941735a47e7c0337781dcf42901",
+          "size_bytes": 57573,
+          "href": "explorer/reference/source_comparison/source_comparison.parquet",
+          "mtime": 1793637336.9935317
+        }
+      },
+      "changes": [
+        "source_comparison.parquet"
+      ],
+      "schema": {
+        "type": "unknown",
+        "fingerprint": {
+          "columns": [],
+          "types": {}
+        }
+      },
+      "message": ""
+    },
+    {
+      "version": "1.5.0",
+      "created": "2026-11-03T02:41:53.487126Z",
+      "breaking": false,
+      "assets": {
+        "source_comparison.parquet": {
+          "sha256": "b4e856dbf29cd864acf954da237b62e428d1c27ed1c7430c2a43f5a7578f2339",
+          "size_bytes": 57628,
+          "href": "explorer/reference/source_comparison/source_comparison.parquet",
+          "mtime": 1793673704.4561334
+        }
+      },
+      "changes": [
+        "source_comparison.parquet"
+      ],
+      "schema": {
+        "type": "unknown",
+        "fingerprint": {
+          "columns": [],
+          "types": {}
+        }
+      },
+      "message": ""
+    }
+  ]
+}
