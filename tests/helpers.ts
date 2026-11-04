@@ -67,3 +67,12 @@ export async function loadFixture(url: string, filename: string, prefix = ""): P
   const blob = await (await fetch(url)).blob();
   await loadFile(instance, conn, [new File([blob], filename)], prefix ? { prefix } : undefined);
 }
+
+// Splits a SELECT with a geom column into the loader's layer_01 (fid, geom) + layer_attr.
+export async function layer(select: string, prefix = ""): Promise<void> {
+  await run(
+    `CREATE OR REPLACE TABLE _layer AS SELECT row_number() OVER () AS fid, * FROM (${select})`,
+  );
+  await run(`CREATE OR REPLACE TABLE ${prefix}layer_01 AS SELECT fid, geom FROM _layer`);
+  await run(`CREATE OR REPLACE TABLE ${prefix}layer_attr AS SELECT * EXCLUDE (geom) FROM _layer`);
+}
