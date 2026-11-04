@@ -1,16 +1,11 @@
 import { beforeAll, describe, expect, test } from "vitest";
-import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+import { initDuckDB } from "$lib/db/duckdb.svelte";
 import { listFormats, runExport, type ExportFormat } from "$lib/db/export";
 import { loadFile } from "$lib/db/loader";
 import tinyUrl from "./fixtures/clean/tiny.geojson?url";
+import { db } from "./helpers";
 
 const FEATURES = 6;
-
-function db() {
-  const { db, conn } = duckdbState;
-  if (!db || !conn) throw new Error(duckdbState.initError ?? "DuckDB not ready");
-  return { db, conn };
-}
 
 // Loads an exported file back through the app's loader: row count, names and non-empty geometries.
 async function readBack(blob: Blob, filename: string) {
