@@ -7,7 +7,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
 
 - `schema-join` MUST load one input layer and one join layer via the shared
   loader (see `docs/reference/shared.md`), from DropZones keyed `input` and
-  `join`.
+  `join`, and MUST raise if either layer overlaps itself (see
+  `docs/reference/shared.md`, Coverage-topology checks).
 - `schema-join` MAY take a `nameField`/`codeField` pair (each containing a
   `{n}` placeholder), enabled with "Use naming templates". When given, the
   join layer's hierarchy columns MUST be every column in a `{n}`-numbered

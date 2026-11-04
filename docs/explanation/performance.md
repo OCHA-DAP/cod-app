@@ -28,9 +28,8 @@ still throws propagates, matching topo-tools
 Its per-fid dissolve retries a failing fid's union on a 1e-11° grid
 ([`0038`](../adr/0038-extend-merge-union-grid-fallback.md)).
 `src/lib/db/overlap.ts`'s `intersectPairs`, behind `computeOverlapPairs`
-(Edge Matcher, Changelog, Code Update, Schema Join), assign-one and the clip
-engine (Clip, Mosaic, Edge Matcher's per-group clip), and the shared overlap
-check (Detect, Topology Cleaner), runs its exact `ST_Intersection` set-based
+(Edge Matcher, Changelog, Code Update, Schema Join), assign-one, and the
+shared overlap check (Detect, Topology Cleaner), runs its exact `ST_Intersection` set-based
 first; if that throws, it recomputes pair by pair and snaps only the failing
 pairs at `SNAP_TOLERANCE`, which reproduces native areas to ~1e-10 relative,
 and a pair the snap doesn't rescue is intersected on a 1e-11° grid

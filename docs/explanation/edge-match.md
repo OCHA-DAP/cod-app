@@ -13,14 +13,17 @@ an optional code-based assignment override is available (see below).
 
 ## Pipeline
 
-1. **Load** (`pipeline/load.ts`) — load both layers, then proactively clean
-   each with a gated `ST_CoverageClean` (see
-   [`0012`](../adr/0012-match-cleans-parent-and-child-inputs-on-load.md)).
-   Real source data commonly carries pre-existing seam imprecision that this
-   pipeline's later per-group clip step has no way to fix downstream.
-2. **Assign** (`pipeline/assign.ts`), in assign-one mode runs Clip's `assignOne`
-   (`docs/explanation/edge-clip.md`), assigning every input polygon, overlapping
-   or not, to the majority-vote winner. Auto mode runs the same vote, then
+1. **Load** (`pipeline/load.ts`): load both layers, close the input's
+   notches, then clean the input with a gated `ST_CoverageClean` (see
+   [`0012`](../adr/0012-match-cleans-parent-and-child-inputs-on-load.md)),
+   since a defect between input polygons that land in different groups is
+   invisible to each group's own clean. The overlay loads raw, as in
+   topo-tools, and the run stops if it overlaps itself (`checkNoOverlaps`):
+   an input polygon can't be clipped to two overlapping boundaries.
+2. **Assign** (`pipeline/assign.ts`), in assign-one mode runs `assignOne`
+   (`$lib/db/assignOne.ts`, the vote Mosaic uses, see
+   `docs/explanation/edge-mosaic.md`), assigning every input polygon,
+   overlapping or not, to the majority-vote winner. Auto mode runs the same vote, then
    switches to per-polygon when fewer than half the input polygons overlap
    the winner. In per-polygon mode it
    instead computes area-overlap pairs between every input polygon and
@@ -42,32 +45,36 @@ an optional code-based assignment override is available (see below).
    The extended result is checked against its own pre-extension subset by
    the shared no-erosion guard (`docs/reference/shared.md`) as a hard
    failure, then clipped against the known overlay polygon geometry by the
-   shared clip engine (`src/lib/db/clipEngine.ts`, the same one Clip and
-   Mosaic use, as in topo-tools), except the passthrough group, which
+   shared clip engine (`src/lib/db/clipEngine.ts` over
+   `src/lib/db/clipTiles.ts`'s overlay tiles, the same one Mosaic uses, as
+   in topo-tools), except the passthrough group, which
    has no real overlay polygon boundary and lands in `ge_results` unclipped.
    Each clipped group's detached pieces are merged or kept against the
    whole pre-extension input (`input_layer_01`, see
-   `docs/explanation/edge-clip.md`), accumulating rows in `ge_detached`.
+   `docs/explanation/edge-mosaic.md`), accumulating rows in `ge_detached`.
    An extended input polygon whose clip comes out empty is recorded in
    `ge_clip_empty`, which in assign-one mode is every input polygon lying
    outside the winning overlay polygon. A
    failing group's input polygons are recorded in `ge_dropped` (with the overlay polygon
    fid and error message) rather than aborting the whole batch.
-4. **Assemble** (`pipeline/index.ts`) — join clipped group results into
-   `ge_results`, export it, then attempt a single gated
-   `ST_CoverageClean` over the whole assembled batch (catches cross-group
-   seams no per-group clean could see) and re-export if it succeeds. Export
-   runs _before_ attempting this final clean specifically so a clean
-   failure can never lose an already-correct result — see
-   [`0008`](../adr/0008-wasm-coverageclean-oom-ceiling-mitigated-not-fixed.md).
+4. **Clean** (`pipeline/index.ts`): `coverageCleanRows` merges
+   micro-polygons, then runs one gated `ST_CoverageClean` over every clipped
+   row, closing the seams between groups. Passthrough rows are held out of
+   the clean and every later check, since an extended orphan overlaps its
+   neighbours by design and would otherwise take area from a matched row.
+   Each pair of rows whose edges still don't match is then reported as an
+   `invalid-edge` issue (see "Seams" below).
 
 ## Issues export
 
 `ge_unassigned` (input polygons left without an overlay polygon), `ge_dropped` (input polygons
 whose whole group's extension failed), `ge_clip_empty` (input polygons
-clipped to nothing) and `ge_detached` (clip-detached pieces) are combined
-into one `ge_issues` table, each row tagged with a `kind` (`unassigned`,
-`dropped_group`, `clip-empty` or `detached-part`) and,
+clipped to nothing), `ge_detached` (clip-detached pieces), `ge_micro`
+(merged micro-polygons), `ge_invalid` (row pairs whose edges don't match)
+and the remaining gaps inside the clip targets are combined into one
+`ge_issues` table, each row tagged with a `kind` (`unassigned`,
+`dropped_group`, `clip-empty`, `detached-part`, `micro-polygon`,
+`invalid-edge` or `gap`) and,
 for dropped groups, the overlay polygon fid and the error that caused the drop. When
 the passthrough toggle is on and a formerly-unassigned input polygon made it through
 its pseudo-group into `ge_results`, it's also surfaced as a `passthrough`
@@ -92,7 +99,7 @@ to the spatial result. Both outcomes are recorded on `ge_assignment`
 `unassigned`/`dropped_group` kinds. Ported from topo-tools'
 `core/assign`; see `docs/adr/0029` and `docs/reference/shared.md` for the
 full contract, and `src/lib/db/codeJoin.ts` for the shared implementation
-`edge-mosaic` and `edge-clip` also use.
+`edge-mosaic` also uses.
 
 ## Overlap computation
 
@@ -101,15 +108,13 @@ Update, and Schema Join) computes overlap via exact `ST_Intersection`, with a
 per-pair snap fallback for the WASM-only GEOS robustness failure described in
 [`docs/explanation/performance.md`](performance.md#wasm-geos-overlayng-floating-point-divergence).
 
-## Cross-group boundary seams
+## Seams
 
-Because each group's extension is clipped independently against its own
-overlay polygon, adjacent groups' clipped edges can end up sampling the same
-physical boundary line at different vertex densities — a real but
-zero-area-cost defect that strict vertex-exact validators (QGIS's Topology
-Checker, `ST_CoverageInvalidEdges_Agg`) flag as "gaps" even though total
-area is exactly conserved. This is a deliberate accepted tradeoff, not an
-unfixed bug — see
-[`0011`](../adr/0011-near-miss-cross-group-edges-accepted-as-cosmetic.md)
-for the full investigation and why a coarse-layer rebuild or global
-`ST_Snap` wasn't adopted.
+Each group is extended and clipped on its own, so where two groups' input
+borders cross the overlay boundary at different points, the clipped rows on
+either side sample that boundary with different vertices. The final clean
+snaps them into one shared edge. The "Skip the final clean" option leaves
+that pass out for layers too large to clean in browser memory, and the seams
+are then listed as `invalid-edge` issues instead, with no gap rows. A
+clean that leaves a seam behind is reported the same way rather than
+failing the run; see [`0054`](../adr/0054-edge-clips-are-plain-with-a-final-coverage-clean.md).
