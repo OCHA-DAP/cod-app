@@ -1,6 +1,6 @@
 import { asyncBufferFromUrl, parquetRead } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
-import { parquetUrl } from "./url";
+import { referenceUrl } from "$lib/utils/data";
 
 export interface MapboxBoundaries {
   iso3: string;
@@ -13,7 +13,7 @@ let mapboxBoundariesPromise: Promise<Map<string, MapboxBoundaries>> | null = nul
 export function getAllMapboxBoundaries(): Promise<Map<string, MapboxBoundaries>> {
   if (!mapboxBoundariesPromise) {
     mapboxBoundariesPromise = (async () => {
-      const asyncBuffer = await asyncBufferFromUrl({ url: parquetUrl("mapbox_boundaries") });
+      const asyncBuffer = await asyncBufferFromUrl({ url: referenceUrl("mapbox_boundaries") });
       return new Promise<Map<string, MapboxBoundaries>>((resolve) => {
         parquetRead({
           file: asyncBuffer,

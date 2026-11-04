@@ -1,15 +1,10 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["requests"]
-# ///
-
 import csv
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
+from shared import http
 
 # Load .env if present (for local development)
 dotenv = Path(__file__).parents[2] / ".env"
@@ -39,7 +34,7 @@ FEATURE_URL = f"{BASE_URL}/server/rest/services/Hosted/COD_Global_Metadata/Featu
 
 
 def get_token() -> str:
-    res = requests.post(
+    res = http.post(
         f"{BASE_URL}/portal/sharing/rest/generateToken",
         data={
             "username": username,
@@ -51,7 +46,6 @@ def get_token() -> str:
         headers=HEADERS,
         timeout=30,
     )
-    res.raise_for_status()
     data = res.json()
     if "error" in data:
         print(f"Token error: {data['error']}", file=sys.stderr)
@@ -67,7 +61,7 @@ def fetch_all_records(token: str) -> list[dict]:
     offset = 0
     page_size = 1000
     while True:
-        res = requests.get(
+        res = http.get(
             f"{FEATURE_URL}/query",
             params={
                 "where": "1=1",
@@ -80,7 +74,6 @@ def fetch_all_records(token: str) -> list[dict]:
             headers=HEADERS,
             timeout=30,
         )
-        res.raise_for_status()
         data = res.json()
         if "error" in data:
             print(f"Query error: {data['error']}", file=sys.stderr)

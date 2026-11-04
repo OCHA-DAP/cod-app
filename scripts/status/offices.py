@@ -1,8 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["requests"]
-# ///
-
 """
 offices.py
 
@@ -27,7 +22,8 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-import requests
+from httpx2 import HTTPError
+from shared import http
 
 OUTPUT_DIR = Path(__file__).parents[2] / "public" / "status" / "data"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -235,9 +231,8 @@ def query_table(table: str, columns: list[str]) -> list[list]:
     }
 
     try:
-        res = requests.post(url, json=body, headers=headers, timeout=20)
-        res.raise_for_status()
-    except requests.RequestException as err:
+        res = http.post(url, json=body, headers=headers, timeout=20)
+    except HTTPError as err:
         raise RuntimeError(f'querydata failed for "{table}": {err}') from err
 
     data = res.json()

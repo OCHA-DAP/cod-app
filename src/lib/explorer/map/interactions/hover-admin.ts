@@ -1,5 +1,5 @@
 import { labelsEnabled, selectedAdmin, selectedSource } from "$lib/explorer/map/store";
-import { ADMIN_SOURCES } from "$lib/explorer/sources";
+import { ADMIN_SOURCES, adminTiles } from "$lib/explorer/sources";
 import * as maplibregl from "maplibre-gl";
 import { get } from "svelte/store";
 
@@ -41,10 +41,7 @@ export function addAdminHoverInteraction(map: maplibregl.Map): void {
     maxWidth: "260px",
   });
 
-  // Hover highlighting is driven by feature-state keyed off each admin
-  // source's promoted hover_id (a plain per-row index, computed at download
-  // time — see scripts/*.sh), so it's always unique to one row regardless
-  // of how reliable a given source's own admin-code fields are.
+  // Hover highlighting is feature-state keyed off each source's promoted unique id (see adminTiles).
   let hoveredId: string | number | null = null;
   let hoveredSourceId: string | null = null;
   let hoveredSourceLayer: string | null = null;
@@ -93,7 +90,7 @@ export function addAdminHoverInteraction(map: maplibregl.Map): void {
 
     const layerId = `${newSource}-adm${level}-fill`;
     const sourceId = `${newSource}-adm${level}`;
-    const sourceLayer = `${newSource}_adm${level}`;
+    const sourceLayer = adminTiles(newSource, level).layer;
     const point = lastPoint;
     const lngLat = lastLngLat;
     const labels = get(labelsEnabled);
@@ -132,7 +129,7 @@ export function addAdminHoverInteraction(map: maplibregl.Map): void {
     for (const level of src.levels) {
       const layerId = `${src.id}-adm${level}-fill`;
       const sourceId = `${src.id}-adm${level}`;
-      const sourceLayer = `${src.id}_adm${level}`;
+      const sourceLayer = adminTiles(src.id, level).layer;
 
       map.on("mousemove", layerId, (e) => {
         if (!e.features?.length) return;

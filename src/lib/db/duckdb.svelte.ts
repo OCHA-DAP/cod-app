@@ -97,6 +97,9 @@ export async function initDuckDB(): Promise<void> {
 
     await conn.query("SET threads = 1");
     await conn.query("SET preserve_insertion_order = false");
+    // Cache core's built-in OGC:CRS84 before spatial's PROJ lookup replaces it: in WASM, PROJ's
+    // WKT2 export of a non-numeric code ("CRS84") throws an uncaught stoi error.
+    await conn.query("SELECT NULL::GEOMETRY('OGC:CRS84')");
 
     try {
       // Default extension repo (extensions.duckdb.org) is fine — INSTALL fetches

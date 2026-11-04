@@ -1,0 +1,303 @@
+{
+  "type": "Collection",
+  "id": "explorer/ocha/ocha_adm4",
+  "stac_version": "1.1.0",
+  "description": "OCHA admin 4 as GeoParquet, with polygon tiles, and label points at each unit's maximum inscribed circle in `ocha_adm4_labels.pmtiles`.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "license",
+      "href": "../../TERMS.md",
+      "title": "License"
+    },
+    {
+      "rel": "via",
+      "href": "https://data.humdata.org/dataset/cod-ab-global",
+      "type": "text/html",
+      "title": "Original source"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./ocha_adm4.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "ocha_adm4"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "updated": "2026-11-04T04:53:13Z",
+  "geoparquet:geometry_type": [
+    "Polygon",
+    "MultiPolygon"
+  ],
+  "geoparquet:feature_count": 321630,
+  "pmtiles:min_zoom": 0,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    34.5039638,
+    8.7619771,
+    5
+  ],
+  "pmtiles:layers": [
+    "ocha_adm4"
+  ],
+  "table:row_count": 321630,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "iso3",
+      "type": "string"
+    },
+    {
+      "name": "adm0_name",
+      "type": "string"
+    },
+    {
+      "name": "adm0_name1",
+      "type": "string"
+    },
+    {
+      "name": "adm0_name2",
+      "type": "string"
+    },
+    {
+      "name": "adm0_name3",
+      "type": "string"
+    },
+    {
+      "name": "adm0_pcode",
+      "type": "string"
+    },
+    {
+      "name": "adm1_name",
+      "type": "string"
+    },
+    {
+      "name": "adm1_name1",
+      "type": "string"
+    },
+    {
+      "name": "adm1_name2",
+      "type": "string"
+    },
+    {
+      "name": "adm1_name3",
+      "type": "string"
+    },
+    {
+      "name": "adm1_pcode",
+      "type": "string"
+    },
+    {
+      "name": "adm2_name",
+      "type": "string"
+    },
+    {
+      "name": "adm2_name1",
+      "type": "string"
+    },
+    {
+      "name": "adm2_name2",
+      "type": "string"
+    },
+    {
+      "name": "adm2_name3",
+      "type": "string"
+    },
+    {
+      "name": "adm2_pcode",
+      "type": "string"
+    },
+    {
+      "name": "adm3_name",
+      "type": "string"
+    },
+    {
+      "name": "adm3_name1",
+      "type": "string"
+    },
+    {
+      "name": "adm3_name2",
+      "type": "string"
+    },
+    {
+      "name": "adm3_name3",
+      "type": "string"
+    },
+    {
+      "name": "adm3_pcode",
+      "type": "string"
+    },
+    {
+      "name": "adm4_name",
+      "type": "string"
+    },
+    {
+      "name": "adm4_name1",
+      "type": "string"
+    },
+    {
+      "name": "adm4_name2",
+      "type": "string"
+    },
+    {
+      "name": "adm4_name3",
+      "type": "string"
+    },
+    {
+      "name": "adm4_pcode",
+      "type": "string"
+    },
+    {
+      "name": "lang",
+      "type": "string"
+    },
+    {
+      "name": "lang1",
+      "type": "string"
+    },
+    {
+      "name": "lang2",
+      "type": "string"
+    },
+    {
+      "name": "lang3",
+      "type": "string"
+    },
+    {
+      "name": "valid_on",
+      "type": "date32[day]"
+    },
+    {
+      "name": "valid_to",
+      "type": "date32[day]"
+    },
+    {
+      "name": "version",
+      "type": "string"
+    },
+    {
+      "name": "hover_id",
+      "type": "int64"
+    },
+    {
+      "name": "geometry",
+      "type": "binary"
+    }
+  ],
+  "title": "OCHA admin 4",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -72.0114723,
+          -34.83417,
+          141.0194,
+          52.3581243
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "other",
+  "providers": [
+    {
+      "name": "OCHA",
+      "roles": [
+        "producer",
+        "licensor"
+      ]
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "ocha_adm4": {
+      "href": "./ocha_adm4.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 575940701,
+      "file:checksum": "122010a26744d78ae62b897f8515ce8c4002127e82dd9d1e92672261d91468f2b8b5",
+      "roles": [
+        "data"
+      ]
+    },
+    "ocha_adm4-tiles": {
+      "href": "./ocha_adm4.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 214835137,
+      "file:checksum": "1220cc6d5285d19d2d0faca79d5ef2a7e39a0f27c3198efff5e57773982ccec196d2",
+      "roles": [
+        "visual"
+      ]
+    },
+    "ocha_adm4_labels-tiles": {
+      "href": "./ocha_adm4_labels.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 122727990,
+      "file:checksum": "12205bb64378031431cf2edf2cf9662e80753fe91a0cbfcf718c13bddd65383f778e",
+      "roles": [
+        "visual"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "roles": [
+        "style",
+        "default"
+      ],
+      "title": "Default",
+      "file:size": 460,
+      "file:checksum": "122049a47f3e0d0cc9ae9d9aec967e8f67b205f7dafa6fcde735fe1b1f51248e04ec"
+    },
+    "thumbnail": {
+      "href": "./ocha_adm4.thumb.jpg",
+      "type": "image/jpeg",
+      "roles": [
+        "thumbnail"
+      ],
+      "file:size": 6484,
+      "file:checksum": "12204cbefe39e0a1ffc676ba2d4f62051db6716ab6ba951ef719e152c9bfebda50c9"
+    }
+  }
+}

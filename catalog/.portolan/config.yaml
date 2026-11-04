@@ -1,0 +1,11 @@
+# Portolan configuration
+check:
+  disabled:
+    - PTL-BBX-001
+    - PTL-PRO-001
+conversion:
+  vector:
+    add_bbox: false
+    sort: none
+tabular:
+  enabled: true

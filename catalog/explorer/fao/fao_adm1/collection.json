@@ -1,0 +1,217 @@
+{
+  "type": "Collection",
+  "id": "explorer/fao/fao_adm1",
+  "stac_version": "1.1.0",
+  "description": "FAO admin 1 as GeoParquet, with polygon tiles, and label points at each unit's maximum inscribed circle in `fao_adm1_labels.pmtiles`.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "../../TERMS.md",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "FAO"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./fao_adm1.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "fao_adm1"
+      ]
+    },
+    {
+      "rel": "via",
+      "href": "https://data.apps.fao.org/catalog/dataset/global-administrative-unit-layers-gaul-2025",
+      "type": "text/html",
+      "title": "Original source"
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json"
+  ],
+  "updated": "2026-11-03T02:41:47Z",
+  "pmtiles:min_zoom": 0,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    1.2398795,
+    0.3650322,
+    5
+  ],
+  "pmtiles:layers": [
+    "fao_adm1_labels"
+  ],
+  "geoparquet:geometry_type": "Polygon",
+  "geoparquet:feature_count": 3103,
+  "table:row_count": 3103,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "FID",
+      "type": "int64"
+    },
+    {
+      "name": "ISO3_CODE",
+      "type": "string"
+    },
+    {
+      "name": "MAP_CODE",
+      "type": "string"
+    },
+    {
+      "name": "GAUL0_CODE",
+      "type": "int64"
+    },
+    {
+      "name": "GAUL0_NAME",
+      "type": "string"
+    },
+    {
+      "name": "GAUL1_CODE",
+      "type": "int64"
+    },
+    {
+      "name": "GAUL1_NAME",
+      "type": "string"
+    },
+    {
+      "name": "CONTINENT",
+      "type": "string"
+    },
+    {
+      "name": "DISP_EN",
+      "type": "string"
+    },
+    {
+      "name": "hover_id",
+      "type": "int64"
+    },
+    {
+      "name": "geometry",
+      "type": "binary"
+    }
+  ],
+  "title": "FAO admin 1",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180.0,
+          -89.90000152599998,
+          180.0,
+          83.627419
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "other",
+  "providers": [
+    {
+      "name": "FAO (GAUL 2025)",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://storage.googleapis.com/fao-maps-catalog-data/boundaries/"
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "fao_adm1": {
+      "href": "./fao_adm1.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 361218136,
+      "file:checksum": "1220e3768f3628c20b99fb2e34b48abf0a89f7abd540e0d4334f33cf862c5d97da41",
+      "roles": [
+        "data"
+      ]
+    },
+    "fao_adm1_labels": {
+      "href": "./fao_adm1_labels.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 4501681,
+      "file:checksum": "1220515ba865bcdaef4a84e75533e9c89c9684e36edf5a14c8e747f1ec99fb96a31d",
+      "roles": [
+        "data"
+      ]
+    },
+    "fao_adm1-tiles": {
+      "href": "./fao_adm1.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "title": "fao_adm1 (vector tiles)",
+      "file:size": 179825195,
+      "file:checksum": "1220b4e3f06f420e8cc2cebca77a5ce39cc23134eb33d7d5d3295555d5585c21d4c1",
+      "roles": [
+        "visual"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "title": "Default",
+      "file:size": 457,
+      "file:checksum": "1220227d1fc37281518f1689dc0279888b1e2a577d2aa58edcd002b9c911615dbd2b",
+      "roles": [
+        "style",
+        "default"
+      ]
+    },
+    "thumbnail": {
+      "href": "./fao_adm1.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 13933,
+      "file:checksum": "1220be5fffebc0f2e7b7d7be5b53a63e598e0aa7438cafb9b7d892f67439f8157bb8",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "documentation": {
+      "href": "./README.md",
+      "type": "text/markdown",
+      "file:size": 1850,
+      "file:checksum": "12204d7f15704281316d81a904800136ab73cd94fe6eeb48f2381b6e0660512de5ef",
+      "roles": [
+        "documentation"
+      ]
+    }
+  }
+}

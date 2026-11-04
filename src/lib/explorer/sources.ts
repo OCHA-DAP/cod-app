@@ -1,4 +1,5 @@
 import type { AdminLevel } from "$lib/explorer/map/layers/admin";
+import { explorerTilesUrl } from "$lib/utils/data";
 
 export const ADMIN_SOURCES = [
   {
@@ -69,4 +70,24 @@ export const ADMIN_SOURCES = [
 
 export function getLevelsForSource(sourceId: string): AdminLevel[] {
   return ADMIN_SOURCES.find((s) => s.id === sourceId)?.levels ?? [];
+}
+
+export interface AdminTiles {
+  url: string;
+  layer: string;
+  labelsUrl: string;
+  labelsLayer: string;
+  idField: string;
+}
+
+// Every source's layers carry a per-row hover_id.
+export function adminTiles(sourceId: string, level: number): AdminTiles {
+  const layer = `${sourceId}_adm${level}`;
+  return {
+    url: explorerTilesUrl(layer),
+    layer,
+    labelsUrl: explorerTilesUrl(layer, `${layer}_labels.pmtiles`),
+    labelsLayer: `${layer}_labels`,
+    idField: "hover_id",
+  };
 }

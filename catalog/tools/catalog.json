@@ -1,0 +1,46 @@
+{
+  "type": "Catalog",
+  "id": "tools",
+  "stac_version": "1.1.0",
+  "title": "Tools sample data",
+  "description": "Sample inputs for the site's tools and topo-tools, grouped by ISO3 code. Agents should start at [AGENTS.md](AGENTS.md).",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "child",
+      "href": "./nld/catalog.json",
+      "type": "application/json",
+      "title": "Nld"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "child",
+      "href": "./sources/collection.json",
+      "type": "application/json",
+      "title": "Admin 1 boundaries by source"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
+  ]
+}

@@ -1,6 +1,6 @@
 import { asyncBufferFromUrl, parquetRead } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
-import { parquetUrl } from "./url";
+import { referenceUrl } from "$lib/utils/data";
 
 export interface Country {
   iso3: string;
@@ -12,7 +12,7 @@ let countriesPromise: Promise<Country[]> | null = null;
 export function getCountries(): Promise<Country[]> {
   if (!countriesPromise) {
     countriesPromise = (async () => {
-      const asyncBuffer = await asyncBufferFromUrl({ url: parquetUrl("m49") });
+      const asyncBuffer = await asyncBufferFromUrl({ url: referenceUrl("m49") });
       return new Promise<Country[]>((resolve) => {
         parquetRead({
           file: asyncBuffer,

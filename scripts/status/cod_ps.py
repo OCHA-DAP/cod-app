@@ -1,16 +1,10 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["duckdb", "requests", "tenacity"]
-# ///
-
 import csv
 import re
 import tempfile
 from pathlib import Path
 
 import duckdb
-import requests
-from tenacity import retry, stop_after_attempt, wait_exponential
+from shared import http
 
 OUTPUT_DIR = Path(__file__).parents[2] / "public" / "status" / "data"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -24,19 +18,12 @@ LEVEL_RE = re.compile(r"adm(?:in)?[ _-]?(\d)(?!\d)", re.IGNORECASE)
 PCODE_COL_RE = re.compile(r"^adm(?:in)?_?(\d)_?pcode$", re.IGNORECASE)
 
 
-@retry(stop=stop_after_attempt(4), wait=wait_exponential(min=2, max=30))
 def ckan(action: str, **params) -> dict:
-    res = requests.get(f"{CKAN}/{action}", params=params, timeout=60)
-    res.raise_for_status()
-    return res.json()["result"]
+    return http.get(f"{CKAN}/{action}", params=params).json()["result"]
 
 
-@retry(stop=stop_after_attempt(4), wait=wait_exponential(min=2, max=30))
 def download(url: str, dest: Path) -> Path:
-    with requests.get(url, stream=True, timeout=120) as res:
-        res.raise_for_status()
-        with open(dest, "wb") as f:
-            f.writelines(res.iter_content(chunk_size=1 << 20))
+    http.download(url, dest)
     return dest
 
 

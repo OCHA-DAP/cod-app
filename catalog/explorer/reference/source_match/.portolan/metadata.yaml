@@ -1,0 +1,9 @@
+title: Source match
+description: Polygon match rate of each source against the team's selected source per location.
+providers:
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - producer
+  - licensor
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues

@@ -1,17 +1,13 @@
 import { asyncBufferFromUrl, parquetRead } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
-import { parquetUrl } from "./url";
+import { referenceUrl } from "$lib/utils/data";
 
 export type Bbox = [number, number, number, number];
 
-// Reads the precomputed per-country fit bbox and builds a lookup map. Unlike GDAL's
-// raw geometry_bbox covering column, these xmin/xmax are antimeridian-aware (see
-// scripts/bbox.sh) — xmax may exceed 180 for a country with territory near the
-// dateline, which is intentional and must be passed straight through to
-// map.fitBounds rather than "normalized".
-// 260 rows × tiny columns = a handful of HTTP range requests totaling ~50-100 KB.
+// Per-country fit bboxes from scripts/catalog/explorer/bbox.py: antimeridian-aware, so xmax may
+// exceed 180 near the dateline and goes to map.fitBounds as is.
 async function loadBboxMap(file: string): Promise<Map<string, Bbox>> {
-  const url = parquetUrl(file);
+  const url = referenceUrl(file);
   const asyncBuffer = await asyncBufferFromUrl({ url });
   const map = new Map<string, Bbox>();
 

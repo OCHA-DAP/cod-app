@@ -1,0 +1,26 @@
+title: Gemeenten 2025 with digitization errors
+description: The 343 gemeenten from the CBS Wijk- en Buurtkaart 2025, each with its water, in OGC:CRS84 with `adm2_code` and `adm2_name`, simplified to 100 m. Five border vertices are moved 15 to 30 m, giving two overlaps and three gaps. Running topo-detect reports those five issues. Running topo-clean with the thin maximum gap width fixes all five. See [AGENTS.md](AGENTS.md).
+keywords:
+- administrative boundaries
+- Netherlands
+- CBS
+- gemeenten
+- topo-tools
+- topo-detect
+- topo-clean
+processing_notes: 'Built by `scripts/catalog/tools/build_demo.py` in [cod-site](https://github.com/OCHA-DAP/cod-site) from `nld/2025/nld_admin2`: land and water rows unioned per `gemeentecode`, `ST_CoverageSimplify` at 100 m, then `ST_CoverageClean` with 0.01 m snapping and no gap filling. One vertex on each of five shared borders is then moved perpendicular to the border, into the neighbour for an overlap or back into the gemeente for a gap.'
+providers:
+- name: Statistics Netherlands (CBS)
+  roles:
+  - producer
+  - licensor
+  url: https://www.cbs.nl/en-gb
+- name: Kadaster
+  roles:
+  - producer
+  - licensor
+  url: https://www.kadaster.nl/
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues

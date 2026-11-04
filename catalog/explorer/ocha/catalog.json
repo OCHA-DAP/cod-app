@@ -1,0 +1,58 @@
+{
+  "type": "Catalog",
+  "id": "explorer/ocha",
+  "stac_version": "1.1.0",
+  "title": "OCHA",
+  "description": "OCHA boundary layers, one collection each.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "child",
+      "href": "./ocha_adm1/collection.json",
+      "type": "application/json",
+      "title": "OCHA admin 1"
+    },
+    {
+      "rel": "child",
+      "href": "./ocha_adm2/collection.json",
+      "type": "application/json",
+      "title": "OCHA admin 2"
+    },
+    {
+      "rel": "child",
+      "href": "./ocha_adm3/collection.json",
+      "type": "application/json",
+      "title": "OCHA admin 3"
+    },
+    {
+      "rel": "child",
+      "href": "./ocha_adm4/collection.json",
+      "type": "application/json",
+      "title": "OCHA admin 4"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
+  ]
+}

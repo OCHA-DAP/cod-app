@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { downloadBlob } from "$lib/utils/download";
   import {
     gdalGeoJSONFormat,
     listFormats,
@@ -91,12 +92,7 @@
   }
 
   function triggerDownload({ blob, filename }: ExportResult) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, filename);
   }
 
   function exportAs(fmt: ExportFormat): Promise<ExportResult> {

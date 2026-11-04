@@ -1,0 +1,9 @@
+title: Source provenance
+description: Provider and last-updated date per source and location.
+providers:
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - producer
+  - licensor
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues

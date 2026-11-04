@@ -1,0 +1,200 @@
+{
+  "type": "Collection",
+  "id": "tools/nld/demo/package",
+  "stac_version": "1.1.0",
+  "description": "The 342 gemeenten from the `edge` demo after edge-match, filling their provincies including water, in OGC:CRS84. Each carries adm0 `NL`, its provincie as adm1 from Kadaster and its CBS code and name as adm2. Running package writes country, provincie and gemeente polygons, one point per unit and the boundary lines. See [AGENTS.md](AGENTS.md).",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "https://creativecommons.org/licenses/by/4.0/",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "Netherlands demo inputs"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./nld_admin2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "nld_admin2"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "geoparquet:geometry_type": "Polygon",
+  "geoparquet:feature_count": 342,
+  "pmtiles:min_zoom": 0,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    5.2676633,
+    52.1633953,
+    5
+  ],
+  "pmtiles:layers": [
+    "nld_admin2"
+  ],
+  "table:row_count": 342,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "geometry",
+      "type": "binary",
+      "description": "Polygon or MultiPolygon in OGC:CRS84, the edge-match output: gemeenten extended over water to fill their provincies."
+    },
+    {
+      "name": "adm0_code",
+      "type": "string",
+      "description": "Country code, always `NL`."
+    },
+    {
+      "name": "adm0_name",
+      "type": "string",
+      "description": "Country name, always `Nederland`."
+    },
+    {
+      "name": "adm1_code",
+      "type": "string",
+      "description": "Provincie code: `PV` plus 2 digits, from Kadaster (`identificatie`)."
+    },
+    {
+      "name": "adm1_name",
+      "type": "string",
+      "description": "Provincie name, from Kadaster."
+    },
+    {
+      "name": "adm2_code",
+      "type": "string",
+      "description": "Gemeente code: `GM` plus 4 digits, from CBS."
+    },
+    {
+      "name": "adm2_name",
+      "type": "string",
+      "description": "Official gemeente name, from CBS."
+    }
+  ],
+  "updated": "2026-11-03T10:34:28Z",
+  "title": "Gemeenten 2025 for package",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          3.3079377,
+          50.750367,
+          7.227389,
+          53.57642327126048
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2025-01-01T00:00:00Z",
+          "2025-01-01T00:00:00Z"
+        ]
+      ]
+    }
+  },
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "Statistics Netherlands (CBS)",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.cbs.nl/en-gb"
+    },
+    {
+      "name": "Kadaster",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.kadaster.nl/"
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "thumbnail": {
+      "href": "./nld_admin2.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 17459,
+      "file:checksum": "1220e5dd98cdb9769ffa8cb867ff6ac265fa95634f8fbd6749d7197cdbeeab32db61",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "title": "Default",
+      "file:size": 462,
+      "file:checksum": "12208612f3f78f31e3a32b7f4b5c0cb4769a0367210b160fbac25e742094dff082d9",
+      "roles": [
+        "style",
+        "default"
+      ]
+    },
+    "nld_admin2-tiles": {
+      "href": "./nld_admin2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 667139,
+      "file:checksum": "12207036150a3794df085c945093d6aab1752297c461521fa0fbb22b2a1c8d47b6b2",
+      "roles": [
+        "data"
+      ]
+    },
+    "nld_admin2": {
+      "href": "./nld_admin2.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 657880,
+      "file:checksum": "1220449b02ec90b37d017322904dc309c0cc2d019b2aeb6cbb5cf54b14d8e43ea1fe",
+      "roles": [
+        "data"
+      ]
+    },
+    "documentation": {
+      "href": "./README.md",
+      "type": "text/markdown",
+      "file:size": 2687,
+      "file:checksum": "12201adf29f132f8559a523966b3ea2a385a9241bec56a433880ca7d4c8188486822",
+      "roles": [
+        "documentation"
+      ]
+    }
+  }
+}

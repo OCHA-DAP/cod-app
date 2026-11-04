@@ -1,0 +1,108 @@
+{
+  "type": "Collection",
+  "id": "explorer/reference/country_bbox",
+  "stac_version": "1.1.0",
+  "description": "Antimeridian-aware map-fit bounding box per location.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "https://creativecommons.org/licenses/by/4.0/",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json"
+  ],
+  "table:columns": [
+    {
+      "name": "iso3",
+      "type": "string"
+    },
+    {
+      "name": "xmin",
+      "type": "double"
+    },
+    {
+      "name": "ymin",
+      "type": "double"
+    },
+    {
+      "name": "xmax",
+      "type": "double"
+    },
+    {
+      "name": "ymax",
+      "type": "double"
+    }
+  ],
+  "table:row_count": 259,
+  "title": "Country bbox",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180.0,
+          -90.0,
+          180.0,
+          90.0
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "producer",
+        "licensor",
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "country_bbox": {
+      "href": "./country_bbox.parquet",
+      "type": "application/vnd.apache.parquet",
+      "roles": [
+        "data"
+      ],
+      "file:size": 9081,
+      "file:checksum": "122005898e34cb45d124ad657f395df1d78a1dad3b827f44e1c285c17f1e8c74ffd0"
+    }
+  }
+}

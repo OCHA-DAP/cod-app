@@ -1,0 +1,76 @@
+{
+  "type": "Catalog",
+  "id": "explorer",
+  "stac_version": "1.1.0",
+  "title": "Boundaries Explorer data",
+  "description": "Admin boundaries from OCHA and several partner sources, and the reference tables the Boundaries Explorer compares them with. Agents should start at [AGENTS.md](AGENTS.md).",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "child",
+      "href": "./fao/catalog.json",
+      "type": "application/json",
+      "title": "FAO"
+    },
+    {
+      "rel": "child",
+      "href": "./reference/catalog.json",
+      "type": "application/json",
+      "title": "Reference tables"
+    },
+    {
+      "rel": "child",
+      "href": "./unhcr/catalog.json",
+      "type": "application/json",
+      "title": "UNHCR"
+    },
+    {
+      "rel": "child",
+      "href": "./unicef/catalog.json",
+      "type": "application/json",
+      "title": "UNICEF"
+    },
+    {
+      "rel": "child",
+      "href": "./wfp/catalog.json",
+      "type": "application/json",
+      "title": "WFP"
+    },
+    {
+      "rel": "child",
+      "href": "./ungeodata/catalog.json",
+      "type": "application/json",
+      "title": "UN Geodata"
+    },
+    {
+      "rel": "child",
+      "href": "./ocha/catalog.json",
+      "type": "application/json",
+      "title": "OCHA"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    }
+  ],
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
+  ]
+}

@@ -1,0 +1,13 @@
+title: Plan status
+description: Best humanitarian plan type ever recorded per location, from OCHA's HPC Tools.
+providers:
+- name: OCHA
+  roles:
+  - producer
+  - licensor
+  url: https://hpc.tools/
+- name: OCHA Centre for Humanitarian Data
+  roles:
+  - host
+  url: https://github.com/OCHA-DAP/cod-site/issues
+source_url: https://hpc.tools/

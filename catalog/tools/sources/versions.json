@@ -1,0 +1,109 @@
+{
+  "spec_version": "1.0.0",
+  "current_version": "1.0.2",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "created": "2026-11-01T17:32:47.478019Z",
+      "breaking": false,
+      "assets": {
+        "sources_adm1.pmtiles": {
+          "sha256": "8d3fb5f5f07f67fb69febcd15f7df5f072c459f122795801cacd4f0ce5cc02aa",
+          "size_bytes": 807423,
+          "href": "tools/sources/sources_adm1.pmtiles",
+          "mtime": 1793552775.992252
+        },
+        "sources_adm1.thumb.jpg": {
+          "sha256": "5174e72baf3e76f740bf469d15ff625f6b7404c25fde0f2a10b89e7d720a117c",
+          "size_bytes": 8611,
+          "href": "tools/sources/sources_adm1.thumb.jpg",
+          "mtime": 1791228357.1982658
+        },
+        "sources_adm1.parquet": {
+          "sha256": "c0da5e5f860f7eb7c1b7429986b6ad3193063f3e589a3532bb6e7a3d24fd19d2",
+          "size_bytes": 2453229,
+          "href": "tools/sources/sources_adm1.parquet",
+          "source_mtime": 1791228354.591196,
+          "mtime": 1791228354.591196,
+          "feature_count": 165,
+          "schema_fingerprint": "cd88da589d3d9c70"
+        }
+      },
+      "changes": [
+        "sources_adm1.pmtiles",
+        "sources_adm1.thumb.jpg",
+        "sources_adm1.parquet"
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "created": "2026-11-01T17:32:50.296421Z",
+      "breaking": false,
+      "assets": {
+        "sources_adm1.pmtiles": {
+          "sha256": "a225673895e9a5fc3ac319430abe687e969e1e1b4287e93c5203a7089eefb510",
+          "size_bytes": 807422,
+          "href": "tools/sources/sources_adm1.pmtiles",
+          "mtime": 1793554369.5287101
+        },
+        "sources_adm1.thumb.jpg": {
+          "sha256": "5174e72baf3e76f740bf469d15ff625f6b7404c25fde0f2a10b89e7d720a117c",
+          "size_bytes": 8611,
+          "href": "tools/sources/sources_adm1.thumb.jpg",
+          "mtime": 1793554370.2922604
+        },
+        "sources_adm1.parquet": {
+          "sha256": "c0da5e5f860f7eb7c1b7429986b6ad3193063f3e589a3532bb6e7a3d24fd19d2",
+          "size_bytes": 2453229,
+          "href": "tools/sources/sources_adm1.parquet",
+          "source_mtime": 1791228354.591196,
+          "mtime": 1791228354.591196,
+          "feature_count": 165,
+          "schema_fingerprint": "cd88da589d3d9c70"
+        }
+      },
+      "changes": [
+        "sources_adm1.pmtiles"
+      ],
+      "message": "Generated PMTiles and thumbnail: sources_adm1.pmtiles, sources_adm1.thumb.jpg"
+    },
+    {
+      "version": "1.0.2",
+      "created": "2026-11-02T16:39:22.451210Z",
+      "breaking": false,
+      "assets": {
+        "sources_adm1.pmtiles": {
+          "sha256": "b205b2cc101acf0e73c9f001302663bee371a78f21d3880f69f51569f7d169ab",
+          "size_bytes": 4212228,
+          "href": "tools/sources/sources_adm1.pmtiles",
+          "mtime": 1793637510.9296155
+        },
+        "sources_adm1.thumb.jpg": {
+          "sha256": "5174e72baf3e76f740bf469d15ff625f6b7404c25fde0f2a10b89e7d720a117c",
+          "size_bytes": 8611,
+          "href": "tools/sources/sources_adm1.thumb.jpg",
+          "mtime": 1793554370.2922604
+        },
+        "sources_adm1.parquet": {
+          "sha256": "c0da5e5f860f7eb7c1b7429986b6ad3193063f3e589a3532bb6e7a3d24fd19d2",
+          "size_bytes": 2453229,
+          "href": "tools/sources/sources_adm1.parquet",
+          "source_mtime": 1791228354.591196,
+          "mtime": 1791228354.591196,
+          "feature_count": 165,
+          "schema_fingerprint": "cd88da589d3d9c70"
+        },
+        "README.md": {
+          "sha256": "2903c6ab0b750c93b6217ed5c5b6dff5ab3175763c47f3bfe6da155e86c0ed30",
+          "size_bytes": 2203,
+          "href": "tools/sources/README.md",
+          "mtime": 1793612735.6414447
+        }
+      },
+      "changes": [
+        "sources_adm1.pmtiles",
+        "README.md"
+      ]
+    }
+  ]
+}

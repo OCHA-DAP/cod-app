@@ -1,0 +1,47 @@
+{
+  "spec_version": "1.0.0",
+  "current_version": "1.0.0",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "created": "2026-11-04T04:53:20.264433Z",
+      "breaking": false,
+      "assets": {
+        "ocha_adm4.parquet": {
+          "sha256": "10a26744d78ae62b897f8515ce8c4002127e82dd9d1e92672261d91468f2b8b5",
+          "size_bytes": 575940701,
+          "href": "explorer/ocha/ocha_adm4/ocha_adm4.parquet",
+          "source_mtime": 1793722826.889472,
+          "mtime": 1793722826.889472,
+          "feature_count": 321630,
+          "schema_fingerprint": "4b0773a94a2a014d"
+        },
+        "ocha_adm4.pmtiles": {
+          "sha256": "cc6d5285d19d2d0faca79d5ef2a7e39a0f27c3198efff5e57773982ccec196d2",
+          "size_bytes": 214835137,
+          "href": "explorer/ocha/ocha_adm4/ocha_adm4.pmtiles",
+          "source_path": "ocha_adm4.pmtiles",
+          "mtime": 1793722849.0741403
+        },
+        "ocha_adm4_labels.pmtiles": {
+          "sha256": "5bb64378031431cf2edf2cf9662e80753fe91a0cbfcf718c13bddd65383f778e",
+          "size_bytes": 122727990,
+          "href": "explorer/ocha/ocha_adm4/ocha_adm4_labels.pmtiles",
+          "mtime": 1793722934.6521814
+        },
+        "ocha_adm4.thumb.jpg": {
+          "sha256": "4cbefe39e0a1ffc676ba2d4f62051db6716ab6ba951ef719e152c9bfebda50c9",
+          "size_bytes": 6484,
+          "href": "explorer/ocha/ocha_adm4/ocha_adm4.thumb.jpg",
+          "mtime": 1793768000.2186172
+        }
+      },
+      "changes": [
+        "ocha_adm4.parquet",
+        "ocha_adm4.pmtiles",
+        "ocha_adm4_labels.pmtiles",
+        "ocha_adm4.thumb.jpg"
+      ]
+    }
+  ]
+}

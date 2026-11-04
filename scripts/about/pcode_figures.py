@@ -1,7 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["duckdb"]
-# ///
 """Render the About page's Morafeno and P-code level maps and the Standards migration map as inline SVG."""
 
 from pathlib import Path

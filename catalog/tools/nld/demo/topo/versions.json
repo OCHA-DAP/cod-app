@@ -1,0 +1,190 @@
+{
+  "spec_version": "1.0.0",
+  "current_version": "1.0.4",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "created": "2026-11-01T17:32:46.183730Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2.parquet": {
+          "sha256": "20954dd2e56c7f784dbf3e52388807aee26f2051298b7a92aa9db1eb9534f470",
+          "size_bytes": 271552,
+          "href": "tools/nld/demo/topo/nld_admin2.parquet",
+          "source_mtime": 1793552906.7166414,
+          "mtime": 1793552906.7166414,
+          "feature_count": 343,
+          "schema_fingerprint": "a69d2b88e89a89c9"
+        },
+        "nld_admin2.pmtiles": {
+          "sha256": "3e61d8a18c1c06e851e282d1dde379206cb24d9b05c0d60677c8dde6225b68b2",
+          "size_bytes": 139431,
+          "href": "tools/nld/demo/topo/nld_admin2.pmtiles",
+          "mtime": 1791340774.716436
+        },
+        "nld_admin2.thumb.jpg": {
+          "sha256": "4a291072c7064a51609efd2d1b05c541cf785d8ed6e0e61d639469a4b62cd0cc",
+          "size_bytes": 19527,
+          "href": "tools/nld/demo/topo/nld_admin2.thumb.jpg",
+          "mtime": 1791340775.2880435
+        }
+      },
+      "changes": [
+        "nld_admin2.parquet",
+        "nld_admin2.pmtiles",
+        "nld_admin2.thumb.jpg"
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "created": "2026-11-01T18:36:16.029283Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2.parquet": {
+          "sha256": "20954dd2e56c7f784dbf3e52388807aee26f2051298b7a92aa9db1eb9534f470",
+          "size_bytes": 271552,
+          "href": "tools/nld/demo/topo/nld_admin2.parquet",
+          "source_mtime": 1793552906.7166414,
+          "mtime": 1793552906.7166414,
+          "feature_count": 343,
+          "schema_fingerprint": "a69d2b88e89a89c9"
+        },
+        "nld_admin2.pmtiles": {
+          "sha256": "3e61d8a18c1c06e851e282d1dde379206cb24d9b05c0d60677c8dde6225b68b2",
+          "size_bytes": 139431,
+          "href": "tools/nld/demo/topo/nld_admin2.pmtiles",
+          "mtime": 1791340774.716436
+        },
+        "nld_admin2.thumb.jpg": {
+          "sha256": "4a291072c7064a51609efd2d1b05c541cf785d8ed6e0e61d639469a4b62cd0cc",
+          "size_bytes": 19527,
+          "href": "tools/nld/demo/topo/nld_admin2.thumb.jpg",
+          "mtime": 1791340775.2880435
+        },
+        "README.md": {
+          "sha256": "30cc985db08cdb492dd17b7ce2f15224780e6227d3526780c259966580eaa321",
+          "size_bytes": 1978,
+          "href": "tools/nld/demo/topo/README.md",
+          "mtime": 1793554366.3269107
+        }
+      },
+      "changes": [
+        "README.md"
+      ]
+    },
+    {
+      "version": "1.0.2",
+      "created": "2026-11-01T18:36:17.276082Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2.parquet": {
+          "sha256": "20954dd2e56c7f784dbf3e52388807aee26f2051298b7a92aa9db1eb9534f470",
+          "size_bytes": 271552,
+          "href": "tools/nld/demo/topo/nld_admin2.parquet",
+          "source_mtime": 1793552906.7166414,
+          "mtime": 1793552906.7166414,
+          "feature_count": 343,
+          "schema_fingerprint": "a69d2b88e89a89c9"
+        },
+        "nld_admin2.pmtiles": {
+          "sha256": "03064f1bbd2f1be0392c26b4dfc609cc922632781ef8b58efbee6df5a6936edc",
+          "size_bytes": 139433,
+          "href": "tools/nld/demo/topo/nld_admin2.pmtiles",
+          "mtime": 1793558176.7989345
+        },
+        "nld_admin2.thumb.jpg": {
+          "sha256": "4a9deced4a4fd920d22f7575db0d51d61709bf36d7d6e24ade8a610ea1d635cf",
+          "size_bytes": 17428,
+          "href": "tools/nld/demo/topo/nld_admin2.thumb.jpg",
+          "mtime": 1793558177.2726214
+        },
+        "README.md": {
+          "sha256": "30cc985db08cdb492dd17b7ce2f15224780e6227d3526780c259966580eaa321",
+          "size_bytes": 1978,
+          "href": "tools/nld/demo/topo/README.md",
+          "mtime": 1793554366.3269107
+        }
+      },
+      "changes": [
+        "nld_admin2.pmtiles",
+        "nld_admin2.thumb.jpg"
+      ],
+      "message": "Generated PMTiles and thumbnail: nld_admin2.pmtiles, nld_admin2.thumb.jpg"
+    },
+    {
+      "version": "1.0.3",
+      "created": "2026-11-01T19:14:15.319417Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2.parquet": {
+          "sha256": "20954dd2e56c7f784dbf3e52388807aee26f2051298b7a92aa9db1eb9534f470",
+          "size_bytes": 271552,
+          "href": "tools/nld/demo/topo/nld_admin2.parquet",
+          "source_mtime": 1793552906.7166414,
+          "mtime": 1793552906.7166414,
+          "feature_count": 343,
+          "schema_fingerprint": "a69d2b88e89a89c9"
+        },
+        "nld_admin2.pmtiles": {
+          "sha256": "03064f1bbd2f1be0392c26b4dfc609cc922632781ef8b58efbee6df5a6936edc",
+          "size_bytes": 139433,
+          "href": "tools/nld/demo/topo/nld_admin2.pmtiles",
+          "mtime": 1793558176.7989345
+        },
+        "nld_admin2.thumb.jpg": {
+          "sha256": "4a9deced4a4fd920d22f7575db0d51d61709bf36d7d6e24ade8a610ea1d635cf",
+          "size_bytes": 17428,
+          "href": "tools/nld/demo/topo/nld_admin2.thumb.jpg",
+          "mtime": 1793558177.2726214
+        },
+        "README.md": {
+          "sha256": "afd451b8a106770bd2395c529bc4bd17e3398398cac771774e4650c659a979f0",
+          "size_bytes": 2666,
+          "href": "tools/nld/demo/topo/README.md",
+          "mtime": 1793560304.6652775
+        }
+      },
+      "changes": [
+        "README.md"
+      ]
+    },
+    {
+      "version": "1.0.4",
+      "created": "2026-11-02T16:39:21.013911Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2.parquet": {
+          "sha256": "20954dd2e56c7f784dbf3e52388807aee26f2051298b7a92aa9db1eb9534f470",
+          "size_bytes": 271552,
+          "href": "tools/nld/demo/topo/nld_admin2.parquet",
+          "source_mtime": 1793552906.7166414,
+          "mtime": 1793552906.7166414,
+          "feature_count": 343,
+          "schema_fingerprint": "a69d2b88e89a89c9"
+        },
+        "nld_admin2.pmtiles": {
+          "sha256": "de33121e7446d9683cf92f6495d424e6fcba6727188df61af3839d99a5bdaeef",
+          "size_bytes": 586128,
+          "href": "tools/nld/demo/topo/nld_admin2.pmtiles",
+          "mtime": 1793637509.6325004
+        },
+        "nld_admin2.thumb.jpg": {
+          "sha256": "4a9deced4a4fd920d22f7575db0d51d61709bf36d7d6e24ade8a610ea1d635cf",
+          "size_bytes": 17428,
+          "href": "tools/nld/demo/topo/nld_admin2.thumb.jpg",
+          "mtime": 1793558177.2726214
+        },
+        "README.md": {
+          "sha256": "d1816ffb5d7c9c7612ef5f6981cafab796a493d9eee495f74841311f2101ce0b",
+          "size_bytes": 2660,
+          "href": "tools/nld/demo/topo/README.md",
+          "mtime": 1793612735.6324143
+        }
+      },
+      "changes": [
+        "README.md",
+        "nld_admin2.pmtiles"
+      ]
+    }
+  ]
+}

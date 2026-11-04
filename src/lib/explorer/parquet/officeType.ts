@@ -1,6 +1,6 @@
 import { asyncBufferFromUrl, parquetRead } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
-import { parquetUrl } from "./url";
+import { referenceUrl } from "$lib/utils/data";
 
 export type OfficeType = "CO" | "RO" | "HAT";
 
@@ -9,7 +9,7 @@ let officeTypePromise: Promise<Map<string, OfficeType>> | null = null;
 export function getAllOfficeTypes(): Promise<Map<string, OfficeType>> {
   if (!officeTypePromise) {
     officeTypePromise = (async () => {
-      const asyncBuffer = await asyncBufferFromUrl({ url: parquetUrl("office_type") });
+      const asyncBuffer = await asyncBufferFromUrl({ url: referenceUrl("office_type") });
       return new Promise<Map<string, OfficeType>>((resolve) => {
         parquetRead({
           file: asyncBuffer,

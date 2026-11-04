@@ -32,10 +32,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10
         with:
-          python-version: "3.12"
-      - run: pip install requests duckdb tenacity
+          enable-cache: true
+      - run: uv sync --locked
       - run: npm run fetch:status
         env:
           ARCGIS_USERNAME: ${{ secrets.ARCGIS_USERNAME }}

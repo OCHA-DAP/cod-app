@@ -1,0 +1,225 @@
+{
+  "type": "Collection",
+  "id": "tools/nld/demo/edge",
+  "stac_version": "1.1.0",
+  "description": "An input and an overlay layer for edge-match, in OGC:CRS84, simplified to 100 m. `nld_admin2.parquet` has the 342 land gemeenten from the CBS Wijk- en Buurtkaart 2025, with `adm2_code` and `adm2_name`. `nld_admin1.parquet` has the 12 provincies from Kadaster Bestuurlijke Gebieden, which include water, with `adm1_code` and `adm1_name`. Running edge-match with per-feature fitting extends the gemeenten over the water until they fill their provincies. See [AGENTS.md](AGENTS.md).",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../../catalog.json",
+      "type": "application/json",
+      "title": "COD site data"
+    },
+    {
+      "rel": "license",
+      "href": "https://creativecommons.org/licenses/by/4.0/",
+      "title": "License"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "Netherlands demo inputs"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./nld_admin1.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "nld_admin1"
+      ]
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./nld_admin2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "nld_admin2"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "geoparquet:geometry_type": "Polygon",
+  "geoparquet:feature_count": 342,
+  "pmtiles:min_zoom": 1,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    5.2928835,
+    52.1521678,
+    6
+  ],
+  "pmtiles:layers": [
+    "nld_admin2"
+  ],
+  "table:row_count": 354,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "geometry",
+      "type": "binary",
+      "description": "Polygon or MultiPolygon in OGC:CRS84, simplified to 100 m in OGC:CRS84 (RD New) with `ST_CoverageSimplify` so neighbours keep shared edges. Provincies include water; gemeenten are land only."
+    },
+    {
+      "name": "adm2_code",
+      "type": "string",
+      "description": "Gemeente code: `GM` plus 4 digits, from CBS."
+    },
+    {
+      "name": "adm2_name",
+      "type": "string",
+      "description": "Official gemeente name, from CBS."
+    },
+    {
+      "name": "adm1_code",
+      "type": "string",
+      "description": "Provincie code: `PV` plus 2 digits, from Kadaster (`identificatie`)."
+    },
+    {
+      "name": "adm1_name",
+      "type": "string",
+      "description": "Provincie name, from Kadaster."
+    }
+  ],
+  "updated": "2026-11-02T16:39:15Z",
+  "title": "Gemeenten and provincies 2025 for edge-match",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          3.3079377,
+          50.750367,
+          7.227389,
+          53.57642327126048
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2025-01-01T00:00:00Z",
+          "2025-01-01T00:00:00Z"
+        ]
+      ]
+    }
+  },
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "Statistics Netherlands (CBS)",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.cbs.nl/en-gb"
+    },
+    {
+      "name": "Kadaster",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.kadaster.nl/"
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "thumbnail": {
+      "href": "./nld_admin1.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 12337,
+      "file:checksum": "12205894c3be71e7196db5c25982727cc798636965c16fb56ba57509ebd5472d0121",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "nld_admin2.thumb": {
+      "href": "./nld_admin2.thumb.jpg",
+      "type": "image/jpeg",
+      "file:size": 18891,
+      "file:checksum": "1220b60bc1011d7050a85f731561e51ea860f44f34e8b3c1537d4072c11c457e8d13",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "title": "Provincies and gemeenten",
+      "file:size": 1667,
+      "file:checksum": "122095315521fb284b871b64a86764a6261df4399ef04fd4fe24de836cc06cacb18c",
+      "roles": [
+        "style",
+        "default"
+      ]
+    },
+    "nld_admin1-tiles": {
+      "href": "./nld_admin1.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 154278,
+      "file:checksum": "1220b533a27f2ba8e40b4baf9e0e8203614223b704082c9446177c1220f8f461c315",
+      "roles": [
+        "data"
+      ]
+    },
+    "nld_admin1": {
+      "href": "./nld_admin1.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 63001,
+      "file:checksum": "12208d5413e8dd271df9fd6b9b83f0f839233b81a54a5b30cd2b6b118125b9542c5f",
+      "roles": [
+        "data"
+      ]
+    },
+    "nld_admin2-tiles": {
+      "href": "./nld_admin2.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 627072,
+      "file:checksum": "122009c725385d964e6089a97a77950abcc8853f999a3466605cffe7017b5d20013f",
+      "roles": [
+        "data"
+      ]
+    },
+    "nld_admin2": {
+      "href": "./nld_admin2.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 361683,
+      "file:checksum": "1220b750f6154192187a9a925aba25d1e564adc53e66a2c3707b8c92629cc4e6c327",
+      "roles": [
+        "data"
+      ]
+    },
+    "documentation": {
+      "href": "./README.md",
+      "type": "text/markdown",
+      "file:size": 2969,
+      "file:checksum": "122098eabfee1ffb28abd0ee7e5d57a60257a735f42283eb72883f16c4933ccd55a0",
+      "roles": [
+        "documentation"
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { asyncBufferFromUrl, parquetRead } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
-import { parquetUrl } from "./url";
+import { referenceUrl } from "$lib/utils/data";
 
 export interface Iso3166 {
   iso3: string;
@@ -13,7 +13,7 @@ let iso3166Promise: Promise<Map<string, Iso3166>> | null = null;
 export function getAllIso3166(): Promise<Map<string, Iso3166>> {
   if (!iso3166Promise) {
     iso3166Promise = (async () => {
-      const asyncBuffer = await asyncBufferFromUrl({ url: parquetUrl("iso3166") });
+      const asyncBuffer = await asyncBufferFromUrl({ url: referenceUrl("iso3166") });
       return new Promise<Map<string, Iso3166>>((resolve) => {
         parquetRead({
           file: asyncBuffer,

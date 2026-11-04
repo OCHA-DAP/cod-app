@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { csvUrl } from "$lib/explorer/parquet/url";
+  import { downloadBlob } from "$lib/utils/download";
+  import { sourceComparisonCsv } from "$lib/explorer/parquet/comparisonCsv";
   import { getDecisionForIso3, type Decision } from "$lib/explorer/sheet/decisions";
   import LabelsToggle from "./LabelsToggle.svelte";
   import StatsComparisonTable from "./StatsComparisonTable.svelte";
@@ -10,6 +11,16 @@
 
   let { iso3 }: Props = $props();
   let decision: Decision | null = $state(null);
+  let downloading = $state(false);
+
+  async function downloadComparison() {
+    downloading = true;
+    try {
+      downloadBlob(await sourceComparisonCsv(), "source_comparison.csv");
+    } finally {
+      downloading = false;
+    }
+  }
 
   $effect(() => {
     const current = iso3;
@@ -39,10 +50,9 @@
       {/if}
     </div>
     <div class="header-controls">
-      <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external R2 file download, not app navigation -->
-      <a class="download-link" href={csvUrl("source_comparison")} download>
+      <button class="download-link" onclick={downloadComparison} disabled={downloading}>
         Download all countries comparison (CSV)
-      </a>
+      </button>
       {#if iso3}
         <p class="hint">
           [ ] to cycle sources
@@ -101,9 +111,15 @@
   }
 
   .download-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
     font-size: 11px;
     color: var(--cd-grey--800);
+    text-decoration: underline;
     white-space: nowrap;
+    cursor: pointer;
   }
 
   .hint {

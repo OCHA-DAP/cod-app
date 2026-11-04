@@ -1,15 +1,10 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["requests"]
-# ///
-
 import csv
 import os
 import re
 import sys
 from pathlib import Path
 
-import requests
+from shared import http
 
 # Load .env if present (for local development)
 dotenv = Path(__file__).parents[2] / ".env"
@@ -38,7 +33,7 @@ HEADERS = {"Referer": BASE_URL}
 
 
 def get_token() -> str:
-    res = requests.post(
+    res = http.post(
         f"{BASE_URL}/portal/sharing/rest/generateToken",
         data={
             "username": username,
@@ -50,7 +45,6 @@ def get_token() -> str:
         headers=HEADERS,
         timeout=30,
     )
-    res.raise_for_status()
     data = res.json()
     if "error" in data:
         print(f"Token error: {data['error']}", file=sys.stderr)
@@ -63,8 +57,7 @@ def get_token() -> str:
 
 def fetch_services(token: str) -> list[dict]:
     url = f"{BASE_URL}/server/rest/services/Hosted"
-    res = requests.get(url, params={"f": "json", "token": token}, headers=HEADERS, timeout=30)
-    res.raise_for_status()
+    res = http.get(url, params={"f": "json", "token": token}, headers=HEADERS, timeout=30)
     data = res.json()
     if "error" in data:
         print(f"Services error: {data['error']}", file=sys.stderr)

@@ -1,7 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["duckdb", "requests", "tenacity"]
-# ///
 """Render the About page's COD-PS admin 2 choropleths. Needs resvg and cwebp on PATH."""
 
 import json
@@ -11,8 +7,7 @@ import tempfile
 from pathlib import Path
 
 import duckdb
-import requests
-from tenacity import retry, stop_after_attempt, wait_exponential
+from shared import http
 
 ROOT = Path(__file__).parents[2]
 OUT_IMG = ROOT / "public" / "about"
@@ -36,17 +31,6 @@ METRICS = [
 ]
 
 
-@retry(stop=stop_after_attempt(4), wait=wait_exponential(min=2, max=30))
-def download(url: str, dest: Path | None = None):
-    r = requests.get(url, timeout=600, stream=dest is not None)
-    r.raise_for_status()
-    if dest is None:
-        return r.json()
-    with dest.open("wb") as f:
-        for chunk in r.iter_content(1 << 20):
-            f.write(chunk)
-
-
 def labels(breaks: list[int]) -> list[str]:
     return [f"under {breaks[0]:,}"] + [f"{a:,} to {b:,}" for a, b in zip(breaks, breaks[1:])] + [f"{breaks[-1]:,} and over"]
 
@@ -55,8 +39,8 @@ def main() -> None:
     tmp = Path(tempfile.mkdtemp())
     ps_csv = Path(sys.argv[1]) if len(sys.argv) > 1 else tmp / PS_RESOURCE
     if not ps_csv.exists():
-        resources = download(PS_DATASET)["result"]["resources"]
-        download(next(r["url"] for r in resources if r["name"] == PS_RESOURCE), ps_csv)
+        resources = http.get(PS_DATASET).json()["result"]["resources"]
+        http.download(next(r["url"] for r in resources if r["name"] == PS_RESOURCE), ps_csv)
 
     c = duckdb.connect()
     c.sql("INSTALL spatial; LOAD spatial")

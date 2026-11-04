@@ -1,13 +1,8 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["requests"]
-# ///
-
 import csv
 from datetime import datetime
 from pathlib import Path
 
-import requests
+from shared import http
 
 OUTPUT_DIR = Path(__file__).parents[2] / "public" / "status" / "data"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -18,8 +13,7 @@ FIRST_YEAR = 2000
 
 def fetch_plans_for_year(year: int) -> list:
     url = f"https://api.hpc.tools/v2/public/plan?year={year}&limit=500"
-    res = requests.get(url, timeout=30)
-    res.raise_for_status()
+    res = http.get(url, timeout=30)
     return res.json().get("data", [])
 
 

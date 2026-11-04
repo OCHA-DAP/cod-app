@@ -1,0 +1,359 @@
+{
+  "spec_version": "1.0.0",
+  "current_version": "1.0.5",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "created": "2026-11-01T17:32:38.438109Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2_2022.parquet": {
+          "sha256": "175fb42c64e2142c9c29bf03b3bbac13af135465cb7d2ab65df2b868f266d624",
+          "size_bytes": 370165,
+          "href": "tools/nld/demo/code/nld_admin2_2022.parquet",
+          "source_mtime": 1793552957.5328157,
+          "mtime": 1793552957.5328157,
+          "feature_count": 345,
+          "schema_fingerprint": "30b99967ae4ec2af"
+        },
+        "nld_admin2_2023.thumb.jpg": {
+          "sha256": "923aa441815212fb28ca8400d57704c43a265f2ef931a803d2904ce4393b683c",
+          "size_bytes": 20915,
+          "href": "tools/nld/demo/code/nld_admin2_2023.thumb.jpg",
+          "mtime": 1791157607.7309592
+        },
+        "nld_admin2_2022.pmtiles": {
+          "sha256": "55bd250da68028079b484e2dd65729175a34c822811e61483bf751f5f234f156",
+          "size_bytes": 225730,
+          "href": "tools/nld/demo/code/nld_admin2_2022.pmtiles",
+          "mtime": 1791157606.178362
+        },
+        "nld_admin2_2022.thumb.jpg": {
+          "sha256": "b843ddcaf321414cfea3cb426ecbfc4646392b3ae98895e4cbef4a5ab9e591f9",
+          "size_bytes": 20929,
+          "href": "tools/nld/demo/code/nld_admin2_2022.thumb.jpg",
+          "mtime": 1791157606.8296869
+        },
+        "nld_admin2_2023.parquet": {
+          "sha256": "0020bf351c6c67696bc415f66d1927fcc26132de28a673fc23773bd17eb56e6e",
+          "size_bytes": 373113,
+          "href": "tools/nld/demo/code/nld_admin2_2023.parquet",
+          "source_mtime": 1793552956.5119019,
+          "mtime": 1793552956.5119019,
+          "feature_count": 342,
+          "schema_fingerprint": "4c44b4c125623536"
+        },
+        "nld_admin2_2023.pmtiles": {
+          "sha256": "2988d9e8acb7f8146389db4b90e6f0804fda09a2daead6b618bafa4c2d834629",
+          "size_bytes": 207893,
+          "href": "tools/nld/demo/code/nld_admin2_2023.pmtiles",
+          "mtime": 1791157607.6484928
+        }
+      },
+      "changes": [
+        "nld_admin2_2022.parquet",
+        "nld_admin2_2023.thumb.jpg",
+        "nld_admin2_2022.pmtiles",
+        "nld_admin2_2022.thumb.jpg",
+        "nld_admin2_2023.parquet",
+        "nld_admin2_2023.pmtiles"
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "created": "2026-11-01T18:35:54.561747Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2_2022.parquet": {
+          "sha256": "175fb42c64e2142c9c29bf03b3bbac13af135465cb7d2ab65df2b868f266d624",
+          "size_bytes": 370165,
+          "href": "tools/nld/demo/code/nld_admin2_2022.parquet",
+          "source_mtime": 1793552957.5328157,
+          "mtime": 1793552957.5328157,
+          "feature_count": 345,
+          "schema_fingerprint": "30b99967ae4ec2af"
+        },
+        "nld_admin2_2023.thumb.jpg": {
+          "sha256": "923aa441815212fb28ca8400d57704c43a265f2ef931a803d2904ce4393b683c",
+          "size_bytes": 20915,
+          "href": "tools/nld/demo/code/nld_admin2_2023.thumb.jpg",
+          "mtime": 1791157607.7309592
+        },
+        "nld_admin2_2022.pmtiles": {
+          "sha256": "55bd250da68028079b484e2dd65729175a34c822811e61483bf751f5f234f156",
+          "size_bytes": 225730,
+          "href": "tools/nld/demo/code/nld_admin2_2022.pmtiles",
+          "mtime": 1791157606.178362
+        },
+        "nld_admin2_2022.thumb.jpg": {
+          "sha256": "b843ddcaf321414cfea3cb426ecbfc4646392b3ae98895e4cbef4a5ab9e591f9",
+          "size_bytes": 20929,
+          "href": "tools/nld/demo/code/nld_admin2_2022.thumb.jpg",
+          "mtime": 1791157606.8296869
+        },
+        "nld_admin2_2023.parquet": {
+          "sha256": "0020bf351c6c67696bc415f66d1927fcc26132de28a673fc23773bd17eb56e6e",
+          "size_bytes": 373113,
+          "href": "tools/nld/demo/code/nld_admin2_2023.parquet",
+          "source_mtime": 1793552956.5119019,
+          "mtime": 1793552956.5119019,
+          "feature_count": 342,
+          "schema_fingerprint": "4c44b4c125623536"
+        },
+        "nld_admin2_2023.pmtiles": {
+          "sha256": "2988d9e8acb7f8146389db4b90e6f0804fda09a2daead6b618bafa4c2d834629",
+          "size_bytes": 207893,
+          "href": "tools/nld/demo/code/nld_admin2_2023.pmtiles",
+          "mtime": 1791157607.6484928
+        },
+        "README.md": {
+          "sha256": "6bc3ebf51cc34c05d9ca295b2579b914473120ed6d990ee957d5f7024491af9f",
+          "size_bytes": 2214,
+          "href": "tools/nld/demo/code/README.md",
+          "mtime": 1793554358.603653
+        }
+      },
+      "changes": [
+        "README.md"
+      ]
+    },
+    {
+      "version": "1.0.2",
+      "created": "2026-11-01T18:35:56.006213Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2_2022.parquet": {
+          "sha256": "175fb42c64e2142c9c29bf03b3bbac13af135465cb7d2ab65df2b868f266d624",
+          "size_bytes": 370165,
+          "href": "tools/nld/demo/code/nld_admin2_2022.parquet",
+          "source_mtime": 1793552957.5328157,
+          "mtime": 1793552957.5328157,
+          "feature_count": 345,
+          "schema_fingerprint": "30b99967ae4ec2af"
+        },
+        "nld_admin2_2023.thumb.jpg": {
+          "sha256": "923aa441815212fb28ca8400d57704c43a265f2ef931a803d2904ce4393b683c",
+          "size_bytes": 20915,
+          "href": "tools/nld/demo/code/nld_admin2_2023.thumb.jpg",
+          "mtime": 1791157607.7309592
+        },
+        "nld_admin2_2022.pmtiles": {
+          "sha256": "eab360c2a7d824707a469278997697133fc9b70087d3124871c4752715369a1e",
+          "size_bytes": 225723,
+          "href": "tools/nld/demo/code/nld_admin2_2022.pmtiles",
+          "mtime": 1793558155.4603305
+        },
+        "nld_admin2_2022.thumb.jpg": {
+          "sha256": "9ce8350f328e691947eec92db3649bdbf5a4b89c458071178fe05745d75d339e",
+          "size_bytes": 18906,
+          "href": "tools/nld/demo/code/nld_admin2_2022.thumb.jpg",
+          "mtime": 1793558156.0025537
+        },
+        "nld_admin2_2023.parquet": {
+          "sha256": "0020bf351c6c67696bc415f66d1927fcc26132de28a673fc23773bd17eb56e6e",
+          "size_bytes": 373113,
+          "href": "tools/nld/demo/code/nld_admin2_2023.parquet",
+          "source_mtime": 1793552956.5119019,
+          "mtime": 1793552956.5119019,
+          "feature_count": 342,
+          "schema_fingerprint": "4c44b4c125623536"
+        },
+        "nld_admin2_2023.pmtiles": {
+          "sha256": "2988d9e8acb7f8146389db4b90e6f0804fda09a2daead6b618bafa4c2d834629",
+          "size_bytes": 207893,
+          "href": "tools/nld/demo/code/nld_admin2_2023.pmtiles",
+          "mtime": 1791157607.6484928
+        },
+        "README.md": {
+          "sha256": "6bc3ebf51cc34c05d9ca295b2579b914473120ed6d990ee957d5f7024491af9f",
+          "size_bytes": 2214,
+          "href": "tools/nld/demo/code/README.md",
+          "mtime": 1793554358.603653
+        }
+      },
+      "changes": [
+        "nld_admin2_2022.pmtiles",
+        "nld_admin2_2022.thumb.jpg"
+      ],
+      "message": "Generated PMTiles and thumbnail: nld_admin2_2022.pmtiles, nld_admin2_2022.thumb.jpg"
+    },
+    {
+      "version": "1.0.3",
+      "created": "2026-11-01T18:35:56.824135Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2_2022.parquet": {
+          "sha256": "175fb42c64e2142c9c29bf03b3bbac13af135465cb7d2ab65df2b868f266d624",
+          "size_bytes": 370165,
+          "href": "tools/nld/demo/code/nld_admin2_2022.parquet",
+          "source_mtime": 1793552957.5328157,
+          "mtime": 1793552957.5328157,
+          "feature_count": 345,
+          "schema_fingerprint": "30b99967ae4ec2af"
+        },
+        "nld_admin2_2023.thumb.jpg": {
+          "sha256": "85b9bc14e1d60c90c11330d5ce3f8e1120c5c687f66caf717cad2388be0b3337",
+          "size_bytes": 18903,
+          "href": "tools/nld/demo/code/nld_admin2_2023.thumb.jpg",
+          "mtime": 1793558156.8208508
+        },
+        "nld_admin2_2022.pmtiles": {
+          "sha256": "eab360c2a7d824707a469278997697133fc9b70087d3124871c4752715369a1e",
+          "size_bytes": 225723,
+          "href": "tools/nld/demo/code/nld_admin2_2022.pmtiles",
+          "mtime": 1793558155.4603305
+        },
+        "nld_admin2_2022.thumb.jpg": {
+          "sha256": "9ce8350f328e691947eec92db3649bdbf5a4b89c458071178fe05745d75d339e",
+          "size_bytes": 18906,
+          "href": "tools/nld/demo/code/nld_admin2_2022.thumb.jpg",
+          "mtime": 1793558156.0025537
+        },
+        "nld_admin2_2023.parquet": {
+          "sha256": "0020bf351c6c67696bc415f66d1927fcc26132de28a673fc23773bd17eb56e6e",
+          "size_bytes": 373113,
+          "href": "tools/nld/demo/code/nld_admin2_2023.parquet",
+          "source_mtime": 1793552956.5119019,
+          "mtime": 1793552956.5119019,
+          "feature_count": 342,
+          "schema_fingerprint": "4c44b4c125623536"
+        },
+        "nld_admin2_2023.pmtiles": {
+          "sha256": "22b4d77a553b8db544f7c881ededda62dec49dbe810c48940106e82cc996cbfe",
+          "size_bytes": 207881,
+          "href": "tools/nld/demo/code/nld_admin2_2023.pmtiles",
+          "mtime": 1793558156.7505908
+        },
+        "README.md": {
+          "sha256": "6bc3ebf51cc34c05d9ca295b2579b914473120ed6d990ee957d5f7024491af9f",
+          "size_bytes": 2214,
+          "href": "tools/nld/demo/code/README.md",
+          "mtime": 1793554358.603653
+        }
+      },
+      "changes": [
+        "nld_admin2_2023.pmtiles",
+        "nld_admin2_2023.thumb.jpg"
+      ],
+      "message": "Generated PMTiles and thumbnail: nld_admin2_2023.pmtiles, nld_admin2_2023.thumb.jpg"
+    },
+    {
+      "version": "1.0.4",
+      "created": "2026-11-01T19:13:41.164625Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2_2022.parquet": {
+          "sha256": "175fb42c64e2142c9c29bf03b3bbac13af135465cb7d2ab65df2b868f266d624",
+          "size_bytes": 370165,
+          "href": "tools/nld/demo/code/nld_admin2_2022.parquet",
+          "source_mtime": 1793552957.5328157,
+          "mtime": 1793552957.5328157,
+          "feature_count": 345,
+          "schema_fingerprint": "30b99967ae4ec2af"
+        },
+        "nld_admin2_2023.thumb.jpg": {
+          "sha256": "85b9bc14e1d60c90c11330d5ce3f8e1120c5c687f66caf717cad2388be0b3337",
+          "size_bytes": 18903,
+          "href": "tools/nld/demo/code/nld_admin2_2023.thumb.jpg",
+          "mtime": 1793558156.8208508
+        },
+        "nld_admin2_2022.pmtiles": {
+          "sha256": "eab360c2a7d824707a469278997697133fc9b70087d3124871c4752715369a1e",
+          "size_bytes": 225723,
+          "href": "tools/nld/demo/code/nld_admin2_2022.pmtiles",
+          "mtime": 1793558155.4603305
+        },
+        "nld_admin2_2022.thumb.jpg": {
+          "sha256": "9ce8350f328e691947eec92db3649bdbf5a4b89c458071178fe05745d75d339e",
+          "size_bytes": 18906,
+          "href": "tools/nld/demo/code/nld_admin2_2022.thumb.jpg",
+          "mtime": 1793558156.0025537
+        },
+        "nld_admin2_2023.parquet": {
+          "sha256": "0020bf351c6c67696bc415f66d1927fcc26132de28a673fc23773bd17eb56e6e",
+          "size_bytes": 373113,
+          "href": "tools/nld/demo/code/nld_admin2_2023.parquet",
+          "source_mtime": 1793552956.5119019,
+          "mtime": 1793552956.5119019,
+          "feature_count": 342,
+          "schema_fingerprint": "4c44b4c125623536"
+        },
+        "nld_admin2_2023.pmtiles": {
+          "sha256": "22b4d77a553b8db544f7c881ededda62dec49dbe810c48940106e82cc996cbfe",
+          "size_bytes": 207881,
+          "href": "tools/nld/demo/code/nld_admin2_2023.pmtiles",
+          "mtime": 1793558156.7505908
+        },
+        "README.md": {
+          "sha256": "9b5ca2cc865214a0e6881a813f64836cbdb83ae2c0e921dbe4c9df7d79836b23",
+          "size_bytes": 3572,
+          "href": "tools/nld/demo/code/README.md",
+          "mtime": 1793560304.6371956
+        }
+      },
+      "changes": [
+        "README.md"
+      ]
+    },
+    {
+      "version": "1.0.5",
+      "created": "2026-11-02T16:39:14.289572Z",
+      "breaking": false,
+      "assets": {
+        "nld_admin2_2022.parquet": {
+          "sha256": "175fb42c64e2142c9c29bf03b3bbac13af135465cb7d2ab65df2b868f266d624",
+          "size_bytes": 370165,
+          "href": "tools/nld/demo/code/nld_admin2_2022.parquet",
+          "source_mtime": 1793552957.5328157,
+          "mtime": 1793552957.5328157,
+          "feature_count": 345,
+          "schema_fingerprint": "30b99967ae4ec2af"
+        },
+        "nld_admin2_2023.thumb.jpg": {
+          "sha256": "85b9bc14e1d60c90c11330d5ce3f8e1120c5c687f66caf717cad2388be0b3337",
+          "size_bytes": 18903,
+          "href": "tools/nld/demo/code/nld_admin2_2023.thumb.jpg",
+          "mtime": 1793558156.8208508
+        },
+        "nld_admin2_2022.pmtiles": {
+          "sha256": "71113332efc9bf99e4353f1079d8041b8c1c571a1c353f1890d7e6cec142400b",
+          "size_bytes": 715461,
+          "href": "tools/nld/demo/code/nld_admin2_2022.pmtiles",
+          "mtime": 1793637508.5823944
+        },
+        "nld_admin2_2022.thumb.jpg": {
+          "sha256": "9ce8350f328e691947eec92db3649bdbf5a4b89c458071178fe05745d75d339e",
+          "size_bytes": 18906,
+          "href": "tools/nld/demo/code/nld_admin2_2022.thumb.jpg",
+          "mtime": 1793558156.0025537
+        },
+        "nld_admin2_2023.parquet": {
+          "sha256": "0020bf351c6c67696bc415f66d1927fcc26132de28a673fc23773bd17eb56e6e",
+          "size_bytes": 373113,
+          "href": "tools/nld/demo/code/nld_admin2_2023.parquet",
+          "source_mtime": 1793552956.5119019,
+          "mtime": 1793552956.5119019,
+          "feature_count": 342,
+          "schema_fingerprint": "4c44b4c125623536"
+        },
+        "nld_admin2_2023.pmtiles": {
+          "sha256": "a5b2bfe21ae89a87c457b6e58a4c47f9b77f98a475c7ee403b8953100539c392",
+          "size_bytes": 670821,
+          "href": "tools/nld/demo/code/nld_admin2_2023.pmtiles",
+          "mtime": 1793637508.7425413
+        },
+        "README.md": {
+          "sha256": "3a9a12403b042d45aacc90767450ae7d8c3a74a27266fddbdad2738b71fa825c",
+          "size_bytes": 3566,
+          "href": "tools/nld/demo/code/README.md",
+          "mtime": 1793612735.5864563
+        }
+      },
+      "changes": [
+        "README.md",
+        "nld_admin2_2022.pmtiles",
+        "nld_admin2_2023.pmtiles"
+      ]
+    }
+  ]
+}
