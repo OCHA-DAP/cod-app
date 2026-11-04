@@ -88,3 +88,11 @@ export async function exportColumns(source: ExportSource): Promise<string[]> {
     (r) => r.column_name,
   );
 }
+
+// Writes a query to a file in DuckDB's virtual FS and returns it as a File for the loader.
+export async function write(select: string, name: string, opts = ""): Promise<File> {
+  await run(`COPY (${select}) TO '${name}' ${opts}`);
+  const bytes = await db().db.copyFileToBuffer(name);
+  await db().db.dropFile(name);
+  return new File([bytes.slice()], name);
+}

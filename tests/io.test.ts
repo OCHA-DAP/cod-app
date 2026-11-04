@@ -1,6 +1,6 @@
 import { beforeAll, expect, test } from "vitest";
 import { loadFile } from "$lib/db/loader";
-import { db, exportColumns, loadFixture, ready, rows, run, scalar } from "./helpers";
+import { db, exportColumns, loadFixture, ready, rows, run, scalar, write } from "./helpers";
 import emptyUrl from "./fixtures/io/empty.gpkg?url";
 import sliverUrl from "./fixtures/io/sliver.gpkg?url";
 
@@ -8,14 +8,6 @@ let conn: Awaited<ReturnType<typeof ready>>;
 beforeAll(async () => {
   conn = await ready();
 }, 60_000);
-
-// Writes a query to a file in DuckDB's virtual FS and returns it as a File for the loader.
-async function write(select: string, name: string, opts = ""): Promise<File> {
-  await run(`COPY (${select}) TO '${name}' ${opts}`);
-  const bytes = await db().db.copyFileToBuffer(name);
-  await db().db.dropFile(name);
-  return new File([bytes.slice()], name);
-}
 
 const load = async (file: File) => loadFile(db().db, conn, [file]);
 const wkt = (ws: string[]) =>
