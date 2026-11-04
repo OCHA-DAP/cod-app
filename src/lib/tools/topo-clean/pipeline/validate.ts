@@ -1,6 +1,6 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { hasNoiseFloorGap } from "$lib/db/coverage";
-import { hasCoverageViolations } from "$lib/db/coverageClean";
+import { hasInvalidEdges } from "$lib/db/invalidEdges";
 
 // Post-fix validation gate, matching topo-tools' _03_clean.py checks
 // (docs/adr/0009-area-floor-anchored-to-overlap-area.md there). Runs
@@ -92,7 +92,7 @@ export async function validateCleanOutput(
   const minArea = inputArea * (1 - AREA_NOISE_FACTOR) - ovArea * OVERLAP_LOSS_HEADROOM;
   const collapsed = await collapsedUnrelatedCount(conn, targetTable);
   const badTypes = await badGeometryTypeCount(conn, targetTable);
-  const stillViolating = await hasCoverageViolations(conn, targetTable);
+  const stillViolating = await hasInvalidEdges(conn, targetTable);
   const underFilled = gapDeg > 0 && (await hasNoiseFloorGap(conn, targetTable, gapDeg));
 
   if (stillViolating || underFilled || outputArea < minArea || collapsed > 0 || badTypes > 0) {

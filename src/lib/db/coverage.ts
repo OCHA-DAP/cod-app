@@ -1,5 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { bboxColumnsSql, bboxOverlapSql } from "./bbox";
+import { bboxColumnsSql, bboxOverlapSql, subdivideSql } from "./bbox";
 import {
   DETACHED_MAX_ORIGINAL_SHARE,
   DETACHED_MERGE_MAX_RATIO,
@@ -150,6 +150,50 @@ export function isMicroSql(geom: string, width: number = SNAP_TOLERANCE): string
     `THEN (ST_MaximumInscribedCircle(${geom})).radius * 2 <= ${width} ` +
     "ELSE FALSE END"
   );
+}
+
+// Ported from topo-tools' check_no_overlaps: throws if rows of two `groupColumn`
+// values overlap past minWidth.
+export async function checkNoOverlaps(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  { groupColumn = "fid", minWidth = SNAP_TOLERANCE }: { groupColumn?: string; minWidth?: number } = {},
+): Promise<void> {
+  const tmp = `${table}_tmp1`;
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE ${tmp} AS
+    SELECT g, geom, ${bboxColumnsSql("geom")} FROM (
+      SELECT "${groupColumn}" AS g, UNNEST(${subdivideSql("geom")}) AS geom FROM ${table}
+    )
+  `);
+  try {
+    const rows = (
+      await conn.query(`--sql
+        WITH pairs AS (
+          SELECT a.g AS g_a, b.g AS g_b,
+                 ST_CollectionExtract(ST_Intersection(a.geom, b.geom), 3) AS geom
+          FROM ${tmp} a JOIN ${tmp} b
+            ON a.g < b.g AND a.xmin <= b.xmax AND a.xmax >= b.xmin
+           AND a.ymin <= b.ymax AND a.ymax >= b.ymin
+          WHERE ST_Intersects(a.geom, b.geom) AND NOT ST_Touches(a.geom, b.geom)
+        ), parts AS (
+          SELECT g_a, g_b, UNNEST(ST_Dump(geom)).geom AS geom FROM pairs
+        )
+        SELECT g_a, g_b, sum(ST_Area(geom)) AS area FROM parts
+        WHERE NOT ST_IsEmpty(geom) AND NOT ${isMicroSql("geom", minWidth)}
+        GROUP BY ALL ORDER BY area DESC
+      `)
+    ).toArray() as { g_a: unknown; g_b: unknown; area: number }[];
+    if (rows.length) {
+      const listed = rows
+        .slice(0, 10)
+        .map((r) => `${r.g_a} / ${r.g_b} (${r.area.toPrecision(3)} deg2)`)
+        .join(", ");
+      throw new Error(`${table}: ${rows.length} ${groupColumn} pair(s) overlap, e.g. ${listed}`);
+    }
+  } finally {
+    await conn.query(`DROP TABLE IF EXISTS ${tmp}`);
+  }
 }
 
 export async function hasMicroPolygons(

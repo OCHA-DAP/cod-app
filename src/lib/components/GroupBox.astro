@@ -1,12 +1,4 @@
----
-interface Props {
-  nested?: boolean;
-}
-
-const { nested = false } = Astro.props;
----
-
-<div class={`group ${nested ? "nested" : ""}`}>
+<div class="group">
   <slot />
 </div>
 
@@ -15,11 +7,5 @@ const { nested = false } = Astro.props;
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
-  }
-  .group.nested {
-    padding: 0.875rem;
-    border: 1px solid var(--cd-grey--500);
-    border-radius: var(--brand-radius);
-    background: var(--cd-white);
   }
 </style>

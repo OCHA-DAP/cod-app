@@ -15,8 +15,6 @@ const detect = bySlug("topo-detect");
 const match = bySlug("edge-match");
 const extend = bySlug("edge-extend");
 const mosaic = bySlug("edge-mosaic");
-const clip = bySlug("edge-clip");
-const stitch = bySlug("edge-stitch");
 const change = bySlug("change");
 const pkg = bySlug("package");
 const packagePolygons = bySlug("package-polygons");
@@ -75,13 +73,7 @@ const validate = bySlug("validate");
             <ToolCard tool={match} header />
             <Disclosure label="Show 2 individual tools">
               <ToolCard tool={extend} variant="secondary" />
-              <GroupBox nested>
-                <ToolCard tool={mosaic} variant="secondary" header />
-                <div class="below">
-                  <ToolCard tool={clip} variant="tertiary" />
-                  <ToolCard tool={stitch} variant="tertiary" />
-                </div>
-              </GroupBox>
+              <ToolCard tool={mosaic} variant="secondary" />
             </Disclosure>
           </GroupBox>
         </Step>
@@ -166,10 +158,5 @@ const validate = bySlug("validate");
   .steps {
     margin: 0;
     padding: 0;
-  }
-  .below {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
   }
 </style>

@@ -1,7 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { bboxColumnsSql } from "./bbox";
-import { CLIP_TILE_MIN_VERTICES } from "./constants";
-import { subdivideBoundary } from "./clipTiling";
+import { bboxColumnsSql, subdivideSql } from "./bbox";
 import { intersectPairs } from "./overlap";
 import {
   type AssignmentMethod,
@@ -65,34 +63,11 @@ export async function assignOne(
     FROM (SELECT fid, UNNEST(ST_Dump(geom)).geom AS part_geom FROM overlay_layer_01)
   `);
 
-  // Overlay pieces: light parts as-is, heavy parts grid-tiled (the same tiling
-  // clip's own clip step uses) so input features bbox-prefilter against tiles.
+  // Heavy overlay parts are split so input features bbox-prefilter against the pieces.
   await conn.query(`--sql
     CREATE OR REPLACE TABLE cl_overlay_pieces AS
-    SELECT fid AS overlay_fid, part_geom AS geom
-    FROM cl_overlay_parts WHERE n_points < ${CLIP_TILE_MIN_VERTICES}
-  `);
-  const heavyParts = (
-    await conn.query(`--sql
-      SELECT part_id, fid FROM cl_overlay_parts WHERE n_points >= ${CLIP_TILE_MIN_VERTICES}
-    `)
-  ).toArray() as Array<{ part_id: bigint | number; fid: bigint | number }>;
-  for (const { part_id: partId, fid } of heavyParts) {
-    await conn.query(`--sql
-      CREATE OR REPLACE TABLE cl_heavy_src AS
-      SELECT part_geom AS geom FROM cl_overlay_parts WHERE part_id = ${partId}
-    `);
-    await subdivideBoundary(conn, "cl_heavy_src", "geom", "cl_heavy_tiles_raw");
-    await conn.query(
-      `INSERT INTO cl_overlay_pieces SELECT ${fid} AS overlay_fid, geom FROM cl_heavy_tiles_raw`,
-    );
-  }
-  await conn.query("DROP TABLE IF EXISTS cl_heavy_src");
-  await conn.query("DROP TABLE IF EXISTS cl_heavy_tiles_raw");
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE cl_overlay_pieces AS
-    SELECT ROW_NUMBER() OVER () AS id, overlay_fid, geom, ${bboxColumnsSql("geom")}
-    FROM cl_overlay_pieces
+    WITH t AS (SELECT fid AS overlay_fid, UNNEST(${subdivideSql("part_geom")}) AS geom FROM cl_overlay_parts)
+    SELECT ROW_NUMBER() OVER () AS id, overlay_fid, geom, ${bboxColumnsSql("geom")} FROM t
   `);
 
   // Area-weighted overlap per piece pair. A touch-only pair (shared edge or

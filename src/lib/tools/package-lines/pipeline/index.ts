@@ -1,5 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { mergeMicroPolygons } from "$lib/db/coverage";
+import { checkNoOverlaps, mergeMicroPolygons } from "$lib/db/coverage";
 import { tableToGeoJSON } from "$lib/db/geojson";
 import { setCentroidLat } from "$lib/db/units";
 import { DEFAULT_DEPTH_COLUMN } from "$lib/tools/schema-fill/pipeline/index";
@@ -23,6 +23,7 @@ export async function runPackageLines(
   depthColumn: string = DEFAULT_DEPTH_COLUMN,
 ): Promise<PackageLinesResult> {
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pl_micro");
+  await checkNoOverlaps(conn, "layer_01");
   await conn.query("DROP TABLE IF EXISTS pl_micro");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE pl_input AS

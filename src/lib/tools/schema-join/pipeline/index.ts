@@ -1,4 +1,5 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { checkNoOverlaps } from "$lib/db/coverage";
 import { ROW_ORDER_COLUMN } from "$lib/db/export";
 import { tableToGeoJSON } from "$lib/db/geojson";
 import { layerBounds, type Bounds } from "$lib/db/layerView";
@@ -36,7 +37,9 @@ export async function loadAndAssign(
   joinFiles: File[],
 ): Promise<LoadedLayers> {
   await loadFile(db, conn, inputFiles, { prefix: "input_" });
+  await checkNoOverlaps(conn, "input_layer_01");
   await loadFile(db, conn, joinFiles, { prefix: "join_" });
+  await checkNoOverlaps(conn, "join_layer_01");
   await assignJoinFeatures(conn);
   return {
     inputGeoJSON: await tableToGeoJSON(conn, "input_layer_01", null),

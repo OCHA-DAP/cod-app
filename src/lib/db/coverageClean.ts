@@ -1,6 +1,7 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { SNAP_TOLERANCE } from "./constants";
-import { buildGapTable, hasMicroPolygons, mergeMicroPolygons } from "./coverage";
+import { buildGapTable, hasMicroPolygons, hasNoiseFloorGap, mergeMicroPolygons } from "./coverage";
+import { hasInvalidEdges } from "./invalidEdges";
 
 // Shared ST_CoverageClean plumbing used by both the Topology Cleaner tool
 // (topo-clean/pipeline/clean.ts) and Edge Extender's input-clean gate and
@@ -77,22 +78,6 @@ export async function runCoverageClean(
   `);
 }
 
-// True if `table` (one row per feature, `geom` column) has any overlaps or
-// unmatched shared edges. Never flags gaps — a coverage with a fully-enclosed
-// hole and otherwise-matching edges reports clean here. Shared by
-// gatedCoverageClean below and Topology Cleaner's own pre-clean skip check
-// (pipeline/clean.ts).
-export async function hasCoverageViolations(
-  conn: AsyncDuckDBConnection,
-  table: string,
-): Promise<boolean> {
-  const r = await conn.query(`--sql
-    SELECT ST_CoverageInvalidEdges_Agg(geom, ${SNAP_TOLERANCE}) IS NOT NULL AS bad
-    FROM (SELECT UNNEST(ST_Dump(geom)).geom AS geom FROM ${table})
-  `);
-  return Boolean(r.toArray()[0].bad);
-}
-
 // True if `table`'s union has any interior hole, however narrow: the input
 // auto-clean trigger of topo-tools' read_reproject_and_clean.
 export async function hasAnyHole(conn: AsyncDuckDBConnection, table: string): Promise<boolean> {
@@ -114,7 +99,7 @@ export async function needsCoverageClean(
   anyHole = false,
 ): Promise<boolean> {
   return (
-    (await hasCoverageViolations(conn, table)) ||
+    (await hasInvalidEdges(conn, table)) ||
     (await hasMicroPolygons(conn, table)) ||
     (anyHole && (await hasAnyHole(conn, table)))
   );
@@ -157,7 +142,7 @@ export async function buildCoverageCleanEscalating(
   let snap = opts.snap ?? SNAP_TOLERANCE;
   for (let step = 0; step <= SNAP_ESCALATION_MAX_STEPS; step++) {
     await buildCoverageClean(conn, sourceTable, targetTable, { ...opts, snap });
-    if (!(await hasCoverageViolations(conn, targetTable))) return;
+    if (!(await hasInvalidEdges(conn, targetTable))) return;
     snap += SNAP_ESCALATION_STEP;
   }
 }
@@ -206,4 +191,35 @@ export async function buildCoverageClean(
     await conn.query(`DROP TABLE IF EXISTS ${scratchInput}`);
     if (!microIssuesTable) await conn.query(`DROP TABLE IF EXISTS ${microIssues}`);
   }
+}
+
+// Ported from topo-tools' check_valid_topology: throws on invalid edges, a gap at
+// or below gapMaxWidth (any hole when 0), or a micro-polygon.
+export async function checkValidTopology(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  gapMaxWidth = SNAP_TOLERANCE,
+): Promise<void> {
+  if (await hasInvalidEdges(conn, table)) throw new Error(`INVALID_EDGES: ${table}`);
+  const gaps =
+    gapMaxWidth === 0 ? await hasAnyHole(conn, table) : await hasNoiseFloorGap(conn, table, gapMaxWidth);
+  if (gaps) throw new Error(`GAPS: ${table}`);
+  if (await hasMicroPolygons(conn, table)) throw new Error(`MICRO_POLYGONS: ${table}`);
+}
+
+// Ported from topo-tools' coverage_clean_rows: coverage-cleans `table` (fid, geom) in
+// place, leaving rows failing `where` untouched.
+export async function coverageCleanRows(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  where: string,
+  microIssuesTable: string,
+): Promise<void> {
+  const held = `${table}_held`;
+  await conn.query(`CREATE OR REPLACE TABLE ${held} AS SELECT * FROM ${table} WHERE NOT (${where})`);
+  await conn.query(`DELETE FROM ${table} WHERE NOT (${where})`);
+  await mergeMicroPolygons(conn, table, table, microIssuesTable);
+  await gatedCoverageClean(conn, table);
+  await conn.query(`INSERT INTO ${table} BY NAME SELECT * FROM ${held}`);
+  await conn.query(`DROP TABLE ${held}`);
 }

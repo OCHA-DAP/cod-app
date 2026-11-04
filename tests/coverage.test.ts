@@ -1,7 +1,13 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import { SNAP_TOLERANCE } from "$lib/db/constants";
-import { hasMicroPolygons, mergeDetachedParts, mergeMicroPolygons } from "$lib/db/coverage";
-import { buildCoverageClean, hasAnyHole, hasCoverageViolations } from "$lib/db/coverageClean";
+import {
+  checkNoOverlaps,
+  hasMicroPolygons,
+  mergeDetachedParts,
+  mergeMicroPolygons,
+} from "$lib/db/coverage";
+import { buildCoverageClean, hasAnyHole } from "$lib/db/coverageClean";
+import { hasInvalidEdges } from "$lib/db/invalidEdges";
 import { hasNoiseFloorGap } from "$lib/db/coverage";
 import { closeNotches, detectNotches } from "$lib/db/notches";
 import { ready, rows, run, scalar, table } from "./helpers";
@@ -642,7 +648,7 @@ describe("notches", () => {
     expect(await rows("SELECT unit_a, unit_b FROM notches")).toEqual([{ unit_a: 1, unit_b: 2 }]);
     expect(await closeNotches(conn, "units")).toBe(1);
     expect(await detectNotches(conn, "units", "after")).toBe(0);
-    expect(await hasCoverageViolations(conn, "units")).toBe(false);
+    expect(await hasInvalidEdges(conn, "units")).toBe(false);
   });
 
   test("vertex near segment midpoint is closed", async () => {
@@ -653,7 +659,7 @@ describe("notches", () => {
     expect(await detectNotches(conn, "units", "notches")).toBe(1);
     await closeNotches(conn, "units");
     expect(await detectNotches(conn, "units", "after")).toBe(0);
-    expect(await hasCoverageViolations(conn, "units")).toBe(false);
+    expect(await hasInvalidEdges(conn, "units")).toBe(false);
   });
 
   test("gap enclosed by closing the tip is filled", async () => {
@@ -664,7 +670,7 @@ describe("notches", () => {
     expect(await hasNoiseFloorGap(conn, "units", 1)).toBe(false);
     expect(await closeNotches(conn, "units")).toBe(1);
     expect(await hasNoiseFloorGap(conn, "units", 1)).toBe(false);
-    expect(await hasCoverageViolations(conn, "units")).toBe(false);
+    expect(await hasInvalidEdges(conn, "units")).toBe(false);
   });
 
   test("closeNotches leaves geometry outside the window unchanged", async () => {
@@ -781,8 +787,47 @@ describe("notches", () => {
 });
 
 describe("overlaps", () => {
-  test.todo(
-    "check_no_overlaps: partial, contained, touching, sub-tolerance sliver (no TS counterpart)",
-  );
-  test.todo("check_no_overlaps ignores overlap within one group (no TS counterpart)");
+  const SQUARE = "POLYGON((0 0, 2 0, 2 2, 0 2, 0 0))";
+  const X = 2 - SNAP_TOLERANCE / 2;
+  const groups = (rs: [number, string, string][]) => table("synth", ["fid", "grp", "geom"], rs);
+
+  test.each([
+    ["partial", "POLYGON((1 0, 3 0, 3 2, 1 2, 1 0))", true],
+    ["contained", "POLYGON((0.5 0.5, 1 0.5, 1 1, 0.5 1, 0.5 0.5))", true],
+    ["touching", "POLYGON((2 0, 4 0, 4 2, 2 2, 2 0))", false],
+    ["sub-tolerance sliver", `POLYGON((${X} 0, 4 0, 4 2, ${X} 2, ${X} 0))`, false],
+  ] as const)("checkNoOverlaps: %s", async (_, other, overlaps) => {
+    await groups([
+      [1, "a", SQUARE],
+      [2, "b", other],
+    ]);
+    if (overlaps) await expect(checkNoOverlaps(conn, "synth")).rejects.toThrow(/1 fid pair/);
+    else await checkNoOverlaps(conn, "synth");
+    expect(
+      await scalar<number>("SELECT count(*) FROM duckdb_tables() WHERE table_name = 'synth_tmp1'"),
+    ).toBe(0);
+  });
+
+  // GEOS calls these interiors intersecting, yet their intersection has no polygon.
+  test("checkNoOverlaps ignores an empty intersection", async () => {
+    await groups([
+      [1, "a", "POLYGON((1.5741966 9.1399968, 1.5629185 9.1723015, 1.5825720526271088 9.1289799834375, 1.5741966 9.1399968))"],
+      [2, "b", "POLYGON((1.598633 9.1078539, 1.5214677 9.1953353, 1.5741966 9.1399968, 1.598633 9.1078539))"],
+    ]);
+    await checkNoOverlaps(conn, "synth");
+  });
+
+  test("checkNoOverlaps ignores overlap within one group", async () => {
+    const inner = "POLYGON((1 0, 3 0, 3 2, 1 2, 1 0))";
+    await groups([
+      [1, "a", SQUARE],
+      [2, "a", inner],
+    ]);
+    await checkNoOverlaps(conn, "synth", { groupColumn: "grp" });
+    await groups([
+      [1, "a", SQUARE],
+      [2, "b", inner],
+    ]);
+    await expect(checkNoOverlaps(conn, "synth", { groupColumn: "grp" })).rejects.toThrow(/a \/ b/);
+  });
 });

@@ -55,13 +55,6 @@ export const tools: Tool[] = [
     },
   },
   {
-    slug: "edge-stitch",
-    name: "Stitch",
-    tagline:
-      "Close seams in an already-tiled polygon layer with a single whole-table coverage-clean pass.",
-    iconHref: "/icons/tools/edge-stitch.svg",
-  },
-  {
     slug: "topo-detect",
     name: "Detect",
     tagline:
@@ -72,17 +65,10 @@ export const tools: Tool[] = [
     },
   },
   {
-    slug: "edge-clip",
-    name: "Clip",
-    tagline:
-      "Assign an input layer to its one best-overlapping overlay polygon by majority vote, then clip every input polygon to that boundary.",
-    iconHref: "/icons/tools/edge-clip.svg",
-  },
-  {
     slug: "edge-mosaic",
     name: "Mosaic",
     tagline:
-      "Fit an already-extended input layer into a new overlay boundary. Assign, clip, and close seams in one pass, no re-extension.",
+      "Fit an already-extended input layer into a new overlay boundary. Assign and clip in one pass, no re-extension.",
     iconHref: "/icons/tools/edge-mosaic.svg",
   },
   {

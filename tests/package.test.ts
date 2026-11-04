@@ -45,8 +45,7 @@ test("the combined run matches calling each tool separately", async () => {
   expect(shape(combined.lines)).toEqual(shape(lines));
 });
 
-// drift: py check_no_overlaps refuses overlapping input in all three package tools
-test.fails.each([
+test.each([
   ["polygons", runPackagePolygons],
   ["points", runPackagePoints],
   ["lines", runPackageLines],

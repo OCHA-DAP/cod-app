@@ -1,12 +1,13 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { gatedCoverageClean, hasCoverageViolations } from "$lib/db/coverageClean";
 import {
   buildGapTable,
+  checkNoOverlaps,
   dropGapsOutsideTargets,
-  hasMicroPolygons,
-  hasNoiseFloorGap,
+  mergeMicroPolygons,
 } from "$lib/db/coverage";
+import { coverageCleanRows } from "$lib/db/coverageClean";
 import { gapIssuesSql } from "$lib/db/issues";
+import { invalidEdgeIssues } from "$lib/db/invalidEdges";
 import { queryToGeoJSON, tableToGeoJSON } from "$lib/db/geojson";
 import { detectColumns, type ColumnGuess } from "$lib/db/columns";
 import {
@@ -20,6 +21,7 @@ import { dropInternalTables } from "$lib/tools/edge-extend/pipeline/index";
 import { loadLayers } from "./load";
 import { computeAssignment, type MatchMode } from "./assign";
 import {
+  clipGroups,
   listGroups,
   PASSTHROUGH_OVERLAY_FID,
   runGroups,
@@ -46,7 +48,9 @@ export type EdgeMatchPhase =
       stage: number;
       stageLabel: string;
     }
-  | { phase: "group-done"; groupIndex: number; groupTotal: number; result: GroupResult };
+  | { phase: "group-done"; groupIndex: number; groupTotal: number; result: GroupResult }
+  | { phase: "clipping" }
+  | { phase: "cleaning" };
 
 export type EdgeMatchProgressFn = (event: EdgeMatchPhase) => void;
 
@@ -61,6 +65,7 @@ export interface EdgeMatchResult {
   codeFallbackCount: number;
   microCount: number;
   gapCount: number;
+  invalidEdgeCount: number;
   clipEmptyCount: number;
   detachedMergedCount: number;
   detachedKeptCount: number;
@@ -140,26 +145,32 @@ async function buildIssuesTable(conn: AsyncDuckDBConnection): Promise<{
   };
 }
 
-async function appendMicroIssues(conn: AsyncDuckDBConnection): Promise<number> {
-  const r = await conn.query(
-    "SELECT COUNT(*) AS n FROM duckdb_tables() WHERE table_name = 'ge_micro'",
+// Appends micro-polygon or invalid-edge rows from `table`, if built, to ge_issues.
+async function appendIssues(conn: AsyncDuckDBConnection, table: string): Promise<number> {
+  const exists = await conn.query(
+    `SELECT COUNT(*) AS n FROM duckdb_tables() WHERE table_name = '${table}'`,
   );
-  if (Number((r.toArray()[0] as { n: bigint | number }).n) === 0) return 0;
+  if (Number((exists.toArray()[0] as { n: bigint | number }).n) === 0) return 0;
   await conn.query(`--sql
     INSERT INTO ge_issues BY NAME
-    SELECT key, kind, unit_a, unit_b, reason, area_m2, max_width_m, fixed, geom FROM ge_micro
+    SELECT key, kind, unit_a, unit_b, reason, area_m2, max_width_m, fixed, geom FROM ${table}
   `);
-  const n = await conn.query("SELECT COUNT(*) AS n FROM ge_micro");
-  await conn.query("DROP TABLE ge_micro");
+  const n = await conn.query(`SELECT COUNT(*) AS n FROM ${table}`);
+  await conn.query(`DROP TABLE ${table}`);
   return Number((n.toArray()[0] as { n: bigint | number }).n);
 }
 
-async function appendGapIssues(conn: AsyncDuckDBConnection, hasClipTargets: boolean): Promise<number> {
+// Appends gaps in `coverageSql`'s rows whose interior point lies in a clip target.
+async function appendGapIssues(conn: AsyncDuckDBConnection, coverageSql: string): Promise<number> {
   try {
-    await buildGapTable(conn, "ge_gap_regions", "ge_results");
-    if (hasClipTargets) {
-      await dropGapsOutsideTargets(conn, "ge_gap_regions", "SELECT geom FROM ge_clip_targets");
-    }
+    await conn.query(`CREATE OR REPLACE TABLE ge_coverage AS ${coverageSql}`);
+    await buildGapTable(conn, "ge_gap_regions", "ge_coverage");
+    await dropGapsOutsideTargets(
+      conn,
+      "ge_gap_regions",
+      `SELECT geom FROM overlay_layer_01 WHERE fid IN (
+         SELECT overlay_fid FROM ge_assignment WHERE overlay_fid <> ${PASSTHROUGH_OVERLAY_FID})`,
+    );
     await conn.query(`--sql
       INSERT INTO ge_issues BY NAME
       SELECT key, kind, reason, area_m2, max_width_m, thinness_ratio, fixed, geom
@@ -169,7 +180,7 @@ async function appendGapIssues(conn: AsyncDuckDBConnection, hasClipTargets: bool
     return Number((r.toArray()[0] as { n: bigint | number }).n);
   } finally {
     await conn.query("DROP TABLE IF EXISTS ge_gap_regions");
-    await conn.query("DROP TABLE IF EXISTS ge_clip_targets");
+    await conn.query("DROP TABLE IF EXISTS ge_coverage");
   }
 }
 
@@ -192,38 +203,6 @@ async function buildResultsAttrTable(conn: AsyncDuckDBConnection): Promise<void>
     JOIN ge_assignment ga ON ga.input_fid = fa.fid
     LEFT JOIN overlay_layer_attr ca ON ca.fid = ga.overlay_fid
   `);
-}
-
-// Warn-only topology check on the final assembled output, matching
-// edge-extend's own runValidation pattern — but tolerant at SNAP_TOLERANCE
-// (hasNoiseFloorGap), not zero-tolerance: unlike extend, match clips against
-// an overlay layer whose own shape can have a real, legitimate interior
-// hole (see docs/adr/0028), so only a noise-floor-scale leftover gap is an
-// unambiguous bug signal here.
-async function runValidation(conn: AsyncDuckDBConnection, table: string): Promise<void> {
-  try {
-    if (await hasCoverageViolations(conn, table)) {
-      console.warn(`OVERLAPS in ${table}`);
-    }
-  } catch (e) {
-    console.warn("overlap check failed:", e);
-  }
-
-  try {
-    if (await hasNoiseFloorGap(conn, table)) {
-      console.warn(`match: a noise-floor gap remains in ${table} after CoverageClean`);
-    }
-  } catch (e) {
-    console.warn("gap check failed:", e);
-  }
-
-  try {
-    if (await hasMicroPolygons(conn, table)) {
-      console.warn(`match: a micro-polygon remains in ${table} after CoverageClean`);
-    }
-  } catch (e) {
-    console.warn("micro-polygon check failed:", e);
-  }
 }
 
 async function computeBounds(
@@ -256,9 +235,11 @@ export async function runEdgeMatch(
   matchColumns: MatchColumnOptions = {},
   passthrough = false,
   mode: MatchMode = "one",
+  clean = true,
 ): Promise<EdgeMatchResult> {
   onProgress({ phase: "loading" });
   await loadLayers(db, conn, inputFiles, overlayFiles);
+  await checkNoOverlaps(conn, "overlay_layer_01");
   const overlayOutlineGeojson = await queryToGeoJSON(
     conn,
     "SELECT ST_AsGeoJSON(geom) AS _geom, fid FROM overlay_layer_01 WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)",
@@ -299,6 +280,18 @@ export async function runEdgeMatch(
     (groupIndex, groupTotal, result) =>
       onProgress({ phase: "group-done", groupIndex, groupTotal, result }),
   );
+  onProgress({ phase: "clipping" });
+  await clipGroups(conn);
+  // The orphan group is kept unclipped, overlapping neighbours by design.
+  const coverageWhere = `fid NOT IN (SELECT input_fid FROM ge_assignment WHERE overlay_fid = ${PASSTHROUGH_OVERLAY_FID})`;
+  await conn.query("DROP TABLE IF EXISTS ge_micro");
+  if (clean) {
+    onProgress({ phase: "cleaning" });
+    await coverageCleanRows(conn, "ge_results", coverageWhere, "ge_micro");
+  } else {
+    await mergeMicroPolygons(conn, "ge_results", "ge_results", "ge_micro");
+  }
+  await invalidEdgeIssues(conn, "ge_results", "ge_invalid", coverageWhere);
 
   const {
     dropped: droppedCount,
@@ -307,22 +300,18 @@ export async function runEdgeMatch(
     detachedMerged: detachedMergedCount,
     detachedKept: detachedKeptCount,
   } = await buildIssuesTable(conn);
+  const microCount = await appendIssues(conn, "ge_micro");
+  const invalidEdgeCount = await appendIssues(conn, "ge_invalid");
+  let gapCount = 0;
+  if (clean) {
+    try {
+      gapCount = await appendGapIssues(conn, `SELECT fid, geom FROM ge_results WHERE ${coverageWhere}`);
+    } catch (e) {
+      console.warn("gap issues failed:", e);
+    }
+  }
   const assignedOverlayLabel =
     groups.find((g) => g.overlayFid === assignment.overlayFid)?.label ?? null;
-
-  let hasClipTargets = false;
-  try {
-    await conn.query(`--sql
-      CREATE OR REPLACE TABLE ge_clip_targets AS
-      SELECT geom FROM overlay_layer_01
-      WHERE fid IN (
-        SELECT overlay_fid FROM ge_assignment WHERE overlay_fid <> ${PASSTHROUGH_OVERLAY_FID}
-      )
-    `);
-    hasClipTargets = true;
-  } catch (e) {
-    console.warn("clip target copy failed, reporting every result gap:", e);
-  }
 
   // A group OOM above leaves the connection poisoned for the rest of the
   // session, so attribute enrichment below may also throw. It's a
@@ -351,36 +340,8 @@ export async function runEdgeMatch(
   }
   const attrTable = hasAttrTable ? "ge_results_attr" : null;
 
-  // Export from the already-correct geometry BEFORE attempting the
-  // memory-heavy whole-batch CoverageClean pass below — on a large batch it
-  // can OOM and poison the connection for the rest of the session, so a
-  // clean-then-export order would risk losing an already-correct result.
-  let geojson = await tableToGeoJSON(conn, "ge_results", attrTable);
+  const geojson = await tableToGeoJSON(conn, "ge_results", attrTable);
   const bounds = await computeBounds(conn);
-
-  // One whole-batch clean pass, catching cross-group seams no per-group
-  // clean could see. Only replaces the export above if it and the re-export
-  // both succeed; skipped if the attribute join already failed, since that's
-  // a sign the connection is already poisoned.
-  let microCount = 0;
-  if (hasAttrTable) {
-    try {
-      await conn.query("DROP TABLE IF EXISTS ge_micro");
-      await gatedCoverageClean(conn, "ge_results", { microIssuesTable: "ge_micro" });
-      geojson = await tableToGeoJSON(conn, "ge_results", attrTable);
-      microCount = await appendMicroIssues(conn);
-    } catch (e) {
-      console.warn("Output CoverageClean/re-export failed, keeping pre-clean export:", e);
-    }
-  }
-
-  await runValidation(conn, "ge_results");
-  let gapCount = 0;
-  try {
-    gapCount = await appendGapIssues(conn, hasClipTargets);
-  } catch (e) {
-    console.warn("gap issues failed:", e);
-  }
 
   return {
     geojson,
@@ -393,6 +354,7 @@ export async function runEdgeMatch(
     codeFallbackCount: assignment.codeFallbackCount,
     microCount,
     gapCount,
+    invalidEdgeCount,
     clipEmptyCount,
     detachedMergedCount,
     detachedKeptCount,

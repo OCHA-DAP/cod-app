@@ -5,10 +5,11 @@ import {
   CODE_MISMATCH_REASON,
   type AssignmentMethod,
 } from "$lib/db/codeJoin";
-import { buildStitchIssues } from "../../edge-stitch/pipeline/issues";
+import { buildGapTable, dropGapsOutsideTargets } from "$lib/db/coverage";
+import { gapIssuesSql } from "$lib/db/issues";
 
-// Combined issues report: dropped input features, clip-detached pieces,
-// stitch's leftover gaps and micro-polygons, and code-join rows when one was supplied (docs/adr/0045).
+// Combined issues report: dropped input features, clip-detached pieces, merged
+// micro-polygons, invalid edges, gaps after the final clean, and code-join rows when one was supplied (docs/adr/0045).
 
 export interface MosaicIssueRow {
   key: string;
@@ -16,8 +17,9 @@ export interface MosaicIssueRow {
     | "unassigned"
     | "clip-empty"
     | "detached-part"
-    | "gap"
     | "micro-polygon"
+    | "invalid-edge"
+    | "gap"
     | "code-mismatch"
     | "code-fallback";
   areaM2: number | null;
@@ -44,12 +46,27 @@ export async function buildMosaicIssues(
   conn: AsyncDuckDBConnection,
   overlayFid: number,
   assignment: AssignmentOutcomeInfo = {},
+  gaps = true,
 ): Promise<MosaicIssuesResult> {
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE ms_gap_regions AS SELECT NULL::BIGINT AS n, NULL::GEOMETRY AS geom WHERE FALSE
+  `);
+  if (gaps) {
+    await buildGapTable(conn, "ms_gap_regions", "cl_clip");
+    await dropGapsOutsideTargets(
+      conn,
+      "ms_gap_regions",
+      `SELECT geom FROM overlay_layer_01 WHERE fid = ${overlayFid}`,
+    );
+  }
+  await conn.query(`CREATE OR REPLACE TABLE ms_gaps AS ${gapIssuesSql("ms_gap_regions")}`);
+  await conn.query("DROP TABLE ms_gap_regions");
+
   await conn.query(`--sql
     CREATE OR REPLACE TABLE ms_unassigned AS
     SELECT key, kind, NULL::DOUBLE AS area_m2, NULL::DOUBLE AS max_width_m,
            NULL::DOUBLE AS thinness_ratio, unit_a, overlay_fid, reason, geom, xmin, ymin, xmax, ymax
-    FROM (${assignOneDropIssuesSql("cl_clip")})
+    FROM (${assignOneDropIssuesSql("cl_clip", "ms_micro")})
   `);
 
   // Every assigned input feature shares the single run-wide assignment_method
@@ -73,12 +90,6 @@ export async function buildMosaicIssues(
     WHERE ${codeKind ? "TRUE" : "FALSE"}
   `);
 
-  const { rows: gapRows } = await buildStitchIssues(
-    conn,
-    "st_clean",
-    `SELECT geom FROM overlay_layer_01 WHERE fid = ${overlayFid}`,
-  );
-
   await conn.query(`--sql
     CREATE OR REPLACE TABLE ms_issues AS
     SELECT key, kind, area_m2, max_width_m, thinness_ratio, NULL::BOOLEAN AS fixed, unit_a,
@@ -93,10 +104,19 @@ export async function buildMosaicIssues(
            overlay_fid, reason, geom, xmin, ymin, xmax, ymax
     FROM cl_detached
     UNION ALL
+    SELECT key, kind, area_m2, max_width_m, NULL::DOUBLE, fixed, unit_a, unit_b,
+           NULL::BIGINT AS overlay_fid, reason, geom, xmin, ymin, xmax, ymax
+    FROM ms_micro
+    UNION ALL
+    SELECT key, kind, area_m2, max_width_m, thinness_ratio, fixed, unit_a, unit_b,
+           overlay_fid, reason, geom, xmin, ymin, xmax, ymax
+    FROM ms_invalid
+    UNION ALL
     SELECT key, kind, area_m2, max_width_m, thinness_ratio, fixed, unit_a, unit_b,
            NULL::BIGINT AS overlay_fid, reason, geom, xmin, ymin, xmax, ymax
-    FROM st_issues
+    FROM ms_gaps
   `);
+  await conn.query("DROP TABLE IF EXISTS ms_gaps");
   await conn.query("DROP TABLE IF EXISTS ms_code_issues");
   await conn.query("DROP TABLE IF EXISTS cl_detached");
 
@@ -105,15 +125,14 @@ export async function buildMosaicIssues(
       SELECT key, kind, area_m2, max_width_m, thinness_ratio, unit_a, unit_b, overlay_fid, reason,
              xmin, ymin, xmax, ymax
       FROM ms_issues
-      WHERE kind IN ('unassigned', 'clip-empty', 'detached-part', 'code-mismatch', 'code-fallback')
     `)
   ).toArray() as Array<{
     key: string;
-    kind: "unassigned" | "clip-empty" | "detached-part" | "code-mismatch" | "code-fallback";
+    kind: MosaicIssueRow["kind"];
     area_m2: number | null;
     max_width_m: number | null;
     thinness_ratio: number | null;
-    unit_a: bigint | number;
+    unit_a: bigint | number | null;
     unit_b: bigint | number | null;
     overlay_fid: bigint | number | null;
     reason: string | null;
@@ -123,32 +142,18 @@ export async function buildMosaicIssues(
     ymax: number;
   }>;
 
-  const rows: MosaicIssueRow[] = [
-    ...meta.map((r) => ({
+  const rows: MosaicIssueRow[] = meta.map((r) => ({
       key: r.key,
       kind: r.kind,
       areaM2: r.area_m2,
       maxWidthM: r.max_width_m,
       thinnessRatio: r.thinness_ratio,
-      unitA: Number(r.unit_a),
+      unitA: r.unit_a == null ? null : Number(r.unit_a),
       unitB: r.unit_b == null ? null : Number(r.unit_b),
       overlayFid: r.overlay_fid == null ? null : Number(r.overlay_fid),
       reason: r.reason,
       bbox: [r.xmin, r.ymin, r.xmax, r.ymax] as [number, number, number, number],
-    })),
-    ...gapRows.map((r) => ({
-      key: r.key,
-      kind: r.kind,
-      areaM2: r.areaM2,
-      maxWidthM: r.maxWidthM,
-      thinnessRatio: r.kind === "gap" ? r.thinnessRatio : null,
-      unitA: r.unitA,
-      unitB: r.unitB,
-      overlayFid: null,
-      reason: r.reason,
-      bbox: r.bbox,
-    })),
-  ];
+  }));
 
   const gj = await conn.query(`--sql
     SELECT key, kind, area_m2, max_width_m, unit_a, unit_b, overlay_fid, reason,

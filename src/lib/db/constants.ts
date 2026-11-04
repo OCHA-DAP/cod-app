@@ -4,13 +4,12 @@ export const SNAP_TOLERANCE = 1e-8;
 // Grid a union retries on when WASM GEOS throws a noding error that native GEOS doesn't.
 export const NODING_FALLBACK_GRID = 1e-11;
 
-// Ported from topo-tools' core/constants.py. Governs when/how an overlay feature
-// boundary gets grid-subdivided before intersecting against it, shared by
-// clip and mosaic — see $lib/db/clipTiling.ts.
-export const CLIP_TILE_MIN_VERTICES = 5000;
-export const CLIP_TILE_TARGET_VERTICES = 1350;
-export const CLIP_TILE_MIN_CELL = 0.05;
-export const CLIP_TILE_MAX_CELL = 5.0;
+// Geometries with at least SUBDIVIDE_MIN_VERTICES are split (ST_Subdivide) into
+// pieces of at most SUBDIVIDE_MAX_VERTICES before per-row joins.
+export const SUBDIVIDE_MIN_VERTICES = 5000;
+export const SUBDIVIDE_MAX_VERTICES = 1350;
+// Input vertices one batch of clip input/tile (or invalid-edge part) pairs may carry.
+export const CLIP_PAIR_VERTEX_BUDGET = 20_000_000;
 
 // Ported from topo-tools' core/constants.py; clip-detached piece merge rule,
 // see mergeDetachedParts in $lib/db/coverage.ts.

@@ -4,7 +4,7 @@ import type { Tool } from "$lib/tools";
 
 interface Props {
   tool: Tool;
-  variant?: "primary" | "secondary" | "tertiary";
+  variant?: "primary" | "secondary";
   header?: boolean;
 }
 
@@ -81,12 +81,10 @@ const { tool, variant = "primary", header = false } = Astro.props;
     line-height: 1.45;
   }
 
-  .card.secondary,
-  .card.tertiary {
+  .card.secondary {
     gap: 0.75rem;
   }
-  .card.secondary .text,
-  .card.tertiary .text {
+  .card.secondary .text {
     gap: 0.2rem;
   }
   .card.secondary {
@@ -101,20 +99,6 @@ const { tool, variant = "primary", header = false } = Astro.props;
   }
   .card.secondary .tagline {
     font-size: 0.8rem;
-    line-height: 1.4;
-  }
-  .card.tertiary {
-    padding: 0.625rem;
-  }
-  .card.tertiary .icon {
-    width: 26px;
-    height: 26px;
-  }
-  .card.tertiary .name {
-    font-size: 0.825rem;
-  }
-  .card.tertiary .tagline {
-    font-size: 0.75rem;
     line-height: 1.4;
   }
 
