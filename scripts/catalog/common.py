@@ -11,12 +11,11 @@ import duckdb
 import tylertoo
 import yaml
 from dotenv import load_dotenv
-from shared import http
 from shared.geoparquet import TABLE_OPTIONS
 
 load_dotenv(".env")
 CATALOG = Path(os.environ.get("CATALOG", "catalog"))
-SOURCES = ("wfp", "unicef", "unhcr", "fao", "ungeodata")
+SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "ungeodata")
 COD_AB_BASE = "https://data.source.coop/hdx/cod-ab"
 COD_AB_CACHE = Path("tmp/catalog/cache/cod-ab")
 DUCKDB_TMP = Path("tmp/catalog/duckdb-tmp")
@@ -28,8 +27,14 @@ HOST = {
     "url": "https://github.com/OCHA-DAP/cod-site/issues",
 }
 SELF_PUBLISHED = [{**HOST, "roles": ["producer", "licensor", "host"]}]
-# Partner boundary sources and their provider metadata.
+# Boundary sources and their provider metadata.
 PARTNERS = {
+    "ocha": {
+        "label": "OCHA",
+        "provider": "OCHA",
+        "url": None,
+        "source_url": "https://data.humdata.org/dataset/cod-ab-global",
+    },
     "wfp": {
         "label": "WFP",
         "provider": "World Food Programme (WFP)",
@@ -183,18 +188,6 @@ def tile_labels(parquet: Path, pmtiles: Path, layer: str) -> None:
         """)
         con.close()
         tile_parquet(points, pmtiles, layer)
-
-
-def boundary_parquet(name: str) -> Path:
-    """A boundary layer's parquet; ocha_adm<n> is COD-AB's global layer, refreshed into a cache."""
-    if not name.startswith("ocha_adm"):
-        return path_of(name)
-    level = name.removeprefix("ocha_adm")
-    out = COD_AB_CACHE / f"admin{level}.parquet"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    url = f"{COD_AB_BASE}/global/admin{level}/admin{level}.parquet"
-    http.download(url, out, refresh=True)
-    return out
 
 
 def public_url(*parts: str) -> str:

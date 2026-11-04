@@ -49,7 +49,7 @@ UNICEF admin 1 as GeoParquet, with polygon tiles, and label points at each unit'
 | ./unicef_adm1.pmtiles | 231.8 MB | 1220f8b4e95e... |
 | ./styles/default.json | 466 B | 12208b2eacdf... |
 | ./unicef_adm1.thumb.jpg | 13.7 KB | 1220247629ff... |
-| ./README.md | 2.0 KB | 122011230046... |
+| ./README.md | 2.0 KB | 1220c8a78702... |
 
 ## Quick Start
 
@@ -67,7 +67,7 @@ print(gdf.head())
 
 ## Processing Notes
 
-Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Partner layers carry a `hover_id` row index for the map.
+Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Every layer carries a `hover_id` row index for the map.
 
 ## License
 

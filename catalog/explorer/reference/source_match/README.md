@@ -26,7 +26,7 @@ Polygon match rate of each source against the team's selected source per locatio
 
 | File | Size | Checksum |
 |------|------|----------|
-| ./source_match.parquet | 602.5 KB | 1220abdd4556... |
+| ./source_match.parquet | 328.5 KB | 1220b6b2c090... |
 
 ## Quick Start
 

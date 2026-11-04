@@ -1,13 +1,14 @@
 # AGENTS.md: Boundaries Explorer data
 
-Admin boundaries from several partner sources, one collection per source and level, plus the reference tables the Boundaries Explorer compares them with.
+Admin boundaries from OCHA and several partner sources, one collection per source and level, plus the reference tables the Boundaries Explorer compares them with.
 
 ## Boundaries
 
-Each `{source}/{source}_adm{n}/` collection holds `{source}_adm{n}.parquet`, its polygon tiles (layer `{source}_adm{n}`) and label points (layer `{source}_adm{n}_labels`). `hover_id` is a row index, not an admin code. The explorer's OCHA source is COD-AB's global layers (https://source.coop/hdx/cod-ab), not part of this catalog. Columns differ by source:
+Each `{source}/{source}_adm{n}/` collection holds `{source}_adm{n}.parquet`, its polygon tiles (layer `{source}_adm{n}`) and label points (layer `{source}_adm{n}_labels`). `hover_id` is a row index, not an admin code. `ocha` merges COD-AB's per-location original layers (https://source.coop/hdx/cod-ab), keeping partial levels. Columns differ by source:
 
 | Source | Location column | Name column | Code column | Levels |
 |---|---|---|---|---|
+| `ocha` | `iso3` | `adm{n}_name` | `adm{n}_pcode` | 1 to 4 |
 | `wfp` | `iso3` | `adm{n}_name` | `source_id` | 1 to 4 |
 | `unicef` | `adm0_ucode` (starts with the ISO3 code) | `name` | `Source_ID` | 1 to 4 |
 | `unhcr` | `iso3` | `gis_name` | `adm{n}_source_code` | 1 to 2 |

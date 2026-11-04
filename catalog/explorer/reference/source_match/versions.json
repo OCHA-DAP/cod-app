@@ -1,6 +1,6 @@
 {
   "spec_version": "1.0.0",
-  "current_version": "1.5.0",
+  "current_version": "1.6.0",
   "versions": [
     {
       "version": "1.0.0",
@@ -141,6 +141,22 @@
         }
       },
       "message": ""
+    },
+    {
+      "version": "1.6.0",
+      "created": "2026-11-04T04:53:27.268808Z",
+      "breaking": false,
+      "assets": {
+        "source_match.parquet": {
+          "sha256": "b6b2c0909841c073aa7508ebd7e67cfb6756fde8accacaf8b56629a129a45e2a",
+          "size_bytes": 336412,
+          "href": "explorer/reference/source_match/source_match.parquet",
+          "mtime": 1793767840.9428253
+        }
+      },
+      "changes": [
+        "source_match.parquet"
+      ]
     }
   ]
 }

@@ -36,7 +36,7 @@ FAO admin 1 as GeoParquet, with polygon tiles, and label points at each unit's m
 | ./fao_adm1.pmtiles | 171.5 MB | 1220b4e3f06f... |
 | ./styles/default.json | 457 B | 1220227d1fc3... |
 | ./fao_adm1.thumb.jpg | 13.6 KB | 1220be5fffeb... |
-| ./README.md | 1.8 KB | 12201afff6fb... |
+| ./README.md | 1.8 KB | 1220e6724c61... |
 
 ## Quick Start
 
@@ -58,7 +58,7 @@ print(gdf.head())
 
 ## Processing Notes
 
-Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Partner layers carry a `hover_id` row index for the map.
+Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Every layer carries a `hover_id` row index for the map.
 
 ## License
 

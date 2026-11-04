@@ -25,7 +25,7 @@ Antimeridian-aware map-fit bounding box per location.
 
 | File | Size | Checksum |
 |------|------|----------|
-| ./country_bbox.parquet | 9.1 KB | 12205d7af3ee... |
+| ./country_bbox.parquet | 8.9 KB | 122005898e34... |
 
 ## Quick Start
 

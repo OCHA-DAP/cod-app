@@ -1,6 +1,6 @@
 # Boundaries Explorer data
 
-Admin boundaries from several partner sources, and the reference tables the Boundaries Explorer compares them with. Agents should start at [AGENTS.md](AGENTS.md).
+Admin boundaries from OCHA and several partner sources, and the reference tables the Boundaries Explorer compares them with. Agents should start at [AGENTS.md](AGENTS.md).
 
 ---
 

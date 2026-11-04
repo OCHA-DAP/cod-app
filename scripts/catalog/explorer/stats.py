@@ -4,7 +4,7 @@ Run after every source download."""
 import sys
 from pathlib import Path
 
-from common import BOUNDARY_SOURCES, boundary_parquet, connect, junk_filter, path_of
+from common import BOUNDARY_SOURCES, connect, junk_filter, path_of
 from shared.geoparquet import TABLE_OPTIONS
 
 OUT = path_of("source_stats")
@@ -62,7 +62,7 @@ con.execute(
 created = False
 for src in BOUNDARY_SOURCES:
     for level in src.levels:
-        file = boundary_parquet(f"{src.name}_adm{level}")
+        file = path_of(f"{src.name}_adm{level}")
         if not file.exists():
             continue
         print(f"{src.name} adm{level}", file=sys.stderr)

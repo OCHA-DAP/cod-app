@@ -32,7 +32,7 @@ Admin 1 units for 6 locations from more than one source each, in one file with `
 | ./sources_adm1.thumb.jpg | 8.4 KB | 12205174e72b... |
 | ./sources_adm1.pmtiles | 4.0 MB | 1220b205b2cc... |
 | ./styles/default.json | 468 B | 1220e9281733... |
-| ./README.md | 2.2 KB | 12204a7a4812... |
+| ./README.md | 2.2 KB | 12203ec4bd51... |
 
 ## Quick Start
 

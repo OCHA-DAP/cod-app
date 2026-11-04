@@ -102,11 +102,11 @@
     "source_match": {
       "href": "./source_match.parquet",
       "type": "application/vnd.apache.parquet",
-      "file:size": 616909,
-      "file:checksum": "1220abdd4556bcdaab80b8adcc02f11983648ff8ec422262f8bb8082988f11832631",
       "roles": [
         "data"
-      ]
+      ],
+      "file:size": 336412,
+      "file:checksum": "1220b6b2c0909841c073aa7508ebd7e67cfb6756fde8accacaf8b56629a129a45e2a"
     }
   }
 }

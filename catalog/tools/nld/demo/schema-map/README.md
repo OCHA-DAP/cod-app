@@ -35,7 +35,7 @@ The 342 land gemeenten from the CBS Wijk- en Buurtkaart 2025, in OGC:CRS84 with 
 | ./styles/default.json | 1.3 KB | 1220e27ad4b9... |
 | ./nld_admin2.pmtiles | 673.7 KB | 12205020406a... |
 | ./nld_admin2.parquet | 364.9 KB | 122072fe69dd... |
-| ./README.md | 3.2 KB | 1220f8d32df6... |
+| ./README.md | 3.2 KB | 1220ae10ca73... |
 
 ## Quick Start
 

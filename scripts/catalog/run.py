@@ -22,6 +22,7 @@ EXPLORER_STEPS = [
     "ungeodata.py",
     "fao.py",
     "unicef.py",
+    "ocha.py",
     "provenance.py",
     "stats.py",
     "match.py",
@@ -78,28 +79,22 @@ def tile_tools(*, force: bool) -> None:
             tile_parquet(parquet, pmtiles, parquet.stem)
 
 
-def add(collection: Path, datetime_: str, *, tiles: bool) -> None:
-    flags = ["--pmtiles"] if tiles else []
+def add(collection: Path, datetime_: str) -> None:
     rel = collection.relative_to(CATALOG).as_posix()
-    fieldmaps_publish.add(CATALOG, rel, *flags, "--datetime", datetime_)
+    fieldmaps_publish.add(CATALOG, rel, "--datetime", datetime_)
 
 
 def add_all() -> None:
     for collection in collections(CATALOG / "explorer"):
-        tiles = collection.parent.name != "reference"
-        add(collection, download_date(collection), tiles=tiles)
+        add(collection, download_date(collection))
     from build_nld import YEARS
 
     for year in YEARS:
-        add(
-            TOOLS / "nld" / str(year),
-            f"{year}-01-01",
-            tiles=True,
-        )
+        add(TOOLS / "nld" / str(year), f"{year}-01-01")
     for demo in sorted((TOOLS / "nld" / "demo").iterdir()):
         if (demo / ".portolan").is_dir():
-            add(demo, DEMO_DATETIME, tiles=True)
-    add(TOOLS / "sources", SOURCES_DATETIME, tiles=True)
+            add(demo, DEMO_DATETIME)
+    add(TOOLS / "sources", SOURCES_DATETIME)
 
 
 def main() -> None:

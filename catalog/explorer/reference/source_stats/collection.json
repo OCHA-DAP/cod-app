@@ -72,7 +72,7 @@
       "type": "int64"
     }
   ],
-  "table:row_count": 2165,
+  "table:row_count": 1997,
   "title": "Source stats",
   "extent": {
     "spatial": {
@@ -110,11 +110,11 @@
     "source_stats": {
       "href": "./source_stats.parquet",
       "type": "application/vnd.apache.parquet",
-      "file:size": 30893,
-      "file:checksum": "122060bae1e414a95db1d6012675143ef95ebfa5295fd9333e66aaa8a01d32dc8ec8",
       "roles": [
         "data"
-      ]
+      ],
+      "file:size": 29997,
+      "file:checksum": "1220f3ba57312cb5614f5d0ec363f805814ced0151e00e72f2d8e6d29e090a04d6c6"
     }
   }
 }

@@ -9,7 +9,6 @@ from pathlib import Path
 import duckdb
 from common import (
     BOUNDARY_SOURCES,
-    boundary_parquet,
     connect,
     junk_filter,
     path_of,
@@ -78,18 +77,15 @@ def build_units_sql(level: int) -> list[str]:
     for src in BOUNDARY_SOURCES:
         if level not in src.levels:
             continue
-        file = boundary_parquet(f"{src.name}_adm{level}")
+        file = path_of(f"{src.name}_adm{level}")
         if not file.exists():
             continue
         where_clause = junk_filter(src, level)
-        # The map's promoteId field (adminTiles in src/lib/explorer/sources.ts): unique and non-null.
-        code = (
-            f"adm{level}_pcode" if src.name == "ocha" else "CAST(hover_id AS VARCHAR)"
-        )
+        # hover_id is the map's promoteId field (adminTiles in src/lib/explorer/sources.ts).
         parts.append(
             f"SELECT '{src.name}' AS source, {level} AS level, "
             f"substr({src.iso3_field}, 1, 3) AS iso3, "
-            f"{code} AS unit_code, geometry "
+            "CAST(hover_id AS VARCHAR) AS unit_code, geometry "
             f"FROM read_parquet('{file}') {where_clause}"
         )
     return parts

@@ -47,7 +47,7 @@ WFP admin 2 as GeoParquet, with polygon tiles, and label points at each unit's m
 | ./wfp_adm2_labels.pmtiles | 64.8 MB | 12201e6d91ec... |
 | ./wfp_adm2.pmtiles | 471.1 MB | 1220ac51a9b5... |
 | ./wfp_adm2.parquet | 511.9 MB | 1220c508dfe6... |
-| ./README.md | 2.0 KB | 1220c8feb479... |
+| ./README.md | 2.0 KB | 122074126126... |
 | ./styles/default.json | 457 B | 12204f4be605... |
 | ./wfp_adm2.thumb.jpg | 14.1 KB | 1220fc503a22... |
 
@@ -67,7 +67,7 @@ print(gdf.head())
 
 ## Processing Notes
 
-Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Partner layers carry a `hover_id` row index for the map.
+Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Every layer carries a `hover_id` row index for the map.
 
 ## License
 

@@ -101,7 +101,7 @@ def boundary(collection: Path) -> dict:
         "description": f"{what} as GeoParquet, with polygon tiles{extra}.",
         "providers": [provider, HOST],
         **({"source_url": source} if source else {}),
-        "processing_notes": "Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Partner layers carry a `hover_id` row index for the map.",
+        "processing_notes": "Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Every layer carries a `hover_id` row index for the map.",
         **PRODUCER_TERMS,
     }
 
@@ -124,7 +124,7 @@ def main() -> None:
         explorer / ".portolan" / "metadata.yaml",
         {
             "title": "Boundaries Explorer data",
-            "description": "Admin boundaries from several partner sources, and the reference tables the Boundaries Explorer compares them with. Agents should start at [AGENTS.md](AGENTS.md).",
+            "description": "Admin boundaries from OCHA and several partner sources, and the reference tables the Boundaries Explorer compares them with. Agents should start at [AGENTS.md](AGENTS.md).",
         },
     )
     (explorer / "AGENTS.md").write_text(template("explorer"))

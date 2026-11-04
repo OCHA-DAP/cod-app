@@ -48,7 +48,7 @@ UNHCR admin 2 as GeoParquet, with polygon tiles, and label points at each unit's
 | ./unhcr_adm2_labels.pmtiles | 77.4 MB | 1220a69c3007... |
 | ./unhcr_adm2.pmtiles | 571.6 MB | 122029c78fb4... |
 | ./unhcr_adm2.parquet | 1.3 GB | 1220973cd24b... |
-| ./README.md | 2.2 KB | 1220de364979... |
+| ./README.md | 2.2 KB | 1220ee1f3ff9... |
 | ./styles/default.json | 463 B | 12200e75da32... |
 | ./unhcr_adm2.thumb.jpg | 12.2 KB | 122015be4625... |
 
@@ -72,7 +72,7 @@ print(gdf.head())
 
 ## Processing Notes
 
-Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Partner layers carry a `hover_id` row index for the map.
+Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Every layer carries a `hover_id` row index for the map.
 
 ## License
 

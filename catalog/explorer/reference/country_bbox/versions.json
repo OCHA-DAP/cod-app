@@ -1,6 +1,6 @@
 {
   "spec_version": "1.0.0",
-  "current_version": "1.3.0",
+  "current_version": "1.4.0",
   "versions": [
     {
       "version": "1.0.0",
@@ -93,6 +93,22 @@
         }
       },
       "message": ""
+    },
+    {
+      "version": "1.4.0",
+      "created": "2026-11-04T04:53:21.337983Z",
+      "breaking": false,
+      "assets": {
+        "country_bbox.parquet": {
+          "sha256": "05898e34cb45d124ad657f395df1d78a1dad3b827f44e1c285c17f1e8c74ffd0",
+          "size_bytes": 9081,
+          "href": "explorer/reference/country_bbox/country_bbox.parquet",
+          "mtime": 1793767850.959889
+        }
+      },
+      "changes": [
+        "country_bbox.parquet"
+      ]
     }
   ]
 }

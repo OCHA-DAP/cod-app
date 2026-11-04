@@ -1,0 +1,283 @@
+{
+  "type": "Collection",
+  "id": "explorer/ocha/ocha_adm3",
+  "stac_version": "1.1.0",
+  "description": "OCHA admin 3 as GeoParquet, with polygon tiles, and label points at each unit's maximum inscribed circle in `ocha_adm3_labels.pmtiles`.",
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "license",
+      "href": "../../TERMS.md",
+      "title": "License"
+    },
+    {
+      "rel": "via",
+      "href": "https://data.humdata.org/dataset/cod-ab-global",
+      "type": "text/html",
+      "title": "Original source"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Agent/LLM usage guide"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Human-readable documentation"
+    },
+    {
+      "rel": "pmtiles",
+      "href": "./ocha_adm3.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "pmtiles:layers": [
+        "ocha_adm3"
+      ]
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
+    "https://stac-extensions.github.io/web-map-links/v1.3.0/schema.json"
+  ],
+  "updated": "2026-11-04T04:52:20Z",
+  "geoparquet:geometry_type": [
+    "Polygon",
+    "MultiPolygon"
+  ],
+  "geoparquet:feature_count": 91607,
+  "pmtiles:min_zoom": 0,
+  "pmtiles:max_zoom": 11,
+  "pmtiles:tile_type": "mvt",
+  "pmtiles:center": [
+    25.0134385,
+    -1.8003555,
+    5
+  ],
+  "pmtiles:layers": [
+    "ocha_adm3"
+  ],
+  "table:row_count": 91607,
+  "table:primary_geometry": "geometry",
+  "table:columns": [
+    {
+      "name": "iso3",
+      "type": "string"
+    },
+    {
+      "name": "adm0_name",
+      "type": "string"
+    },
+    {
+      "name": "adm0_name1",
+      "type": "string"
+    },
+    {
+      "name": "adm0_name2",
+      "type": "string"
+    },
+    {
+      "name": "adm0_name3",
+      "type": "string"
+    },
+    {
+      "name": "adm0_pcode",
+      "type": "string"
+    },
+    {
+      "name": "adm1_name",
+      "type": "string"
+    },
+    {
+      "name": "adm1_name1",
+      "type": "string"
+    },
+    {
+      "name": "adm1_name2",
+      "type": "string"
+    },
+    {
+      "name": "adm1_name3",
+      "type": "string"
+    },
+    {
+      "name": "adm1_pcode",
+      "type": "string"
+    },
+    {
+      "name": "adm2_name",
+      "type": "string"
+    },
+    {
+      "name": "adm2_name1",
+      "type": "string"
+    },
+    {
+      "name": "adm2_name2",
+      "type": "string"
+    },
+    {
+      "name": "adm2_name3",
+      "type": "string"
+    },
+    {
+      "name": "adm2_pcode",
+      "type": "string"
+    },
+    {
+      "name": "adm3_name",
+      "type": "string"
+    },
+    {
+      "name": "adm3_name1",
+      "type": "string"
+    },
+    {
+      "name": "adm3_name2",
+      "type": "string"
+    },
+    {
+      "name": "adm3_name3",
+      "type": "string"
+    },
+    {
+      "name": "adm3_pcode",
+      "type": "string"
+    },
+    {
+      "name": "lang",
+      "type": "string"
+    },
+    {
+      "name": "lang1",
+      "type": "string"
+    },
+    {
+      "name": "lang2",
+      "type": "string"
+    },
+    {
+      "name": "lang3",
+      "type": "string"
+    },
+    {
+      "name": "valid_on",
+      "type": "date32[day]"
+    },
+    {
+      "name": "valid_to",
+      "type": "date32[day]"
+    },
+    {
+      "name": "version",
+      "type": "string"
+    },
+    {
+      "name": "hover_id",
+      "type": "int64"
+    },
+    {
+      "name": "geometry",
+      "type": "binary"
+    }
+  ],
+  "title": "OCHA admin 3",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -109.4549161,
+          -55.9800016,
+          159.4817931,
+          52.3792905
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          null,
+          null
+        ]
+      ]
+    }
+  },
+  "license": "other",
+  "providers": [
+    {
+      "name": "OCHA",
+      "roles": [
+        "producer",
+        "licensor"
+      ]
+    },
+    {
+      "name": "OCHA Centre for Humanitarian Data",
+      "roles": [
+        "host"
+      ],
+      "url": "https://github.com/OCHA-DAP/cod-site/issues"
+    }
+  ],
+  "assets": {
+    "ocha_adm3": {
+      "href": "./ocha_adm3.parquet",
+      "type": "application/vnd.apache.parquet",
+      "file:size": 853641154,
+      "file:checksum": "122091bf8724712c1a413f8bbf36b0b0df1d645ecba03184951eab16bfda5d870128",
+      "roles": [
+        "data"
+      ]
+    },
+    "ocha_adm3-tiles": {
+      "href": "./ocha_adm3.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 242341205,
+      "file:checksum": "12201337fc89978e2507ac233e11d1d842173ecd645468b8e51a81cc62763ea40dde",
+      "roles": [
+        "visual"
+      ]
+    },
+    "ocha_adm3_labels-tiles": {
+      "href": "./ocha_adm3_labels.pmtiles",
+      "type": "application/vnd.pmtiles",
+      "file:size": 50292839,
+      "file:checksum": "12207eed168e93fc702e92644c5db0230b0d3602324d6602392b41d041c1f0e2864a",
+      "roles": [
+        "visual"
+      ]
+    },
+    "styles/default": {
+      "href": "./styles/default.json",
+      "type": "application/vnd.mapbox.style+json",
+      "roles": [
+        "style",
+        "default"
+      ],
+      "title": "Default",
+      "file:size": 460,
+      "file:checksum": "1220d0006a1465d20ec209d3d96f2ba8dfe1ed86b5283d43938fa230d00b6b220545"
+    },
+    "thumbnail": {
+      "href": "./ocha_adm3.thumb.jpg",
+      "type": "image/jpeg",
+      "roles": [
+        "thumbnail"
+      ],
+      "file:size": 9698,
+      "file:checksum": "12208bc614f6c120eccb8e35ae7300fe7a86478c800bb96007b4d950b6e17a933e52"
+    }
+  }
+}

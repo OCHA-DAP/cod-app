@@ -16,10 +16,10 @@
       "total_size_bytes": 1021153546
     },
     "explorer/reference/country_bbox": {
-      "current_version": "1.3.0",
-      "updated": "2026-11-01T19:18:37.885122+00:00",
+      "updated": "2026-11-04T04:53:21.338768+00:00",
+      "current_version": "1.4.0",
       "asset_count": 1,
-      "total_size_bytes": 9337
+      "total_size_bytes": 9081
     },
     "explorer/reference/iso3166": {
       "current_version": "1.4.0",
@@ -52,16 +52,16 @@
       "total_size_bytes": 1905
     },
     "explorer/reference/source_comparison": {
-      "current_version": "1.5.0",
-      "updated": "2026-11-03T02:41:53.487871+00:00",
+      "updated": "2026-11-04T04:53:26.303620+00:00",
+      "current_version": "1.6.0",
       "asset_count": 1,
-      "total_size_bytes": 57628
+      "total_size_bytes": 55203
     },
     "explorer/reference/source_match": {
-      "current_version": "1.5.0",
-      "updated": "2026-11-03T02:48:31.990126+00:00",
+      "updated": "2026-11-04T04:53:27.272873+00:00",
+      "current_version": "1.6.0",
       "asset_count": 1,
-      "total_size_bytes": 616909
+      "total_size_bytes": 336412
     },
     "explorer/reference/source_provenance": {
       "current_version": "1.3.0",
@@ -70,10 +70,10 @@
       "total_size_bytes": 8895
     },
     "explorer/reference/source_stats": {
-      "current_version": "1.4.0",
-      "updated": "2026-11-03T02:41:55.761280+00:00",
+      "updated": "2026-11-04T04:53:29.055981+00:00",
+      "current_version": "1.5.0",
       "asset_count": 1,
-      "total_size_bytes": 30893
+      "total_size_bytes": 29997
     },
     "explorer/unhcr/unhcr_adm1": {
       "current_version": "1.0.2",
@@ -284,7 +284,31 @@
       "updated": "2026-11-03T02:41:57.624258+00:00",
       "asset_count": 4,
       "total_size_bytes": 145007427
+    },
+    "explorer/ocha/ocha_adm1": {
+      "updated": "2026-11-04T04:51:48.833063+00:00",
+      "current_version": "1.0.0",
+      "asset_count": 4,
+      "total_size_bytes": 502450636
+    },
+    "explorer/ocha/ocha_adm2": {
+      "updated": "2026-11-04T04:52:18.766123+00:00",
+      "current_version": "1.0.0",
+      "asset_count": 4,
+      "total_size_bytes": 829429988
+    },
+    "explorer/ocha/ocha_adm3": {
+      "updated": "2026-11-04T04:53:11.285545+00:00",
+      "current_version": "1.0.0",
+      "asset_count": 4,
+      "total_size_bytes": 1146284896
+    },
+    "explorer/ocha/ocha_adm4": {
+      "updated": "2026-11-04T04:53:20.264920+00:00",
+      "current_version": "1.0.0",
+      "asset_count": 4,
+      "total_size_bytes": 913510312
     }
   },
-  "updated": "2026-11-03T10:39:21.305060+00:00"
+  "updated": "2026-11-04T04:53:29.055981+00:00"
 }

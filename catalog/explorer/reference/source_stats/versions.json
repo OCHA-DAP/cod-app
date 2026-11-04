@@ -1,6 +1,6 @@
 {
   "spec_version": "1.0.0",
-  "current_version": "1.4.0",
+  "current_version": "1.5.0",
   "versions": [
     {
       "version": "1.0.0",
@@ -117,6 +117,22 @@
         }
       },
       "message": ""
+    },
+    {
+      "version": "1.5.0",
+      "created": "2026-11-04T04:53:29.054896Z",
+      "breaking": false,
+      "assets": {
+        "source_stats.parquet": {
+          "sha256": "f3ba57312cb5614f5d0ec363f805814ced0151e00e72f2d8e6d29e090a04d6c6",
+          "size_bytes": 29997,
+          "href": "explorer/reference/source_stats/source_stats.parquet",
+          "mtime": 1793723218.3426666
+        }
+      },
+      "changes": [
+        "source_stats.parquet"
+      ]
     }
   ]
 }

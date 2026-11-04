@@ -98,11 +98,11 @@
     "country_bbox": {
       "href": "./country_bbox.parquet",
       "type": "application/vnd.apache.parquet",
-      "file:size": 9337,
-      "file:checksum": "12205d7af3ee61219d32cf9a362a721a497fa1f85b9d578f20a88a59afedaf519760",
       "roles": [
         "data"
-      ]
+      ],
+      "file:size": 9081,
+      "file:checksum": "122005898e34cb45d124ad657f395df1d78a1dad3b827f44e1c285c17f1e8c74ffd0"
     }
   }
 }

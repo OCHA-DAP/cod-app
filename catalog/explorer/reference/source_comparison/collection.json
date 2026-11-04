@@ -116,7 +116,7 @@
       "type": "double"
     }
   ],
-  "table:row_count": 2151,
+  "table:row_count": 1983,
   "title": "Source comparison",
   "extent": {
     "spatial": {
@@ -154,11 +154,11 @@
     "source_comparison": {
       "href": "./source_comparison.parquet",
       "type": "application/vnd.apache.parquet",
-      "file:size": 57628,
-      "file:checksum": "1220b4e856dbf29cd864acf954da237b62e428d1c27ed1c7430c2a43f5a7578f2339",
       "roles": [
         "data"
-      ]
+      ],
+      "file:size": 55203,
+      "file:checksum": "12200ba0323b47aa9a2bc5ecbad58859d679f79e9e61368d224e8062417dcea658e0"
     }
   }
 }

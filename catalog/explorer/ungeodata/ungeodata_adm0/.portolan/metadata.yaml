@@ -10,6 +10,6 @@ providers:
   roles:
   - host
   url: https://github.com/OCHA-DAP/cod-site/issues
-processing_notes: Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Partner layers carry a `hover_id` row index for the map.
+processing_notes: Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Every layer carries a `hover_id` row index for the map.
 license: other
 license_url: ../../TERMS.md

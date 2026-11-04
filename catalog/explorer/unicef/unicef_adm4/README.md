@@ -48,7 +48,7 @@ UNICEF admin 4 as GeoParquet, with polygon tiles, and label points at each unit'
 | ./unicef_adm4_labels.pmtiles | 165.1 MB | 1220259bc840... |
 | ./unicef_adm4.pmtiles | 174.1 MB | 1220c2efb01d... |
 | ./unicef_adm4.parquet | 150.8 MB | 12204d87e92f... |
-| ./README.md | 2.0 KB | 12208e80895f... |
+| ./README.md | 2.0 KB | 122065710928... |
 | ./styles/default.json | 466 B | 122040791788... |
 | ./unicef_adm4.thumb.jpg | 4.4 KB | 122070933e37... |
 
@@ -68,7 +68,7 @@ print(gdf.head())
 
 ## Processing Notes
 
-Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Partner layers carry a `hover_id` row index for the map.
+Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Every layer carries a `hover_id` row index for the map.
 
 ## License
 

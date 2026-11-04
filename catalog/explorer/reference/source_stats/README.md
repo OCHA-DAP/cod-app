@@ -28,7 +28,7 @@ Feature and vertex counts per source, location and level.
 
 | File | Size | Checksum |
 |------|------|----------|
-| ./source_stats.parquet | 30.2 KB | 122060bae1e4... |
+| ./source_stats.parquet | 29.3 KB | 1220f3ba5731... |
 
 ## Quick Start
 

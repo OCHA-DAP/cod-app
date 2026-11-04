@@ -29,7 +29,7 @@ The 343 gemeenten from the CBS Wijk- en Buurtkaart 2025, each with its water, in
 | ./styles/default.json | 462 B | 1220c5e693f3... |
 | ./nld_admin2.pmtiles | 572.4 KB | 1220de33121e... |
 | ./nld_admin2.parquet | 265.2 KB | 122020954dd2... |
-| ./README.md | 2.6 KB | 1220ea8762b2... |
+| ./README.md | 2.6 KB | 122073722cdc... |
 
 ## Quick Start
 
