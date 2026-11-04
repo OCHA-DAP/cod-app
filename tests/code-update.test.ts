@@ -375,7 +375,7 @@ test("modified keeps its code without a delimiter", async () => {
     "embed",
     CODE,
   );
-  const neu = oldRows.map((r) => ({
+  const neu: Row[] = oldRows.map((r) => ({
     ...r,
     adm2_code: `${r.adm1_name}${r.adm2_code}`,
     adm2_name: r.adm2_code,
@@ -408,7 +408,7 @@ const codeOld = (rs: Row[]) => codeCreate(rs, "XY", "", "auto", "embed", CODE);
 test("a moved unit never takes a code already used", async () => {
   const oldRows = twoParentRows();
   const old = await codeOld(oldRows);
-  const neu = oldRows.map((r) => ({ ...r, adm2_code: `${r.adm1_code}${r.adm2_code}` }));
+  const neu: Row[] = oldRows.map((r) => ({ ...r, adm2_code: `${r.adm1_code}${r.adm2_code}` }));
   neu[9] = { ...neu[9], adm1_code: "52", adm1_name: "B" };
   const { log, out } = await codeUpdate(old.file, neu, { schemaA: CODE, schemaB: CODE });
   const codes = out.map((r) => r.adm2_code);
@@ -419,9 +419,9 @@ test("a moved unit never takes a code already used", async () => {
   ]);
 });
 
-const namedTwoParentRows = () =>
+const namedTwoParentRows = (): Row[] =>
   twoParentRows().map((r) => ({ ...r, adm2_name: `N${r.adm2_code}` }));
-const withoutCode2 = (rs: Row[]) => rs.map(({ adm2_code: _, ...r }) => r);
+const withoutCode2 = (rs: Row[]): Row[] => rs.map(({ adm2_code: _, ...r }) => r);
 
 test("same names under different parents stay apart", async () => {
   const oldRows = namedTwoParentRows();

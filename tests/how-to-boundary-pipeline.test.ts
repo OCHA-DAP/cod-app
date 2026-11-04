@@ -42,7 +42,7 @@ function pipeline() {
     const mapped = await exportColumns("schema_refactor");
 
     await load(await exported("mapped.parquet"));
-    await runFromLoaded(conn, { mode: "all" }, () => {});
+    await runFromLoaded(conn, { mode: "all", gapWidthM: 0 }, () => {});
     await exportColumns("topology_issues");
     const issues = await rows<{ kind: string; fixed: boolean }>(
       "SELECT kind, fixed FROM '_export.parquet' ORDER BY kind",
