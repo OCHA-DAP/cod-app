@@ -26,6 +26,7 @@
     hoveredFid = null,
     visibleClasses = null,
     baseClasses = [],
+    interactiveBase = false,
     showSide = "b" as "a" | "b",
     onClusterClick,
     onFeatureHover,
@@ -39,8 +40,9 @@
     hoveredClusterId?: number | null;
     hoveredFid?: number | null;
     visibleClasses?: Set<string> | null;
-    // Always drawn in the base fill like other tools' input layer, and never hovered or clicked.
+    // Always drawn in the base fill like other tools' input layer, hovered and clicked only under interactiveBase.
     baseClasses?: string[];
+    interactiveBase?: boolean;
     showSide?: "a" | "b";
     onClusterClick?: (id: number | null) => void;
     onFeatureHover?: (payload: { cluster_id: number | null; fid: number | null }) => void;
@@ -58,7 +60,7 @@
   let hoverLngLat = $state<LngLatLike | null>(null);
 
   function hover(cid: number | null, fid: number | null, lngLat: LngLatLike | null, cls?: string): void {
-    if (cls != null && baseClasses.includes(cls)) [cid, fid, lngLat] = [null, null, null];
+    if (!interactiveBase && cls != null && baseClasses.includes(cls)) [cid, fid, lngLat] = [null, null, null];
     if (map) map.getCanvas().style.cursor = cid == null ? "" : "pointer";
     hovered = describe && cid != null && fid != null ? describe(cid, fid) : [];
     hoverLngLat = lngLat;
@@ -103,7 +105,7 @@
   function buildFillFilter(): FilterSpecification {
     const conditions: FilterSpecification[] = [polyFilter];
     if (visibleClasses != null) {
-      const shown = [...visibleClasses, ...baseClasses];
+      const shown = [...new Set([...visibleClasses, ...baseClasses])];
       conditions.push(["match", ["get", "relationship_class"], shown, true, false] as FilterSpecification);
     }
     return conditions.length === 1 ? conditions[0] : (["all", ...conditions] as FilterSpecification);
@@ -323,7 +325,7 @@
       return;
     }
     const props = feats[0].properties;
-    const cid = baseClasses.includes(props?.relationship_class) ? null : props?.cluster_id;
+    const cid = !interactiveBase && baseClasses.includes(props?.relationship_class) ? null : props?.cluster_id;
     onClusterClick(cid == null ? null : Number(cid));
   }
 

@@ -445,6 +445,7 @@
     processing={loadingSide !== null || running}
     sideLabels={["OLD", "NEW"]}
     {classes}
+    listUnchanged
     bind:showSide
     bind:selectedClusterId
   />
