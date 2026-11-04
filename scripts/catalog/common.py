@@ -121,15 +121,12 @@ def path_of(name: str, ext: str = "parquet") -> Path:
     return item_dir(name) / f"{name}.{ext}"
 
 
-def connect(
-    db: Path | None = None, memory_limit: str = "2GB"
-) -> duckdb.DuckDBPyConnection:
-    """A DuckDB connection capped at DUCKDB_MEMORY_LIMIT (else memory_limit) that spills to DUCKDB_TMP."""
+def connect(db: Path | None = None) -> duckdb.DuckDBPyConnection:
+    """A DuckDB connection on DuckDB's default memory and threads that spills to DUCKDB_TMP."""
     DUCKDB_TMP.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(db) if db else ":memory:")
     con.execute(
-        f"SET memory_limit = '{os.environ.get('DUCKDB_MEMORY_LIMIT', memory_limit)}'; SET threads = 2; SET preserve_insertion_order = false; "
-        f"SET temp_directory = '{DUCKDB_TMP}'; LOAD spatial"
+        f"SET preserve_insertion_order = false; SET temp_directory = '{DUCKDB_TMP}'; LOAD spatial"
     )
     return con
 
@@ -179,7 +176,7 @@ def tile_labels(parquet: Path, pmtiles: Path, layer: str) -> None:
     """Tile one label point per unit, at its maximum inscribed circle center."""
     with tempfile.TemporaryDirectory(dir=DUCKDB_TMP.parent) as tmp:
         points = Path(tmp) / "points.parquet"
-        con = connect(memory_limit="4GB")
+        con = connect()
         con.execute(f"""
             COPY (
                 SELECT * REPLACE (ST_MaximumInscribedCircle(geometry, 1e-6).center AS geometry)

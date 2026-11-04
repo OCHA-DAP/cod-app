@@ -1,9 +1,0 @@
-title: Country bbox
-description: Antimeridian-aware map-fit bounding box per location.
-providers:
-- name: OCHA Centre for Humanitarian Data
-  roles:
-  - producer
-  - licensor
-  - host
-  url: https://github.com/OCHA-DAP/cod-site/issues

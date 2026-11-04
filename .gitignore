@@ -35,11 +35,10 @@ public/status/data/
 
 scripts/add-geom-ids.mjs
 
-# Catalog data; its metadata is committed
-catalog/**/*.parquet
-catalog/**/*.pmtiles
-catalog/**/*.thumb.*
-catalog/**/.portolan/.versions.lock
-catalog/**/.state/
+# The catalog is a build output; only its portolan config is tracked
+catalog/*
+!catalog/.portolan/
+catalog/.portolan/*
+!catalog/.portolan/config.yaml
 .venv/
 __pycache__/

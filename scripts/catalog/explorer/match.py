@@ -18,34 +18,31 @@ from shared.geoparquet import TABLE_OPTIONS
 
 MATCH_DB = Path("tmp/catalog/match.duckdb")
 
+# units holds one level, so ST_Intersects is the only join key (a spatial join), and
+# the union area is area(s) + area(p) - intersection, with no ST_Union per pair.
 MATCH_QUERY = """
     WITH valid_units AS (
         SELECT source, level, unit_code, ST_MakeValid(geometry) AS geometry
         FROM units WHERE iso3 = ?
     ),
+    preferred AS (SELECT geometry, ST_Area_Spheroid(geometry) AS area FROM valid_units WHERE source = ?),
+    others AS (SELECT *, ST_Area_Spheroid(geometry) AS area FROM valid_units WHERE source != ?),
     candidate_sources AS (
-        SELECT DISTINCT s.source, s.level
-        FROM valid_units s
-        WHERE s.source != ?
-          AND EXISTS (
-              SELECT 1 FROM valid_units p WHERE p.source = ? AND p.level = s.level
-          )
+        SELECT DISTINCT source, level FROM others WHERE EXISTS (SELECT 1 FROM preferred)
     ),
     pairs AS (
-        SELECT s.source, s.unit_code,
-            MAX(
-                ST_Area_Spheroid(ST_Intersection(s.geometry, p.geometry))
-                / ST_Area_Spheroid(ST_Union(s.geometry, p.geometry))
-            ) AS best_iou
-        FROM valid_units s
-        JOIN valid_units p ON p.level = s.level AND p.source = ?
-        WHERE s.source != ? AND ST_Intersects(s.geometry, p.geometry)
-        GROUP BY s.source, s.unit_code
+        SELECT source, unit_code, MAX(i / (s_area + p_area - i)) AS best_iou
+        FROM (
+            SELECT s.source, s.unit_code, s.area AS s_area, p.area AS p_area,
+                ST_Area_Spheroid(ST_Intersection(s.geometry, p.geometry)) AS i
+            FROM others s JOIN preferred p ON ST_Intersects(s.geometry, p.geometry)
+        )
+        GROUP BY source, unit_code
     ),
     unit_status AS (
         SELECT s.unit_code, s.source, s.level,
             COALESCE(pr.best_iou, 0) >= ? AS is_matched
-        FROM valid_units s
+        FROM others s
         JOIN candidate_sources cs ON cs.source = s.source AND cs.level = s.level
         LEFT JOIN pairs pr ON pr.source = s.source AND pr.unit_code = s.unit_code
     )
@@ -93,13 +90,14 @@ def build_units_sql(level: int) -> list[str]:
 
 def run_level(
     level: int, threshold: float, decisions: list[tuple[str, str]]
-) -> list[tuple[str, int, str, str, int, list[str]]]:
+) -> tuple[list[tuple[str, int, str, str, int, list[str]]], set[str]]:
+    """Match rows for level, and the locations whose query failed."""
     units_sqls = build_units_sql(level)
     if not units_sqls:
         print(
             f"[level {level}] no source parquet files found, skipping", file=sys.stderr
         )
-        return []
+        return [], set()
 
     MATCH_DB.unlink(missing_ok=True)
     con = connect(MATCH_DB)
@@ -112,6 +110,7 @@ def run_level(
     con.execute("CREATE INDEX idx_units_iso3 ON units(iso3)")
 
     results: list[tuple[str, int, str, str, int, list[str]]] = []
+    failed: set[str] = set()
     total = len(decisions)
     for i, (iso3, preferred_source) in enumerate(decisions, start=1):
         print(
@@ -125,8 +124,6 @@ def run_level(
                     iso3,
                     preferred_source,
                     preferred_source,
-                    preferred_source,
-                    preferred_source,
                     threshold,
                     iso3,
                     preferred_source,
@@ -137,17 +134,19 @@ def run_level(
                 f"[level {level}] [{i}/{total}] {iso3}: query failed, skipping: {e}",
                 file=sys.stderr,
             )
+            failed.add(iso3)
             continue
         results.extend(rows)
 
     con.close()
     MATCH_DB.unlink(missing_ok=True)
-    return results
+    return results, failed
 
 
 def write_output(
-    rows: list[tuple[str, int, str, str, int, list[str]]], output: Path
+    rows: list[tuple[str, int, str, str, int, list[str]]], output: Path, keep: str
 ) -> None:
+    """Write rows to output, keeping the output's existing rows where SQL predicate keep holds."""
     con = connect()
     con.execute(
         "CREATE TABLE new_rows (source VARCHAR, level INTEGER, iso3 VARCHAR, "
@@ -167,7 +166,7 @@ def write_output(
             FROM (
                 SELECT *, 0 AS priority FROM new_rows
                 UNION ALL
-                SELECT *, 1 AS priority FROM read_parquet('{output}')
+                SELECT *, 1 AS priority FROM read_parquet('{output}') WHERE {keep}
             )
             QUALIFY ROW_NUMBER() OVER (PARTITION BY source, level, iso3 ORDER BY priority) = 1
         """
@@ -201,11 +200,15 @@ def main() -> None:
         decisions = [d for d in decisions if d[0] in wanted]
 
     # One level at a time: each loads every source's polygons for that level.
-    all_rows = [
-        row
-        for level in args.levels
-        for row in run_level(level, args.threshold, decisions)
-    ]
+    all_rows = []
+    # Existing rows outside this run's levels and locations, or whose query failed, are kept.
+    keep = [f"level NOT IN ({', '.join(map(str, args.levels))})"]
+    if args.iso3:
+        keep.append(f"iso3 NOT IN ({', '.join(repr(i) for i in sorted(wanted))})")
+    for level in args.levels:
+        rows, failed = run_level(level, args.threshold, decisions)
+        all_rows.extend(rows)
+        keep += [f"(level = {level} AND iso3 = '{iso3}')" for iso3 in sorted(failed)]
 
     if not all_rows:
         print(
@@ -214,7 +217,7 @@ def main() -> None:
         )
         return
 
-    write_output(all_rows, args.output)
+    write_output(all_rows, args.output, " OR ".join(keep))
     print(
         f"Wrote {len(all_rows)} source match-rate rows for levels {args.levels} -> {args.output}"
     )

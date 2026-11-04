@@ -1,9 +1,0 @@
-title: Source comparison
-description: Stats, provenance, match rates, reference counts and team decisions, one row per location, source and level.
-providers:
-- name: OCHA Centre for Humanitarian Data
-  roles:
-  - producer
-  - licensor
-  - host
-  url: https://github.com/OCHA-DAP/cod-site/issues

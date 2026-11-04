@@ -35,7 +35,7 @@ def write_boundary(
     db.parent.mkdir(parents=True, exist_ok=True)
     db.unlink(missing_ok=True)
     tmp = out.with_name(f".{name}.tmp.parquet")
-    con = connect(db, memory_limit="4GB")
+    con = connect(db)
     try:
         # Staged on disk so hover_id can follow insertion order without a window over every row.
         con.execute("SET preserve_insertion_order = true")
