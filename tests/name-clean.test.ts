@@ -1,6 +1,6 @@
 import { beforeEach, beforeAll, expect, test } from "vitest";
 import { runNameClean } from "$lib/tools/name-clean/pipeline";
-import { ready, rows, run } from "./helpers";
+import { exportColumns, ready, rows, run } from "./helpers";
 
 const SCHEMA = { nameField: "adm{n}_name", codeField: "adm{n}_code" };
 const FILLER = ["Theta", "Iota", "Kappa", "Lambda", "Omicron", "Sigma", "Upsilon", "Phi"];
@@ -60,4 +60,7 @@ test("report marks fixed rows", async () => {
   );
 });
 
-test.todo("cleaned output leads with the geometry column (export shape, covered by export tests)");
+test("cleaned output leads with the geometry column", async () => {
+  await runNameClean(conn, SCHEMA);
+  expect((await exportColumns("name_clean"))[0]).toBe("geometry");
+});

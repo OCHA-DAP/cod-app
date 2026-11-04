@@ -1,4 +1,5 @@
 import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+import { listFormats, runExport, type ExportSource } from "$lib/db/export";
 import { loadFile } from "$lib/db/loader";
 
 export function db() {
@@ -75,4 +76,15 @@ export async function layer(select: string, prefix = ""): Promise<void> {
   );
   await run(`CREATE OR REPLACE TABLE ${prefix}layer_01 AS SELECT fid, geom FROM _layer`);
   await run(`CREATE OR REPLACE TABLE ${prefix}layer_attr AS SELECT * EXCLUDE (geom) FROM _layer`);
+}
+
+// Column names of a source's Parquet export, read back from the exported bytes.
+export async function exportColumns(source: ExportSource): Promise<string[]> {
+  const format = (await listFormats(source)).find((f) => f.id === "parquet");
+  if (!format) throw new Error(`${source} has no Parquet export`);
+  const { blob } = await runExport(source, format, "t");
+  await db().db.registerFileBuffer("_export.parquet", new Uint8Array(await blob.arrayBuffer()));
+  return (await rows<{ column_name: string }>("DESCRIBE SELECT * FROM '_export.parquet'")).map(
+    (r) => r.column_name,
+  );
 }
