@@ -71,6 +71,7 @@ interface DriverMeta {
   mime: string;
   rank: number;
   layerOptions?: string[];
+  hidden?: boolean;
 }
 
 // Curated set of GDAL output drivers under DuckDB-WASM's spatial extension.
@@ -94,6 +95,8 @@ const KNOWN_DRIVERS: Record<string, DriverMeta> = {
     // ENCODING=UTF-8 makes GDAL write the .cpg sidecar declaring UTF-8 and
     // ensures non-ASCII attribute values round-trip through the .dbf.
     layerOptions: ["ENCODING=UTF-8"],
+    // duckdb-wasm 2.0 writes corrupt shapefiles; the canary in tests/export.test.ts fails once fixed.
+    hidden: true,
   },
   // FGB writes a spatial index by default; the back-patched header needs
   // random-write semantics, same precedent as Shapefile.
@@ -591,7 +594,7 @@ async function discoverSpatialFormats(): Promise<ExportFormat[]> {
   );
 
   for (const [shortName, meta] of Object.entries(KNOWN_DRIVERS)) {
-    if (!available.has(shortName)) continue;
+    if (meta.hidden || !available.has(shortName)) continue;
     pushUnique({
       id: `gdal:${shortName}`,
       label: meta.label,
@@ -691,16 +694,16 @@ async function readOpfsFileBytes(handle: FileSystemFileHandle): Promise<Uint8Arr
   return new Uint8Array(await file.arrayBuffer());
 }
 
-async function removeOpfsEntries(name: string): Promise<void> {
-  // Best-effort cleanup of the main file plus any SQLite siblings GDAL's
-  // GPKG driver may have left behind.
+async function duckdbFsDir(): Promise<FileSystemDirectoryHandle> {
   const root = await navigator.storage.getDirectory();
+  const duckdbDir = await root.getDirectoryHandle("duckdb", { create: true });
+  return duckdbDir.getDirectoryHandle("fs", { create: true });
+}
+
+// Best-effort cleanup of the main file plus any SQLite siblings the GPKG driver left behind.
+async function removeOpfsEntries(dir: FileSystemDirectoryHandle, name: string): Promise<void> {
   for (const sfx of ["", "-journal", "-wal", "-shm"]) {
-    try {
-      await root.removeEntry(name + sfx);
-    } catch {
-      // not present — fine
-    }
+    await dir.removeEntry(name + sfx).catch(() => {});
   }
 }
 
@@ -850,26 +853,18 @@ async function exportGdal(
     }
   }
 
-  // Single-file OPFS branch (GPKG, FlatGeobuf, KML, LIBKML, GML).
-  // Bypass the runtime's auto-OPFS path scanning (which opens an exclusive
-  // SyncAccessHandle on opfs:// paths and conflicts with SQLite's own open
-  // call inside GDAL's GPKG driver, surfacing as "file is in use"). Instead
-  // we acquire the OPFS FileSystemFileHandle ourselves and register it via
-  // registerFileHandle with a plain name; the auto-OPFS regex only matches
-  // single-quoted opfs:// literals so this name is invisible to it. After
-  // COPY, we read the bytes back through the same FileSystemFileHandle.
+  // Single-file formats (GPKG, FlatGeobuf, KML, LIBKML, GML) write to an opfs:// path, whose files
+  // DuckDB keeps under duckdb/fs/ and which also holds the GPKG driver's SQLite journal.
   const name = `${baseName}${format.ext}`;
-  const fileHandle = await root.getFileHandle(name, { create: true });
-  await db.registerFileHandle(name, fileHandle, DuckDBDataProtocol.BROWSER_FSACCESS, true);
+  const fs = await duckdbFsDir();
   try {
     await conn.query(
-      `COPY (${select}) TO ${quotePath(name)} WITH (FORMAT GDAL, DRIVER ${quotePath(format.driver!)}${srsClause}${layerNameClause}${layerOptionsClause})`,
+      `COPY (${select}) TO ${quotePath(`opfs://${name}`)} WITH (FORMAT GDAL, DRIVER ${quotePath(format.driver!)}${srsClause}${layerNameClause}${layerOptionsClause})`,
     );
-    const bytes = await readOpfsFileBytes(fileHandle);
+    const bytes = await readOpfsFileBytes(await fs.getFileHandle(name));
     return { blob: toBlob(bytes, format.mime), filename };
   } finally {
-    await dropFileSafe(db, name);
-    await removeOpfsEntries(name);
+    await removeOpfsEntries(fs, name);
   }
 }
 

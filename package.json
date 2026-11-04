@@ -16,30 +16,35 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "update": "npx npm-check-updates -u && npm install"
+    "update": "npx npm-check-updates -u && npm install",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@astrojs/svelte": "^9.0.1",
     "@eslint/compat": "^2.1.1",
     "@eslint/js": "^10.0.1",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^26.6.3",
     "@types/papaparse": "^5.5.2",
+    "@vitest/browser-playwright": "^5.1.0",
     "astro": "^7.3.5",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-astro": "^3.2.1",
     "globals": "^17.12.0",
+    "playwright": "^1.64.1",
     "prettier": "^3.9.9",
     "prettier-plugin-astro": "^1.1.0",
     "svelte": "^5.57.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.70.1"
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.1.0"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.1",
     "@astrojs/starlight": "^0.42.5",
-    "@duckdb/duckdb-wasm": "^1.33.1-dev65.0",
+    "@duckdb/duckdb-wasm": "1.33.1-dev114.0",
     "astro-rehype-relative-markdown-links": "^0.19.2",
     "fflate": "^0.8.3",
     "hyparquet": "^1.31.5",
