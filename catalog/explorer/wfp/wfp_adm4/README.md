@@ -52,7 +52,7 @@ WFP admin 4 as GeoParquet, with polygon tiles, and label points at each unit's m
 | ./wfp_adm4.pmtiles | 237.9 MB | 12209692896d... |
 | ./styles/default.json | 457 B | 12207df272fa... |
 | ./wfp_adm4.thumb.jpg | 5.1 KB | 12202792b94a... |
-| ./README.md | 2.0 KB | 1220b8bc4308... |
+| ./README.md | 2.0 KB | 122061414c08... |
 
 ## Quick Start
 

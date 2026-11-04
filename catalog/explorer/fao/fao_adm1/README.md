@@ -36,7 +36,7 @@ FAO admin 1 as GeoParquet, with polygon tiles, and label points at each unit's m
 | ./fao_adm1.pmtiles | 171.5 MB | 1220b4e3f06f... |
 | ./styles/default.json | 457 B | 1220227d1fc3... |
 | ./fao_adm1.thumb.jpg | 13.6 KB | 1220be5fffeb... |
-| ./README.md | 1.8 KB | 1220e6724c61... |
+| ./README.md | 1.8 KB | 12204d7f1570... |
 
 ## Quick Start
 

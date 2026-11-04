@@ -64,7 +64,7 @@
       "type": "list<element: string>"
     }
   ],
-  "table:row_count": 1448,
+  "table:row_count": 1408,
   "title": "Source match",
   "extent": {
     "spatial": {
@@ -105,8 +105,8 @@
       "roles": [
         "data"
       ],
-      "file:size": 336412,
-      "file:checksum": "1220b6b2c0909841c073aa7508ebd7e67cfb6756fde8accacaf8b56629a129a45e2a"
+      "file:size": 179787,
+      "file:checksum": "12209ca4358a2b43293b09efc57e5a563181d1486f4fcc36b2363c87f17cf846af4f"
     }
   }
 }

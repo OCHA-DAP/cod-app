@@ -39,7 +39,7 @@ Stats, provenance, match rates, reference counts and team decisions, one row per
 
 | File | Size | Checksum |
 |------|------|----------|
-| ./source_comparison.parquet | 53.9 KB | 12200ba0323b... |
+| ./source_comparison.parquet | 53.8 KB | 1220aa80efb4... |
 
 ## Quick Start
 

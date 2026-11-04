@@ -33,7 +33,7 @@ The `package` layer with six gemeente names edited, in OGC:CRS84. Each edit is o
 | ./styles/default.json | 462 B | 12208612f3f7... |
 | ./nld_admin2.pmtiles | 652.0 KB | 1220802ed0c9... |
 | ./nld_admin2.parquet | 642.5 KB | 12204f441ffb... |
-| ./README.md | 2.7 KB | 1220cd6195eb... |
+| ./README.md | 2.7 KB | 12209c927cb6... |
 
 ## Quick Start
 

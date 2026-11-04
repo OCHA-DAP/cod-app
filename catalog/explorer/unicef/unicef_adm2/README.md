@@ -52,7 +52,7 @@ UNICEF admin 2 as GeoParquet, with polygon tiles, and label points at each unit'
 | ./unicef_adm2.pmtiles | 518.4 MB | 12204318b2f3... |
 | ./styles/default.json | 466 B | 122034958d7b... |
 | ./unicef_adm2.thumb.jpg | 14.3 KB | 1220a33d4954... |
-| ./README.md | 2.0 KB | 122061144941... |
+| ./README.md | 2.0 KB | 122031581c34... |
 
 ## Quick Start
 

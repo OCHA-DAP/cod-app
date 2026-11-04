@@ -47,7 +47,7 @@ WFP admin 2 as GeoParquet, with polygon tiles, and label points at each unit's m
 | ./wfp_adm2_labels.pmtiles | 64.8 MB | 12201e6d91ec... |
 | ./wfp_adm2.pmtiles | 471.1 MB | 1220ac51a9b5... |
 | ./wfp_adm2.parquet | 511.9 MB | 1220c508dfe6... |
-| ./README.md | 2.0 KB | 122074126126... |
+| ./README.md | 2.0 KB | 12205df6f2af... |
 | ./styles/default.json | 457 B | 12204f4be605... |
 | ./wfp_adm2.thumb.jpg | 14.1 KB | 1220fc503a22... |
 

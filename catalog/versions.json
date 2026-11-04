@@ -52,16 +52,16 @@
       "total_size_bytes": 1905
     },
     "explorer/reference/source_comparison": {
-      "updated": "2026-11-04T04:53:26.303620+00:00",
-      "current_version": "1.6.0",
+      "updated": "2026-11-04T14:17:23.563194+00:00",
+      "current_version": "1.7.0",
       "asset_count": 1,
-      "total_size_bytes": 55203
+      "total_size_bytes": 55132
     },
     "explorer/reference/source_match": {
-      "updated": "2026-11-04T04:53:27.272873+00:00",
-      "current_version": "1.6.0",
+      "updated": "2026-11-04T14:17:24.638843+00:00",
+      "current_version": "1.7.0",
       "asset_count": 1,
-      "total_size_bytes": 336412
+      "total_size_bytes": 179787
     },
     "explorer/reference/source_provenance": {
       "current_version": "1.3.0",
@@ -310,5 +310,5 @@
       "total_size_bytes": 913510312
     }
   },
-  "updated": "2026-11-04T04:53:29.055981+00:00"
+  "updated": "2026-11-04T14:17:24.638843+00:00"
 }

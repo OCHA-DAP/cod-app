@@ -34,7 +34,7 @@ UN Geodata 1M country outlines as GeoParquet, with polygon tiles.
 |------|------|----------|
 | ./ungeodata_adm0.pmtiles | 96.8 MB | 12202f613029... |
 | ./ungeodata_adm0.parquet | 58.1 MB | 1220e52d7890... |
-| ./README.md | 1.5 KB | 1220d1cf63c6... |
+| ./README.md | 1.5 KB | 122032f91487... |
 | ./styles/default.json | 474 B | 122093042cbb... |
 | ./ungeodata_adm0.thumb.jpg | 14.8 KB | 12206371c8fa... |
 

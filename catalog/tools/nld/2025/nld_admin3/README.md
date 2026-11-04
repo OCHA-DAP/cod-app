@@ -31,7 +31,7 @@
 | ./styles/default.json | 858 B | 1220abac2962... |
 | ./nld_admin3.pmtiles | 4.9 MB | 12201342937e... |
 | ./nld_admin3.parquet | 27.4 MB | 122037c2596d... |
-| ./README.md | 2.7 KB | 1220057c3b7c... |
+| ./README.md | 2.7 KB | 1220e24ca634... |
 | https://service.pdok.nl/cbs/wijken-en-buurten-2025/atom/downloads/wijkenbuurten_2025.gpkg | 209.5 MB | 122011894edc... |
 | https://www.nationaalgeoregister.nl/geonetwork/srv/dut/csw?service=CSW&version=2.0.2&request=GetRecordById&outputschema=http://www.isotc211.org/2005/gmd&elementsetname=full&id=4215aca9-0e91-4d64-8e28-4a20061901f2 | - | - |
 | https://www.cbs.nl/-/media/cbs/onze-diensten/methoden/onderzoek/pdf/2025/toelichting-wijk-en-buurtkaart-2023-2024-en-2025.pdf | 724.8 KB | 12207b6f2477... |

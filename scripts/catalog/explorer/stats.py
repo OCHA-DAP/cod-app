@@ -54,7 +54,7 @@ def batches(con) -> list[list[str]]:
 
 
 STATS_DB.unlink(missing_ok=True)
-con = connect(STATS_DB, memory_limit="4GB")
+con = connect(STATS_DB)
 con.execute(
     "CREATE TABLE stats (source VARCHAR, level INTEGER, iso3 VARCHAR, feature_count BIGINT, "
     "total_vertices BIGINT, avg_vertices DOUBLE, edge_vertices BIGINT, internal_vertices BIGINT)"

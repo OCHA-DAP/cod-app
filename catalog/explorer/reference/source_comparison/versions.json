@@ -1,6 +1,6 @@
 {
   "spec_version": "1.0.0",
-  "current_version": "1.6.0",
+  "current_version": "1.7.0",
   "versions": [
     {
       "version": "1.0.0",
@@ -156,6 +156,22 @@
           "size_bytes": 55203,
           "href": "explorer/reference/source_comparison/source_comparison.parquet",
           "mtime": 1793767848.7224457
+        }
+      },
+      "changes": [
+        "source_comparison.parquet"
+      ]
+    },
+    {
+      "version": "1.7.0",
+      "created": "2026-11-04T14:17:23.562055Z",
+      "breaking": false,
+      "assets": {
+        "source_comparison.parquet": {
+          "sha256": "aa80efb46194c37cd308c98f367aa505ce642e642963cacc8447e1f20a548e6d",
+          "size_bytes": 55132,
+          "href": "explorer/reference/source_comparison/source_comparison.parquet",
+          "mtime": 1793801825.2412174
         }
       },
       "changes": [

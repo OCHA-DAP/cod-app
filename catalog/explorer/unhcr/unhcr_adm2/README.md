@@ -48,7 +48,7 @@ UNHCR admin 2 as GeoParquet, with polygon tiles, and label points at each unit's
 | ./unhcr_adm2_labels.pmtiles | 77.4 MB | 1220a69c3007... |
 | ./unhcr_adm2.pmtiles | 571.6 MB | 122029c78fb4... |
 | ./unhcr_adm2.parquet | 1.3 GB | 1220973cd24b... |
-| ./README.md | 2.2 KB | 1220ee1f3ff9... |
+| ./README.md | 2.2 KB | 12203578a8ed... |
 | ./styles/default.json | 463 B | 12200e75da32... |
 | ./unhcr_adm2.thumb.jpg | 12.2 KB | 122015be4625... |
 

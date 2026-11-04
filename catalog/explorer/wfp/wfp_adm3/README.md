@@ -48,7 +48,7 @@ WFP admin 3 as GeoParquet, with polygon tiles, and label points at each unit's m
 | ./wfp_adm3_labels.pmtiles | 97.6 MB | 12201d67c165... |
 | ./wfp_adm3.pmtiles | 254.0 MB | 122020b6eda0... |
 | ./wfp_adm3.parquet | 462.9 MB | 12200e580256... |
-| ./README.md | 2.0 KB | 122069b9f1e6... |
+| ./README.md | 2.0 KB | 12209271459c... |
 | ./styles/default.json | 457 B | 122054053e81... |
 | ./wfp_adm3.thumb.jpg | 5.4 KB | 122002f4305e... |
 

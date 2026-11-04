@@ -27,7 +27,7 @@ UN Geodata 1M international boundary lines and coastlines as GeoParquet, with po
 |------|------|----------|
 | ./ungeodata_lines.pmtiles | 89.2 MB | 12208ecad4c9... |
 | ./ungeodata_lines.parquet | 49.1 MB | 12209f00d75a... |
-| ./README.md | 1.4 KB | 122011f2f33e... |
+| ./README.md | 1.4 KB | 1220e938ac58... |
 | ./styles/default.json | 461 B | 122033b0651c... |
 | ./ungeodata_lines.thumb.jpg | 17.9 KB | 12209f6a7c6c... |
 
