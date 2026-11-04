@@ -1,0 +1,38 @@
+name: duckdb-wasm canaries
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The next dist-tag, since semver sorts devN builds as text (dev65 above dev114).
+      - run: npm install --no-save @duckdb/duckdb-wasm@next
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npx vitest run -t "duckdb-wasm (writes a valid shapefile|has the OpenFileGDB driver)"
+      - name: Open an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(npm view @duckdb/duckdb-wasm@next version)"
+          title="duckdb-wasm canary failed on ${version}"
+          if [ -z "$(gh issue list --state open --search "in:title \"${title}\"" --json number --jq '.[].number')" ]; then
+            gh issue create --title "$title" --body "A canary in tests/export.test.ts failed on duckdb-wasm ${version}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          The run names the failing test. A failing Shapefile canary means the export round-trips: bump duckdb-wasm and unhide Shapefile in src/lib/db/export.ts. A failing OpenFileGDB canary means the driver ships: check can_open and can_create in ST_Drivers(). Otherwise the canary itself broke."
+          fi

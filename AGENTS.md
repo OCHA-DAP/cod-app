@@ -47,6 +47,7 @@ npm run dev       # Start dev server (localhost:4321)
 npm run build     # Production build
 npm run preview   # Preview production build
 npm run check     # Astro + TypeScript type check
+npm test          # Vitest in headless Chromium (tests/*.test.ts; first run: npx playwright install --only-shell chromium)
 uv sync          # Python env for scripts/ (pyproject.toml, uv.lock, Python from .python-version; outside it: aws CLI v2 for the push, resvg and cwebp for population_maps)
 npm run fetch:status  # Fetch /status CSVs (needs ARCGIS_* and JIRA_* in .env)
 uv run scripts/about/pcode_figures.py  # Render /about/ Morafeno and P-code level SVGs and the /standards/ migration maps
@@ -75,7 +76,8 @@ Notes:
 
 - `playwright-cli snapshot` writes a YAML accessibility tree to `.playwright-cli/page-*.yml`. The tree includes element `ref` IDs (e.g. `ref=e9`) you pass to `click`/`hover`/`fill`. Trust `eval` output over older snapshot files — snapshots can be stale relative to the live DOM.
 - `playwright-cli` uses one persistent browser per session. Use `attach`/`detach` only if you need to share a browser across processes; for our verification flows, `open` + `close` is enough.
-- Do NOT write standalone `.spec.ts` files for this — drive Playwright from Bash via `playwright-cli`. (Reason: the project does not have a Playwright test runner configured, and per-test setup duplicates the dev-server lifecycle.)
+- UI flows are verified with `playwright-cli`, not test files. Logic tests live in `tests/*.test.ts` (Vitest browser mode), import `$lib` modules directly and load fixtures by URL, never through the UI. `test.fails` canaries in `tests/export.test.ts` track upstream duckdb-wasm gaps; `.github/workflows/duckdb-canary.yml` runs them daily against `@duckdb/duckdb-wasm@next`.
+- `@duckdb/duckdb-wasm` is pinned exactly: semver sorts its `devN` builds as text, so a range resolves to an older build.
 
 ## Branding
 

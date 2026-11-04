@@ -26,6 +26,7 @@ npm-debug.log*
 .claude/*
 !.claude/skills/
 .playwright-cli/
+.vitest/
 tmp/
 
 # Assets synced at build time by scripts/sync-*.mjs — see package.json prebuild

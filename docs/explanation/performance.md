@@ -115,29 +115,47 @@ Ported from edge-extender's `ce7fc0f`/`a3b1687`/`7f0a1a4` (see that repo's `docs
 
 ## Connection settings (`duckdb.svelte.ts`)
 
-| Setting                                | Effect                                                                                                                                                 |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SET threads = 1`                      | Primary memory dial. In WASM, DuckDB is single-threaded anyway; this makes it explicit and prevents unexpected parallel allocations.                   |
-| `SET preserve_insertion_order = false` | Free win. Removes sequence-tracking overhead from every intermediate buffer and eliminates the reorder pass after aggregations. No correctness impact. |
-| `SET geometry_always_xy = true`        | Correctness: forces (lon, lat) coordinate order regardless of CRS definition. Required for correct EPSG:4326 output.                                   |
-| `memory_limit`                         | Left at default (80% of device RAM). The only override is the targeted `999GB` workaround in `voronoi.ts` described above.                             |
+| Setting                                                  | Effect                                                                                                                                                                                                                                    |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SET preserve_insertion_order = false`                   | Free win. Removes sequence-tracking overhead from every intermediate buffer and eliminates the reorder pass after aggregations. No correctness impact.                                                                                    |
+| `SELECT NULL::GEOMETRY('OGC:CRS84')` in `BEGIN`/`COMMIT` | Correctness: caches core's `OGC:CRS84` before spatial loads. Spatial's PROJ lookup of the same CRS throws `stoi` in WASM, which breaks every CRS84-tagged load. Outside an explicit transaction the cast itself throws an INTERNAL error. |
+| `SET geometry_always_xy = true`                          | Correctness: forces (lon, lat) coordinate order regardless of CRS definition. Required for correct EPSG:4326 output.                                                                                                                      |
+| `threads`                                                | Left at default. The base bundle runs without cross-origin isolation, so DuckDB has a single thread.                                                                                                                                      |
+| `memory_limit`                                           | Left at default (about 3.1 GiB on the base bundle). The only override is the targeted `999GB` workaround in `voronoi.ts` described above.                                                                                                 |
 
 ---
 
 ## GDAL export via OPFS (`export.ts`)
 
-A GDAL driver's `COPY ... TO` needs real seek-write semantics that duckdb-wasm's
-plain in-memory `BUFFER` filesystem doesn't provide — writing there "succeeds"
-but silently produces 1-byte placeholder files, since GDAL's VSI write layer
-doesn't compose with it. Every GDAL export instead targets a registered OPFS
-`FileSystemFileHandle`, which requires a duckdb-wasm session opened on an
-`opfs://` DB to enable `shouldOPFSFileHandling()`; native Parquet `COPY`
-(`FORMAT PARQUET`) bypasses GDAL entirely and works through `BUFFER` directly.
+The session database is an `opfs://` file opened with
+`opfs: { fileHandling: "auto" }`, which registers every `opfs://` path a query
+names. Single-file GDAL formats (GeoPackage, FlatGeobuf,
+KML/LIBKML, GML) write to `opfs://<name>`, stored at `duckdb/fs/<name>` in the
+origin private file system, and the export reads that file into a Blob and
+removes it along with any SQLite `-journal`/`-wal`/`-shm` sidecar. GeoPackage
+depends on this path: GDAL opens its SQLite journal at runtime under a name no
+query mentions, and DuckDB serves such files from its OPFS scratch pool. A
+20,000-polygon export (29 MB GeoPackage, 24 MB FlatGeobuf) reads back
+complete. GeoParquet uses native `COPY ... (FORMAT PARQUET)` and bypasses GDAL.
 
-Shapefile is delivered as a client-side `.zip` of its component files
-(`.shp`/`.shx`/`.dbf`/`.prj`/`.cpg`), each with its own OPFS handle — the
-cleaner `/vsizip/` path rejects Shapefile's random-write header back-patching
-with "Read-write random access not supported."
+Shapefile export is hidden. On duckdb-wasm 2.0 (1.33.1-dev111 to dev114), GDAL
+writes to a registered buffer or OPFS handle land at the end of the file
+whatever offset they ask for, and truncates have no effect, so Shapefile's
+header back-patching appends extra headers and the `.shp`/`.shx`/`.dbf` come
+out corrupt. Writing to `opfs://x.shp` produces no files, since only the `.shp`
+is named in the query, and `.shp.zip`/`.shz` output is an empty archive.
+Native DuckDB 2.0 writes the same shapefile correctly, and so does GDAL's own
+`/vsimem/`, but SQL cannot read those bytes back out. The export code (one OPFS
+handle per component file, zipped in the browser with fflate) stays in place
+behind `hidden: true`. Reading shapefiles is unaffected.
+
+FileGDB has no driver in the WASM spatial build: `OpenFileGDB` is absent from
+`ST_Drivers()`, while native spatial can open and create it.
+
+Two canaries in `tests/export.test.ts` track both gaps: `duckdb-wasm writes a
+valid shapefile` and `duckdb-wasm has the OpenFileGDB driver`, each marked
+`test.fails`. `.github/workflows/duckdb-canary.yml` runs them daily against
+`@duckdb/duckdb-wasm@next` and opens an issue when either starts passing.
 
 ---
 
@@ -161,14 +179,14 @@ The retry loop in `pipeline/index.ts` (up to 10 attempts, doubling distance each
 Confirmed clean end-to-end runs against real portolan-catalog data (see the
 `at-scale-testing` skill for how to pick a file):
 
-| Tool      | Dataset            | Scale                                      | Result                                                                                             |
-| --------- | ------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Tool           | Dataset            | Scale                                      | Result                                                                                             |
+| -------------- | ------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
 | `/edge-match`  | `bgd` adm3→adm2    | 507 fine / 64 coarse groups                | ~5m24s, 0 invalid edges, area conserved                                                            |
 | `/edge-extend` | `eth` adm3         | 1,148 features                             | ~100s, 0 retries                                                                                   |
 | `/topo-clean`  | `bgd` adm3         | 507 features (12 MB)                       | ~35s, 0 overlaps, 0 gaps, 5 slivers                                                                |
 | `/topo-clean`  | `cod` adm3         | 519 features (4.8 MB)                      | ~35s, 0 overlaps, 0 gaps, 6 slivers                                                                |
 | `/topo-clean`  | `eth` adm3         | 1,148 features (9.3 MB)                    | ~25s, 0 overlaps, 0 gaps, 2 slivers                                                                |
-| `/change` | `ukr` adm3 v02→v04 | 1,770 A / 1,769 B features (14–15 MB each) | ~45s, 1287 unchanged / 481 modified / 1 merge / 0 created or removed, row totals exactly conserved |
+| `/change`      | `ukr` adm3 v02→v04 | 1,770 A / 1,769 B features (14–15 MB each) | ~45s, 1287 unchanged / 481 modified / 1 merge / 0 created or removed, row totals exactly conserved |
 
 `/edge-match`'s `cod` adm3→adm2 combination hits the 3 GiB WASM ceiling at higher
 scale (519 fine / **164 coarse** groups) — see

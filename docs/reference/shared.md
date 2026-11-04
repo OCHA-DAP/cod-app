@@ -55,7 +55,7 @@ name instead of repeating them.
   format MUST be loaded via `ST_Read`.
 - Exporting spatial results MUST offer GeoParquet always, plus whichever
   GDAL drivers the loaded spatial extension build reports as
-  `can_create` from among GeoPackage, Shapefile, FlatGeobuf, KML/LIBKML,
+  `can_create` from among GeoPackage, FlatGeobuf, KML/LIBKML,
   and GML. A driver absent from the current build MUST NOT appear as an
   option. GeoJSON export MUST be served from an already-cached string
   rather than a GDAL driver, when a cached copy is available.
