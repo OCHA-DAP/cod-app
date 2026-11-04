@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. Superseded for the overlay layer by [0054](0054-edge-clips-are-plain-with-a-final-coverage-clean.md)
 
 ## Context
 

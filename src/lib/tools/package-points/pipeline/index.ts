@@ -1,5 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { mergeMicroPolygons } from "$lib/db/coverage";
+import { checkNoOverlaps, mergeMicroPolygons } from "$lib/db/coverage";
 import { tableToGeoJSON } from "$lib/db/geojson";
 import { setCentroidLat } from "$lib/db/units";
 import { runDissolveCore } from "$lib/tools/package-polygons/pipeline/dissolveCore";
@@ -117,6 +117,7 @@ export async function runPackagePoints(
   }
 
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pkpt_micro");
+  await checkNoOverlaps(conn, "layer_01");
   await conn.query("DROP TABLE IF EXISTS pkpt_micro");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE pkpt_input AS

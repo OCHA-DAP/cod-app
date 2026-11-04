@@ -1,6 +1,7 @@
 import { beforeAll, expect, test } from "vitest";
 import { SNAP_TOLERANCE } from "$lib/db/constants";
 import { hasNoiseFloorGap } from "$lib/db/coverage";
+import { hasInvalidEdges } from "$lib/db/invalidEdges";
 import type { MatchColumnOptions } from "$lib/db/codeJoin";
 import { runEdgeMatch } from "$lib/tools/edge-match/pipeline";
 import type { MatchMode } from "$lib/tools/edge-match/pipeline/assign";
@@ -38,7 +39,7 @@ type Issue = { kind: string; unit_a: number; overlay_fid: number | null; reason:
 async function match(
   inputs: Promise<File>[] | Promise<File>,
   overlays: Promise<File> = synthetic(OVERLAY, "overlay.parquet"),
-  opts: { mode?: MatchMode; columns?: MatchColumnOptions; passthrough?: boolean } = {},
+  opts: { mode?: MatchMode; columns?: MatchColumnOptions; passthrough?: boolean; clean?: boolean } = {},
 ) {
   const { db: instance } = db();
   const inputFiles = await Promise.all(Array.isArray(inputs) ? inputs : [inputs]);
@@ -51,6 +52,7 @@ async function match(
     opts.columns ?? {},
     opts.passthrough ?? false,
     opts.mode ?? "auto",
+    opts.clean ?? true,
   );
   const issues = (
     await rows<Issue>("SELECT kind, unit_a, overlay_fid, reason FROM ge_issues ORDER BY unit_a")
@@ -63,8 +65,7 @@ async function match(
 }
 const inputs = (wkt = INPUT) => synthetic(wkt, "input.parquet");
 
-// drift: py loads the overlay raw (#118); the site's loadLayers coverage-cleans it too
-test.fails("inputs clean the input but load the overlay raw", async () => {
+test("inputs clean the input but load the overlay raw", async () => {
   const w = SNAP_TOLERANCE / 2;
   const gapped: [number, string][] = [
     [1, `POLYGON((0 -50, 101 -50, 101 0, ${50 + w} 0, 50 0, 0 0, 0 -50))`],
@@ -181,14 +182,72 @@ test("without passthrough an orphan is still dropped", async () => {
   expect(r.issues.map((i) => i.kind)).toEqual(["unassigned"]);
 });
 
-// drift: py check_no_overlaps refuses an overlapping overlay layer
-test.fails("raises on an overlapping overlay", async () => {
+// Two overlays share a slanted border; the inputs cross it at different heights.
+test("cross-border inputs have no invalid edges", async () => {
+  const r = await match(
+    inputs([
+      [1, "POLYGON((-1 -1, 3.9 -1, 3.9 1.7, -1 1.7, -1 -1))"],
+      [2, "POLYGON((-1 1.7, 3.9 1.7, 3.9 4, -1 4, -1 1.7))"],
+      [3, "POLYGON((2.4 -1, 7 -1, 7 1.2, 5 1.2, 2.4 1.2, 2.4 -1))"],
+      [4, "POLYGON((2.4 1.2, 5 1.2, 5 4, 2.4 4, 2.4 1.2))"],
+      [5, "POLYGON((5 1.2, 7 1.2, 7 4, 5 4, 5 1.2))"],
+    ]),
+    synthetic(
+      [
+        [1, "POLYGON((0 0, 3 0, 3.3 3, 0 3, 0 0))"],
+        [2, "POLYGON((3 0, 6 0, 6 3, 3.3 3, 3 0))"],
+      ],
+      "overlay.parquet",
+    ),
+    { mode: "many" },
+  );
+  expect(r.ids).toEqual([1, 2, 3, 4, 5]);
+  expect(r.issues.map((i) => i.kind)).not.toContain("invalid-edge");
+  expect(await hasInvalidEdges(conn, "ge_results")).toBe(false);
+});
+
+test("without the clean, seams are reported as invalid edges", async () => {
+  const r = await match(
+    inputs([
+      [1, "POLYGON((-1 -1, 3.9 -1, 3.9 1.7, -1 1.7, -1 -1))"],
+      [2, "POLYGON((-1 1.7, 3.9 1.7, 3.9 4, -1 4, -1 1.7))"],
+      [3, "POLYGON((2.4 -1, 7 -1, 7 1.2, 5 1.2, 2.4 1.2, 2.4 -1))"],
+      [4, "POLYGON((2.4 1.2, 5 1.2, 5 4, 2.4 4, 2.4 1.2))"],
+      [5, "POLYGON((5 1.2, 7 1.2, 7 4, 5 4, 5 1.2))"],
+    ]),
+    synthetic(
+      [
+        [1, "POLYGON((0 0, 3 0, 3.3 3, 0 3, 0 0))"],
+        [2, "POLYGON((3 0, 6 0, 6 3, 3.3 3, 3 0))"],
+      ],
+      "overlay.parquet",
+    ),
+    { mode: "many", clean: false },
+  );
+  expect(r.issues.map((i) => i.kind)).toContain("invalid-edge");
+});
+
+test("raises on an overlapping overlay", async () => {
   await expect(
     match(
       inputs(),
       synthetic([...OVERLAY, [3, "POLYGON((1 1, 4 1, 4 4, 1 4, 1 1))"]], "overlay.parquet"),
     ),
   ).rejects.toThrow(/pair\(s\) overlap/);
+});
+
+// An extended orphan overlapping a matched row takes no area from it.
+test.each([true, false])("passthrough orphan leaves the matched row whole (clean %s)", async (clean) => {
+  const r = await match(
+    inputs([
+      [1, "POLYGON((0.5 0.5, 3.5 0.5, 3.5 3.5, 0.5 3.5, 0.5 0.5))"],
+      [2, "POLYGON((4.5 0.5, 7 0.5, 7 3.5, 4.5 3.5, 4.5 0.5))"],
+    ]),
+    synthetic([[1, "POLYGON((0 0, 4 0, 4 4, 0 4, 0 0))"]], "overlay.parquet"),
+    { mode: "many", passthrough: true, clean },
+  );
+  expect(await scalar<number>("SELECT ST_Area(geometry) FROM '_export.parquet' WHERE id = 1")).toBeCloseTo(16, 6);
+  expect(r.issues.map((i) => i.kind)).not.toContain("invalid-edge");
 });
 
 test.todo("merge, overlay_include, input_exclude and prefer column flags (no TS counterpart)");

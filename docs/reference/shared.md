@@ -65,7 +65,7 @@ name instead of repeating them.
 ## Before/after view (`$lib/components/SideToggle.svelte`)
 
 - Every tool that changes geometry (`topo-clean`, `edge-extend`,
-  `edge-match`, `edge-stitch`, `edge-clip`, `edge-mosaic`) MUST offer an
+  `edge-match`, `edge-mosaic`) MUST offer an
   Original/result toggle once a result exists, showing one side at a time
   and switching to the result after every run. `change` MUST offer the same
   toggle between Version A and Version B.
@@ -111,6 +111,14 @@ name instead of repeating them.
 - The shared overlap check (`buildOverlapTable`) MUST intersect every pair
   whose interiors overlap or where one contains the other, through
   `intersectPairs` (see Overlap measurement).
+- The self-overlap check (`checkNoOverlaps`) MUST raise when two rows'
+  interiors overlap with an intersection part wider than `SNAP_TOLERANCE`
+  (see Micro-polygons), naming the pair count and up to ten pairs, largest
+  first. Touching rows, empty intersection parts and narrower slivers MUST
+  NOT count. It MUST run on the overlay layer of `edge-match` and
+  `edge-mosaic`, on the input of `package-polygons`, `package-points` and
+  `package-lines` after their micro-polygon merge, and on both
+  `schema-join` layers.
 - A "clean this derived output" pass MUST first check for a coverage
   violation or a micro-polygon and skip `ST_CoverageClean` entirely when
   neither is found. On a freshly loaded input (`edge-match`, `code-update`,
@@ -143,12 +151,13 @@ name instead of repeating them.
   then with its own parts snapped onto its incoming parts at `SNAP_TOLERANCE`.
   Merging detached parts MUST rebuild its receiving polygons the same way.
 - Every `buildCoverageClean` call MUST merge micro-polygons before
-  `ST_CoverageClean` runs, so `edge-extend`, `edge-stitch`, `edge-match`, `edge-mosaic`,
-  `topo-clean` and every cleaned input apply this rule. `edge-clip` applies it to
-  its clipped output, `topo-clean` again after its fix, and `package-polygons`,
-  `package-points` and `package-lines` to their input.
+  `ST_CoverageClean` runs, so `edge-extend`, `topo-clean` and every cleaned
+  input apply this rule. `edge-match` and `edge-mosaic` apply it to their
+  clipped output, with or without the final clean, `topo-clean` again after
+  its fix, and `package-polygons`, `package-points` and `package-lines` to
+  their input.
 - Each merged or dropped part MUST be reported as a `micro-polygon` row
-  by every tool that writes an issues report (`edge-clip`, `edge-stitch`, `edge-mosaic`,
+  by every tool that writes an issues report (`edge-mosaic`,
   `edge-match`, `topo-clean` and `package-polygons`), with the part's own fid in
   `unit_a`, the receiving fid in `unit_b` (null when dropped), `reason`
   `merged into neighbouring polygon` or `dropped: touches no polygon`,
@@ -173,9 +182,37 @@ name instead of repeating them.
 - A closing failure MUST be caught and logged, leaving the table untouched
   (`tryCloseNotches`).
 
+## Assign-one (`$lib/db/assignOne.ts`)
+
+Shared by `edge-mosaic` and `edge-match`'s assign-one mode.
+
+- Assign-one MUST assign every input polygon to the one overlay polygon
+  that overlaps the most distinct input polygons, counting any pair with
+  shared area above zero (see Overlap measurement). A tie MUST go to the
+  lower overlay fid.
+- Every input polygon MUST be assigned to the winner, including one that
+  does not overlap it, never to a different overlay polygon.
+- If no input polygon overlaps any overlay polygon, the caller MUST fail
+  the run rather than produce an empty result.
+
+## Clip engine (`$lib/db/clipEngine.ts`, `$lib/db/clipTiles.ts`)
+
+Shared by `edge-mosaic` and `edge-match`'s per-group clip.
+
+- Each overlay polygon MUST be split into tiles (`ST_Subdivide` to
+  `SUBDIVIDE_MAX_VERTICES` once it has `SUBDIVIDE_MIN_VERTICES` vertices),
+  and each input row paired with the tiles of its own overlay polygon whose
+  bounding boxes meet its own, in batches whose vertex totals stay under
+  `CLIP_PAIR_VERTEX_BUDGET`.
+- A row's clip MUST be the polygon parts of the union of its tile
+  intersections. The clip MUST NOT snap, and a failing intersection MUST
+  propagate.
+- A row whose clip is empty MUST be dropped from the output and recorded
+  with its pre-clip geometry and overlay fid, for a `clip-empty` issue.
+
 ## Clip-detached pieces (`$lib/db/coverage.ts::mergeDetachedParts`)
 
-Shared by `edge-clip`, `edge-mosaic` and `edge-match`'s per-group clip, run on
+Shared by `edge-mosaic` and `edge-match`'s per-group clip, run on
 each clipped output before any micro-polygon merge.
 
 - A clip-detached piece is any polygon part of a clipped polygon other than
@@ -194,7 +231,7 @@ each clipped output before any micro-polygon merge.
   Otherwise the piece MUST stay, reported as `kept: matches original shape`.
 - Without an original layer, such a piece MUST stay, reported as
   `kept: no original layer`. `edge-match` always uses its own pre-extension
-  input; `edge-clip` and `edge-mosaic` take an optional original layer
+  input; `edge-mosaic` takes an optional original layer
   (`original` URL param).
 - A destination MUST be a kept piece, a single-part polygon, or a piece
   kept as too large. A point contact (shared boundary not longer than
@@ -233,8 +270,7 @@ Shared by `edge-extend` (whole-file) and `edge-match` (per-group).
 Shared by `edge-match` (input/overlay assignment), `change` (version-to-version
 comparison), `code-update` (per-level classify and reparent), and
 `schema-join` (join assignment). Its pairwise intersection (`intersectPairs`)
-is also shared by assign-one, the clip engine (`edge-clip`, `edge-mosaic`, and `edge-match`'s
-per-group clip), the micro-polygon and clip-detached merges, and the shared overlap check
+is also shared by assign-one, the micro-polygon and clip-detached merges, and the shared overlap check
 (`topo-detect`, `topo-clean`).
 
 - Overlap measurement MUST compute exact geometric intersection
@@ -266,7 +302,7 @@ reparent), and `schema-join` (join assignment).
 
 ## Code-based assignment override (`$lib/db/codeJoin.ts`)
 
-Shared by `edge-match`, `edge-mosaic`, and `edge-clip` for overlay assignment.
+Shared by `edge-match` and `edge-mosaic` for overlay assignment.
 
 - Callers MAY supply a `matchColumn` name (same column on both layers) or a
   `overlayMatchColumn`/`inputMatchColumn` pair (different names), mutually

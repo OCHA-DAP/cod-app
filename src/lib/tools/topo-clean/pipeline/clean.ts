@@ -1,9 +1,6 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import {
-  buildCoverageCleanInput,
-  hasCoverageViolations,
-  runCoverageClean,
-} from "$lib/db/coverageClean";
+import { buildCoverageCleanInput, runCoverageClean } from "$lib/db/coverageClean";
+import { hasInvalidEdges } from "$lib/db/invalidEdges";
 import { mergeMicroPolygons } from "$lib/db/coverage";
 import { tryCloseNotches } from "$lib/db/notches";
 import { validateCleanOutput } from "./validate";
@@ -39,7 +36,7 @@ export async function inputHasViolations(
   conn: AsyncDuckDBConnection,
   table: string,
 ): Promise<boolean> {
-  return hasCoverageViolations(conn, table);
+  return hasInvalidEdges(conn, table);
 }
 
 // `gapDeg` is already in degrees (see units.ts); 0 = no gap filling.

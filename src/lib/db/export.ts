@@ -12,11 +12,7 @@ export type ExportSource =
   | "crosswalk_changelog"
   | "match"
   | "match_issues"
-  | "stitch"
-  | "stitch_issues"
   | "detect_issues"
-  | "clip"
-  | "clip_issues"
   | "mosaic"
   | "mosaic_issues"
   | "schema_map"
@@ -218,24 +214,6 @@ const SOURCES: Record<ExportSource, SourceConfig> = {
       "reason",
     ],
   },
-  stitch: { table: "st_clean", attrTable: "layer_attr", suffix: "_stitched", kind: "spatial" },
-  stitch_issues: {
-    table: "st_issues",
-    attrTable: null,
-    suffix: "_issues",
-    kind: "spatial",
-    columns: [
-      "key",
-      "kind",
-      "area_m2",
-      "max_width_m",
-      "thinness_ratio",
-      "fixed",
-      "unit_a",
-      "unit_b",
-      "reason",
-    ],
-  },
   detect_issues: {
     table: "dt_issues",
     attrTable: null,
@@ -252,27 +230,8 @@ const SOURCES: Record<ExportSource, SourceConfig> = {
       "unit_b",
     ],
   },
-  clip: { table: "cl_clip", attrTable: "input_layer_attr", suffix: "_clipped", kind: "spatial" },
-  clip_issues: {
-    table: "cl_issues",
-    attrTable: null,
-    suffix: "_issues",
-    kind: "spatial",
-    columns: [
-      "key",
-      "kind",
-      "area_m2",
-      "max_width_m",
-      "thinness_ratio",
-      "fixed",
-      "unit_a",
-      "unit_b",
-      "overlay_fid",
-      "reason",
-    ],
-  },
   mosaic: {
-    table: "st_clean",
+    table: "cl_clip",
     attrTable: "input_layer_attr",
     suffix: "_mosaicked",
     kind: "spatial",

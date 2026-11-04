@@ -292,8 +292,7 @@ test("added columns go within their level", async () => {
   ]);
 });
 
-// drift: py check_no_overlaps refuses an overlapping input or join layer
-test.fails.each(["input", "join"] as const)("raises on an overlapping %s layer", async (side) => {
+test.each(["input", "join"] as const)("raises on an overlapping %s layer", async (side) => {
   const layers = { input: inputRows(), join: joinRows() };
   layers[side] = [...layers[side], { ...layers[side][0] }];
   await expect(join(layers.input, layers.join)).rejects.toThrow(/pair\(s\) overlap/);

@@ -20,7 +20,6 @@
     "Assigning to overlay polygon",
     "Clipping to overlay boundary",
     "Closing seams",
-    "Checking for residual gaps",
     "Assembling issues report",
   ];
 
@@ -30,7 +29,7 @@
   let detachedMerged = $state(0);
   let detachedKept = $state(0);
   let running = $state(false);
-  let currentStage = $state(0); // 0=idle, 1-6=active stage, 7=done
+  let currentStage = $state(0); // 0=idle, 1-5=active stage, 6=done
   let errorStage = $state(0);
   let stageLabel = $state("");
   let error = $state<string | null>(null);
@@ -44,7 +43,9 @@
   let overlayFid = $state<number | null>(null);
   let issues = $state<MosaicIssueRow[]>([]);
   let issuesGeoJSON = $state<string | null>(null);
-  let hadResidualOverlaps = $state(false);
+  let invalidEdgeCount = $state(0);
+  let skipClean = $state(false);
+  const gapCount = $derived(issues.filter((i) => i.kind === "gap").length);
 
   // Optional code-join override (docs/adr/0045): defaults to "(none)" so the
   // first auto-run never changes behavior.
@@ -116,7 +117,7 @@
     overlayFid = null;
     issues = [];
     issuesGeoJSON = null;
-    hadResidualOverlaps = false;
+    invalidEdgeCount = 0;
     currentStage = 0;
     errorStage = 0;
     stageLabel = "";
@@ -134,6 +135,7 @@
         },
         { overlayMatchColumn: overlayMatchColumn ?? undefined, inputMatchColumn: inputMatchColumn ?? undefined },
         carryOverlayColumns,
+        !skipClean,
       );
 
       resultGeoJSON = result.mosaicGeoJSON;
@@ -147,10 +149,10 @@
       overlayFid = result.overlayFid;
       issues = result.issues;
       issuesGeoJSON = result.issuesGeoJSON;
-      hadResidualOverlaps = result.hadResidualOverlaps;
+      invalidEdgeCount = result.invalidEdgeCount;
       inputColumns = result.inputColumns;
       overlayColumns = result.overlayColumns;
-      currentStage = 7;
+      currentStage = 6;
       stageLabel = "Done";
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
@@ -169,7 +171,7 @@
       return "pending";
     }
     if (currentStage === 0) return "pending";
-    if (currentStage === 7) return "done";
+    if (currentStage === 6) return "done";
     if (stageNum < currentStage) return "done";
     if (stageNum === currentStage) return "active";
     return "pending";
@@ -180,7 +182,6 @@
   }
 
   const clipEmptyCount = $derived(issues.filter((i) => i.kind === "clip-empty").length);
-  const gapCount = $derived(issues.filter((i) => i.kind === "gap").length);
   const microCount = $derived(issues.filter((i) => i.kind === "micro-polygon").length);
   const codeMismatchCount = $derived(issues.filter((i) => i.kind === "code-mismatch").length);
   const codeFallbackCount = $derived(issues.filter((i) => i.kind === "code-fallback").length);
@@ -251,6 +252,10 @@
           />
         </div>
       {/if}
+      <label class="check-field">
+        <input type="checkbox" bind:checked={skipClean} disabled={running} />
+        <span>Skip the final clean, for very large layers (seams are listed as issues)</span>
+      </label>
     </AdvancedOptions>
 
     {#if running || errorStage > 0}
@@ -284,16 +289,19 @@
             {clipEmptyCount === 1 ? "was" : "were"} clipped away, see the issues download.
           </p>
         {/if}
+        {#if microCount + detachedMerged + detachedKept > 0}
+          <p class="info-line"><CleanupNote count={microCount + detachedMerged + detachedKept} /></p>
+        {/if}
+        {#if invalidEdgeCount > 0}
+          <p class="warn-line">
+            {invalidEdgeCount} pair{invalidEdgeCount === 1 ? "" : "s"} of polygons
+            {invalidEdgeCount === 1 ? "has" : "have"} edges that overlap or don't match, see the issues download.
+          </p>
+        {/if}
         {#if gapCount > 0}
           <p class="warn-line">
             {gapCount} gap{gapCount === 1 ? "" : "s"} remaining, see the issues download.
           </p>
-        {/if}
-        {#if microCount + detachedMerged + detachedKept > 0}
-          <p class="info-line"><CleanupNote count={microCount + detachedMerged + detachedKept} /></p>
-        {/if}
-        {#if hadResidualOverlaps}
-          <p class="warn-line">Overlaps remain after seam-closing, see the issues download.</p>
         {/if}
         {#if codeMismatchCount > 0}
           <p class="warn-line">
@@ -372,6 +380,14 @@
   :global(.tool-header) + .step {
     border-top: none;
     padding-top: 0;
+  }
+
+  .check-field {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--cd-grey--800);
   }
 
   .hint {

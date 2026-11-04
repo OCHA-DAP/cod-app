@@ -65,7 +65,7 @@ it look.
 
 Schema Fill only touches attribute columns, geometry passes straight through
 from `layer_01`. There is nothing here for a topology check to gate: unlike
-`edge-clip`/`edge-mosaic`/`edge-match`, this tool never re-clips, re-extends, or otherwise
+`edge-mosaic`/`edge-match`, this tool never re-clips, re-extends, or otherwise
 mutates geometry.
 
 ## Where this fits in a pipeline

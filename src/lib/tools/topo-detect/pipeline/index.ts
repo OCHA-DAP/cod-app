@@ -1,5 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { hasCoverageViolations } from "$lib/db/coverageClean";
+import { hasInvalidEdges } from "$lib/db/invalidEdges";
 import { tableToGeoJSON } from "$lib/db/geojson";
 import {
   assembleIssues,
@@ -78,7 +78,7 @@ export async function scanTopology(
   conn: AsyncDuckDBConnection,
   onAssemble: () => void = () => {},
 ): Promise<Pick<DetectResult, "issues" | "issuesGeoJSON" | "failedKinds">> {
-  const hasViolations = await hasCoverageViolations(conn, "layer_01");
+  const hasViolations = await hasInvalidEdges(conn, "layer_01");
   const gapOk = await buildGapRegions(conn, "dt_gap_regions", "layer_01");
   const overlapOk = await buildOverlapRegions(
     conn,

@@ -3,6 +3,7 @@ import { PipelineError, runPipeline } from "$lib/tools/edge-extend/pipeline/inde
 import { clipEngine } from "$lib/db/clipEngine";
 import { emptyDetachedIssues, mergeDetachedParts } from "$lib/db/coverage";
 import { queryToGeoJSON } from "$lib/db/geojson";
+import { buildTiles } from "$lib/db/clipTiles";
 
 // Sentinel overlay_fid for the orphan passthrough pseudo-group (ported from
 // topo-tools' PASSTHROUGH_OVERLAY_FID).
@@ -16,7 +17,7 @@ export interface GroupInfo {
 
 export interface GroupResult extends GroupInfo {
   status: "done" | "error";
-  // This group's rows in ge_results, colored by group_id like the final output.
+  // This group's extended rows, colored by group_id like the final output.
   geojson?: string;
   error?: string;
   failedStage?: number;
@@ -40,8 +41,8 @@ async function groupGeoJSON(
   try {
     return await queryToGeoJSON(
       conn,
-      `SELECT ST_AsGeoJSON(geom) AS _geom, ${overlayFid} AS group_id FROM ge_results
-       WHERE fid IN (SELECT input_fid FROM ge_assignment WHERE overlay_fid = ${overlayFid})`,
+      `SELECT ST_AsGeoJSON(geom) AS _geom, ${overlayFid} AS group_id FROM ge_extended
+       WHERE overlay_fid = ${overlayFid}`,
     );
   } catch (e) {
     console.warn("group preview failed:", e);
@@ -85,15 +86,8 @@ export async function listGroups(
   });
 }
 
-// Runs edge-extend's pipeline once per group, sequentially: populate
-// layer_01/layer_attr with that group's input-feature subset, run the pipeline
-// unmodified (it self-cleans its own internal tables at the start of every
-// call, so this is safe to call in a loop), clip the result directly against
-// the known overlay feature geometry (no need for edge-extend's own runClip, which
-// exists to *select* an unknown polygon — here the overlay feature polygon is already
-// known), and accumulate into ge_results. A failing group is recorded and
-// skipped rather than aborting the whole batch — Edge Extender's stage 2/5
-// OOMs aren't retried, and one bad group shouldn't block the rest.
+// Runs edge-extend's pipeline once per group into ge_extended; a failing group
+// is recorded in ge_dropped and skipped, so one bad group doesn't block the rest.
 export async function runGroups(
   conn: AsyncDuckDBConnection,
   groups: GroupInfo[],
@@ -105,9 +99,8 @@ export async function runGroups(
     "CREATE OR REPLACE TABLE ge_dropped (unit_a BIGINT, overlay_fid BIGINT, reason VARCHAR, geom GEOMETRY)",
   );
   await conn.query(
-    "CREATE OR REPLACE TABLE ge_clip_empty (unit_a BIGINT, overlay_fid BIGINT, geom GEOMETRY)",
+    "CREATE OR REPLACE TABLE ge_extended (fid BIGINT, overlay_fid BIGINT, geom GEOMETRY)",
   );
-  await emptyDetachedIssues(conn, "ge_detached");
   const results: GroupResult[] = [];
 
   for (let i = 0; i < groups.length; i++) {
@@ -133,43 +126,10 @@ export async function runGroups(
         { skipOutputClean: true, skipInputHoleCheck: true },
       );
 
-      if (group.overlayFid === PASSTHROUGH_OVERLAY_FID) {
-        // Orphan passthrough: no real overlay feature boundary to clip against, so
-        // the extended geometry goes straight into ge_results unclipped.
-        console.log("[EE-DEBUG] group:2 passthrough, insert into ge_results unclipped");
-        await conn.query(`--sql
-          INSERT INTO ge_results
-          SELECT fid, geom FROM layer_05
-          WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
-        `);
-      } else {
-        console.log("[EE-DEBUG] group:2 clip vs overlay feature geometry (ge_group_clip)");
-        await clipEngine(
-          conn,
-          "SELECT fid, geom FROM layer_05",
-          `SELECT geom FROM overlay_layer_01 WHERE fid = ${group.overlayFid}`,
-          "ge_group_clip",
-        );
-        await mergeDetachedParts(conn, "ge_group_clip", "ge_group_clip", {
-          preClipSql: "SELECT fid, geom FROM layer_05",
-          overlaySql: `SELECT geom FROM overlay_layer_01 WHERE fid = ${group.overlayFid}`,
-          overlayFid: group.overlayFid,
-          originalTable: "input_layer_01",
-          issuesTable: "ge_group_detached",
-        });
-        await conn.query("INSERT INTO ge_detached SELECT * FROM ge_group_detached");
-        console.log("[EE-DEBUG] group:3 insert into ge_results");
-        await conn.query(`--sql
-          INSERT INTO ge_results
-          SELECT fid, geom FROM ge_group_clip
-          WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
-        `);
-        await conn.query(`--sql
-          INSERT INTO ge_clip_empty
-          SELECT fid AS unit_a, ${group.overlayFid} AS overlay_fid, geom FROM layer_05
-          WHERE fid NOT IN (SELECT fid FROM ge_group_clip)
-        `);
-      }
+      await conn.query(`--sql
+        INSERT INTO ge_extended
+        SELECT fid, ${group.overlayFid}, geom FROM layer_05 WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+      `);
 
       console.log(`[EE-DEBUG] ##### GROUP DONE (success): ${group.label} #####`);
       result = { ...group, status: "done", geojson: await groupGeoJSON(conn, group.overlayFid) };
@@ -207,8 +167,6 @@ export async function runGroups(
         await conn.query("DROP TABLE IF EXISTS layer_01");
         await conn.query("DROP TABLE IF EXISTS layer_attr");
         await conn.query("DROP TABLE IF EXISTS layer_05");
-        await conn.query("DROP TABLE IF EXISTS ge_group_clip");
-        await conn.query("DROP TABLE IF EXISTS ge_group_detached");
       } catch (cleanupError) {
         console.warn(`Cleanup after group ${group.label} failed:`, cleanupError);
       }
@@ -218,4 +176,55 @@ export async function runGroups(
   }
 
   return results;
+}
+
+// Clips every extended group to its own overlay polygon, then merges clip-detached
+// pieces per group.
+export async function clipGroups(conn: AsyncDuckDBConnection): Promise<void> {
+  await conn.query(
+    "CREATE OR REPLACE TABLE ge_clip_empty (unit_a BIGINT, overlay_fid BIGINT, geom GEOMETRY)",
+  );
+  await emptyDetachedIssues(conn, "ge_detached");
+  // The orphan passthrough group has no overlay boundary, so it stays unclipped.
+  await conn.query(`--sql
+    INSERT INTO ge_results SELECT fid, geom FROM ge_extended WHERE overlay_fid = ${PASSTHROUGH_OVERLAY_FID}
+  `);
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE ge_clip_in AS
+    SELECT * FROM ge_extended WHERE overlay_fid <> ${PASSTHROUGH_OVERLAY_FID}
+  `);
+  const fids = (await conn.query("SELECT DISTINCT overlay_fid FROM ge_clip_in ORDER BY 1"))
+    .toArray()
+    .map((r) => Number((r as { overlay_fid: bigint | number }).overlay_fid));
+  if (fids.length > 0) {
+    await conn.query("DROP TABLE IF EXISTS ge_tiles");
+    await buildTiles(conn, "overlay_layer_01", "SELECT overlay_fid FROM ge_clip_in", "ge_tiles");
+    await clipEngine(conn, "ge_clip_in", "ge_tiles", "ge_clip");
+    await conn.query(`--sql
+      INSERT INTO ge_clip_empty
+      SELECT d.fid, d.overlay_fid, d.geom FROM ge_clip_dropped d
+    `);
+  }
+  for (const g of fids) {
+    const preClipSql = `SELECT fid, geom FROM ge_extended WHERE overlay_fid = ${g}`;
+    await conn.query(`--sql
+      CREATE OR REPLACE TABLE ge_group_clip AS
+      SELECT fid, geom FROM ge_clip WHERE fid IN (SELECT fid FROM (${preClipSql}))
+    `);
+    await mergeDetachedParts(conn, "ge_group_clip", "ge_group_clip", {
+      preClipSql,
+      overlaySql: `SELECT geom FROM overlay_layer_01 WHERE fid = ${g}`,
+      overlayFid: g,
+      originalTable: "input_layer_01",
+      issuesTable: "ge_group_detached",
+    });
+    await conn.query("INSERT INTO ge_detached SELECT * FROM ge_group_detached");
+    await conn.query(`--sql
+      INSERT INTO ge_results
+      SELECT fid, geom FROM ge_group_clip WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+    `);
+  }
+  for (const t of ["ge_extended", "ge_clip_in", "ge_tiles", "ge_clip", "ge_clip_dropped", "ge_group_clip", "ge_group_detached"]) {
+    await conn.query(`DROP TABLE IF EXISTS ${t}`);
+  }
 }

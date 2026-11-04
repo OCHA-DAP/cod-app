@@ -14,22 +14,19 @@ const OWNED_TABLES = [
   "cl_input_parts",
   "cl_overlay_parts",
   "cl_overlay_pieces",
-  "cl_heavy_src",
-  "cl_heavy_tiles_raw",
   "cl_pairs_geom",
   "cl_pairs_raw",
   "cl_pairs",
   "cl_assign",
-  "cl_overlay_one",
-  "cl_btile_raw",
-  "cl_btile",
-  "cl_input_bbox",
-  "cl_clip_pieces",
   "cl_clip",
+  "cl_clip_in",
+  "cl_clip_dropped",
+  "cl_tiles_all",
   "cl_detached",
-  "st_clean",
-  "st_gap_regions",
-  "st_issues",
+  "ms_micro",
+  "ms_invalid",
+  "ms_gaps",
+  "ms_gap_regions",
   "ms_unassigned",
   "ms_code_issues",
   "ms_issues",
@@ -41,10 +38,6 @@ export async function dropPriorRun(conn: AsyncDuckDBConnection): Promise<void> {
   }
 }
 
-// No gatedCoverageClean here: mosaic MUST load both layers raw, same as
-// clip (docs/reference/edge-mosaic.md) — the final stitch pass plus its own
-// residual-gap issues report are what surface any resulting problems, not
-// a pre-check.
 export async function loadLayers(
   db: AsyncDuckDB,
   conn: AsyncDuckDBConnection,

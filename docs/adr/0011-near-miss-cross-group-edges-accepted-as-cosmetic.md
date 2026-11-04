@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [0054](0054-edge-clips-are-plain-with-a-final-coverage-clean.md)
 
 ## Context
 

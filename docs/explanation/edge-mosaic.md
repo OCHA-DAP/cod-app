@@ -1,64 +1,91 @@
 # Mosaic
 
-Fits an input layer that is already the finished output of a prior Edge
-Extender run into a new/different overlay polygon boundary, without re-running
-Voronoi extension. A thin orchestrator chaining the same three primitives
-this app exposes standalone: assign-one (`$lib/db/assignOne.ts`, shared
-with Clip), clip (`$lib/db/clipEngine.ts`/`clipTiling.ts`, shared with
-Clip), and stitch (`stitch/pipeline/index.ts`'s `runStitch`, called
-directly with `edge-mosaic`'s own already-clipped table in place of `edge-stitch`'s
-usual `layer_01`). Ported from topo-tools' `edge-mosaic`.
+Fits an input layer that is already the finished output of an Edge Extender
+run into a new or different overlay boundary, without re-running Voronoi
+extension. It chains assign-one (`$lib/db/assignOne.ts`), the clip engine
+(`$lib/db/clipEngine.ts` over `$lib/db/clipTiles.ts`'s overlay tiles) and
+one coverage clean (`$lib/db/coverageClean.ts`'s `coverageCleanRows`), all
+shared with Edge Matcher. Ported from topo-tools' `edge-mosaic` (its ADR
+0149).
 
 ## Pipeline
 
-1. **Load** (`pipeline/load.ts`) — load the input layer and the
-   overlay layer raw, exactly like Clip: neither is coverage-checked
-   or -cleaned first.
-2. **Assign** (`$lib/db/assignOne.ts`), the same assign-one majority vote
-   Clip uses, at exactly the same single-input-file scope
-   (`docs/adr/0026`, shared by both tools). If overlay columns were
-   requested, they're joined under their own names from the winning
-   overlay polygon's own attribute row onto `input_layer_attr` here, before clipping.
-3. **Clip** (`$lib/db/clipEngine.ts`) — the same tiled clip Clip uses,
-   followed by the same clip-detached merge against the optional original
-   layer (`docs/explanation/edge-clip.md`). Fails the run if zero output
-   rows result.
-4. **Stitch** (`stitch/pipeline/index.ts`'s `runStitch`, called with
-   `sourceTable="cl_clip"`, `attrTable="input_layer_attr"`) — one
-   whole-table `ST_CoverageClean` pass over the clipped result, closing
-   seams between the (already-extended, but freshly-clipped-to-a-new-
-   boundary) input polygon pieces.
-5. **Assemble issues** (`pipeline/issues.ts`), combines every input polygon that
-   never reached the final output (kind `clip-empty` for one clipped to
-   nothing, including every one outside the winner overlay polygon, or
-   `unassigned` when no overlay polygon won)
-   with every merged or kept clip-detached piece (kind `detached-part`),
-   every leftover gap `runStitch`'s own issues check finds (kind
-   `gap`) and any `code-mismatch`/`code-fallback` rows from an optional
-   code-based assignment override (same override Clip's assign-one
-   accepts, see `docs/explanation/edge-clip.md`), into one report.
+1. **Load** (`pipeline/load.ts`): load the input and overlay layers raw,
+   with no clean on either. The input must already be a clean coverage:
+   `checkValidTopology` with a gap width of 0 rejects any invalid edge,
+   micro-polygon or interior hole, naming the file. The overlay must not
+   overlap itself (`checkNoOverlaps`).
+2. **Assign** (`$lib/db/assignOne.ts`): assign-one majority vote (below).
+   Requested overlay columns are joined under their own names from the
+   winning overlay polygon's attribute row onto `input_layer_attr`, before
+   clipping.
+3. **Clip** (`$lib/db/clipEngine.ts`): `buildTiles` subdivides the winning
+   overlay polygon into tiles of at most `SUBDIVIDE_MAX_VERTICES`, and
+   `pairBatches` pairs each input row with the tiles its bounding box
+   touches, in batches under `CLIP_PAIR_VERTEX_BUDGET`. Each row's clip is
+   the union of its tile intersections. A row that clips to nothing becomes
+   a `clip-empty` issue, and zero output rows fail the run. Clip-detached
+   pieces are then merged or kept against the optional original layer
+   (`docs/reference/shared.md`).
+4. **Clean** (`coverageCleanRows`): merge micro-polygons, then one gated
+   `ST_CoverageClean` over the clipped rows, closing the seams where two
+   input borders cross the overlay boundary at different points. With the
+   clean skipped, only the micro-polygon merge runs.
+5. **Assemble issues** (`pipeline/issues.ts`): `clip-empty`, `unassigned`,
+   `detached-part`, `micro-polygon`, `invalid-edge` (edges that still don't
+   match after the clean), `gap` (holes inside the winning overlay polygon,
+   only with the clean) and any `code-mismatch`/`code-fallback` rows, in
+   one report.
 
-## Why assign-one, not assign-many
+## Why assign-one
 
-Input polygons here are assumed already extended (overshooting), which is
-exactly the scenario assign-one (majority vote by count) is built to
-survive and assign-many (per-input-polygon plurality, what Edge Matcher uses) is
-vulnerable to — see `docs/explanation/edge-clip.md`'s "Assign" section for the
-full reasoning, identical here.
+Every overlay polygon's vote is the number of distinct input polygons it
+overlaps, not any one input polygon's overlap area. Input polygons here are
+already extended and overshoot, so a per-polygon plurality (Edge Matcher's
+"Many" mode) could send a polygon that reaches deep into a neighbouring
+overlay polygon to the wrong one. Counting distinct polygons lets the many
+polygons that touch the real overlay outvote it. Ties go to the lower
+overlay fid, and every input polygon is assigned to the winner, overlapping
+it or not, as topo-tools' `assign_one` does (its ADR 0082). One that doesn't
+overlap clips to nothing.
 
-## No re-extension
+## One winning overlay polygon
 
-Match's own per-group extension is the expensive part of that pipeline.
-Mosaic skips it entirely on the assumption the input polygons are already
-extended, making it just assign + clip + stitch — useful when refitting an
-existing Edge Extender output against a different or updated overlay polygon
-boundary without redoing the Voronoi work.
+topo-tools' `edge-mosaic` votes per source file and clips each file to its
+own winner. The site's DropZone loads every dropped file as one dataset
+(`docs/adr/0026`), so a run has one vote and one winning overlay polygon.
 
-## Warn-only, not a hard export gate
+## Clip-detached pieces
 
-Unlike topo-tools' `edge-mosaic`, which raises before export if the
-stitched output still fails a topology check, this app's `edge-mosaic`
-reports a residual overlap or gap (via the issues download and a console
-warning) without blocking export — see `docs/adr/0027` for why this
-follows the same warn-only precedent `edge-stitch` and Edge Extender already
-use for their own post-clean invariant checks.
+Clipping an extended polygon can cut one of its parts into several pieces,
+for example where the overlay edge crosses a thin tip. `mergeDetachedParts`
+(`$lib/db/coverage.ts`) keeps each pre-clip part's largest piece on the
+original footprint, and merges a piece under 1% of it into the neighbour it
+shares the longest edge with, unless the original drew it that way. Mosaic
+needs the optional original layer (the input before extension) for that
+test, and without it only reports such pieces. See `docs/adr/0042` and
+topo-tools' ADR 0120.
+
+## Code-based assignment override
+
+Given a `matchColumn` (same name on both layers) or an
+`overlayMatchColumn`/`inputMatchColumn` pair, `assignOne` also runs an exact
+code join, limited to pairs that already overlap. The code result wins
+wherever one exists, even when it disagrees with the vote, and the whole
+file falls back to the vote when no code matches. See `docs/adr/0029` and
+`src/lib/db/codeJoin.ts`.
+
+## Skipping the clean
+
+The clean is one `ST_CoverageClean` over every clipped row, the most
+memory-hungry step for a large layer. The "Skip the final clean" option
+leaves it out, so seams stay in the output and are listed as `invalid-edge`
+issues, and no gap rows are reported.
+
+## Reported, not raised
+
+topo-tools raises when the cleaned output still fails its topology check.
+Mosaic lists what remains as `invalid-edge` and `gap` issues and still
+exports, the same warn-only handling as the site's other post-clean checks
+(`docs/adr/0028`, `docs/adr/0054`). The input checks do raise, as in
+topo-tools.

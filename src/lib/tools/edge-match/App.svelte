@@ -47,12 +47,14 @@
   let codeMismatchCount = $state<number | null>(null);
   let codeFallbackCount = $state<number | null>(null);
   let microCount = $state<number | null>(null);
+  let invalidEdgeCount = $state<number | null>(null);
   let gapCount = $state<number | null>(null);
   let clipEmptyCount = $state<number | null>(null);
   let detachedMergedCount = $state<number | null>(null);
   let detachedKeptCount = $state<number | null>(null);
   let assignedOverlayLabel = $state<string | null>(null);
   let passthrough = $state(false);
+  let skipClean = $state(false);
   let matchMode = $state<MatchMode>("auto");
   // What the last run used; under "auto" this is the automatic pick.
   let resolvedMode = $state<"one" | "many" | null>(null);
@@ -61,7 +63,7 @@
     (unassignedCount ?? 0) + (droppedCount ?? 0) + (codeMismatchCount ?? 0) + (clipEmptyCount ?? 0) > 0,
   );
   const hasNotes = $derived(
-    (codeFallbackCount ?? 0) + (microCount ?? 0) + (gapCount ?? 0) + (detachedMergedCount ?? 0) + (detachedKeptCount ?? 0) > 0,
+    (codeFallbackCount ?? 0) + (microCount ?? 0) + (invalidEdgeCount ?? 0) + (gapCount ?? 0) + (detachedMergedCount ?? 0) + (detachedKeptCount ?? 0) > 0,
   );
 
   // Optional code-join override (docs/adr/0045): defaults to "(none)" so the
@@ -80,6 +82,7 @@
     (v) => (matchMode = v),
   );
   syncParam("passthrough", boolParam, () => passthrough, (v) => (passthrough = v));
+  syncParam("skipClean", boolParam, () => skipClean, (v) => (skipClean = v));
   onMount(() => {
     initDuckDB();
   });
@@ -121,6 +124,7 @@
 
   $effect(() => {
     const _p = passthrough;
+    const _c = skipClean;
     const _m = matchMode;
     untrack(() => {
       if (!resultGeoJSON || running) return;
@@ -181,6 +185,12 @@
           streamTimer ??= setTimeout(flushStream, 500);
         }
         break;
+      case "clipping":
+        phaseLabel = "Clipping to overlay polygons…";
+        break;
+      case "cleaning":
+        phaseLabel = "Closing seams between overlay polygons…";
+        break;
     }
   }
 
@@ -199,6 +209,7 @@
     codeMismatchCount = null;
     codeFallbackCount = null;
     microCount = null;
+    invalidEdgeCount = null;
     gapCount = null;
     clipEmptyCount = null;
     detachedMergedCount = null;
@@ -218,6 +229,7 @@
         { overlayMatchColumn: overlayMatchColumn ?? undefined, inputMatchColumn: inputMatchColumn ?? undefined },
         passthrough,
         matchMode,
+        !skipClean,
       );
       resultGeoJSON = result.geojson;
       showSide = "b";
@@ -229,6 +241,7 @@
       codeMismatchCount = result.codeMismatchCount;
       codeFallbackCount = result.codeFallbackCount;
       microCount = result.microCount;
+      invalidEdgeCount = result.invalidEdgeCount;
       gapCount = result.gapCount;
       clipEmptyCount = result.clipEmptyCount;
       detachedMergedCount = result.detachedMergedCount;
@@ -253,7 +266,7 @@
   const cleanupCount = $derived((microCount ?? 0) + (detachedMergedCount ?? 0) + (detachedKeptCount ?? 0));
   const finishedCount = $derived(groupRows.filter((g) => g.status === "done" || g.status === "error").length);
   const statusLabel = $derived.by(() => {
-    if (groupRows.length === 0) return phaseLabel;
+    if (groupRows.length === 0 || phaseLabel) return phaseLabel;
     if (groupRows.length > 1) {
       return `Matching ${Math.min(finishedCount + 1, groupRows.length)} of ${groupRows.length}`;
     }
@@ -324,9 +337,13 @@
           disabled={running}
         />
       {/if}
-      <label class="passthrough-field">
+      <label class="check-field">
         <input type="checkbox" bind:checked={passthrough} disabled={running} />
         <span>Keep input polygons completely outside the overlay</span>
+      </label>
+      <label class="check-field">
+        <input type="checkbox" bind:checked={skipClean} disabled={running} />
+        <span>Skip the final clean, for very large layers (seams are listed as issues)</span>
       </label>
     </AdvancedOptions>
 
@@ -394,6 +411,12 @@
         {/if}
         {#if cleanupCount > 0}
           <p><CleanupNote count={cleanupCount} /></p>
+        {/if}
+        {#if invalidEdgeCount !== null && invalidEdgeCount > 0}
+          <p>
+            {invalidEdgeCount} pair{invalidEdgeCount === 1 ? "" : "s"} of polygons
+            {invalidEdgeCount === 1 ? "has" : "have"} edges that overlap or don't match.
+          </p>
         {/if}
         {#if gapCount !== null && gapCount > 0}
           <p>
@@ -505,7 +528,7 @@
     margin: 0;
   }
 
-  .passthrough-field {
+  .check-field {
     display: flex;
     align-items: center;
     gap: 0.4rem;

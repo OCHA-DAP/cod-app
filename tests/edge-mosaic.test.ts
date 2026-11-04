@@ -7,7 +7,7 @@ import { db, exportColumns, ready, rows, scalar, write } from "./helpers";
 const INPUT: [number, string][] = [
   [1, "POLYGON((-5 -5, 1.5 -5, 1.5 5, -5 5, -5 -5))"],
   [2, "POLYGON((1.5 -5, 8 -5, 8 5, 1.5 5, 1.5 -5))"],
-  [3, "POLYGON((8 -5, 20 -5, 20 20, 8 20, 8 -5))"],
+  [3, "POLYGON((8 -5, 20 -5, 20 20, 8 20, 8 5, 8 -5))"],
   [4, "POLYGON((100 80, 101 80, 101 81, 100 81, 100 80))"],
 ];
 const OVERLAY: [number, string][] = [
@@ -32,7 +32,7 @@ const synthetic = (wkt: Row[], name: string) => {
 async function mosaic(
   inputs: Row[] = INPUT,
   overlays: Row[] = OVERLAY,
-  opts: { columns?: MatchColumnOptions; carry?: string[] } = {},
+  opts: { columns?: MatchColumnOptions; carry?: string[]; clean?: boolean } = {},
 ) {
   const { db: instance } = db();
   const result = await runMosaic(
@@ -44,6 +44,7 @@ async function mosaic(
     () => {},
     opts.columns ?? {},
     opts.carry ?? [],
+    opts.clean ?? true,
   );
   const columns = await exportColumns("mosaic");
   const ids = (await rows<{ id: number }>("SELECT id FROM '_export.parquet' ORDER BY id")).map((r) =>
@@ -121,16 +122,27 @@ test("merge columns populate the output", async () => {
   expect(await scalar("SELECT pcode FROM '_export.parquet'")).toBe("P1");
 });
 
-// drift: py check_no_overlaps refuses an overlapping overlay layer
-test.fails("raises on an overlapping overlay", async () => {
+test("raises on an overlapping overlay", async () => {
   await expect(
     mosaic(INPUT, [OVERLAY[0], [2, "POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"]]),
   ).rejects.toThrow(/pair\(s\) overlap/);
 });
 
+const CLEAN_SQUARE: Row = [1, "POLYGON((0 0, 3 0, 3 3, 0 3, 0 0))"];
+test.each([
+  ["overlap", [CLEAN_SQUARE, [2, "POLYGON((2 0, 5 0, 5 3, 2 3, 2 0))"]]],
+  ["gap", [[1, "POLYGON((0 0, 3 0, 3 3, 0 3, 0 0),(1 1, 2 1, 2 2, 1 2, 1 1))"]]],
+  ["micro-polygon", [CLEAN_SQUARE, [2, "POLYGON((3 0, 3.000000001 0, 3.000000001 3, 3 3, 3 0))"]]],
+] as [string, Row[]][])("raises on an unclean input (%s)", async (_, input) => {
+  await expect(mosaic(input, [[1, "POLYGON((0 0, 5 0, 5 3, 0 3, 0 0))"]])).rejects.toThrow(
+    /input\.parquet is not a clean coverage/,
+  );
+});
+
 test.todo("never invokes extend's Voronoi pipeline (monkeypatch guard, no TS counterpart)");
 test.todo("multi-file inputs: unassigned file warning, file majority vote, source_file, detached keys, column order, zero-overlap file, code-join fid (the loader reads one dataset per drop)");
-test.todo("cross-border inputs share border points, no invalid edges (multi-file, py #226)");
+test.todo("passthrough files that overlap each other stay whole (multi-file)");
+test.todo("cross-border inputs have no invalid edges, and without the clean report seams (multi-file)");
 test.todo("raises on overlapping files with one overlay polygon (multi-file)");
 test.todo("bare merge, input_exclude, prefer and narrowing-flag checks (no TS counterpart)");
 test.todo("gap-fill keeps an unmatched overlay (no TS counterpart)");

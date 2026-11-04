@@ -1,5 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { mergeMicroPolygons } from "$lib/db/coverage";
+import { checkNoOverlaps, mergeMicroPolygons } from "$lib/db/coverage";
 import { tableToGeoJSON } from "$lib/db/geojson";
 import { setCentroidLat } from "$lib/db/units";
 import {
@@ -106,6 +106,7 @@ export async function runPackagePolygons(
   schema: TargetSchema | null,
 ): Promise<PackagePolygonsResult> {
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pp_micro");
+  await checkNoOverlaps(conn, "layer_01");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE pp_input AS
     SELECT a.fid, a.geom, b.* EXCLUDE (fid)

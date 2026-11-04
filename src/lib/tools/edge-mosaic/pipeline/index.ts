@@ -2,11 +2,14 @@ import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { assignOne } from "$lib/db/assignOne";
 import { carryOverlayColumns } from "$lib/db/carryColumns";
 import { clipEngine, mergeClipDetached } from "$lib/db/clipEngine";
-import { tableToGeoJSON } from "$lib/db/geojson";
+import { buildTiles } from "$lib/db/clipTiles";
+import { checkNoOverlaps, mergeMicroPolygons } from "$lib/db/coverage";
+import { checkValidTopology, coverageCleanRows } from "$lib/db/coverageClean";
+import { changedGeoJSON, tableToGeoJSON } from "$lib/db/geojson";
+import { invalidEdgeIssues } from "$lib/db/invalidEdges";
 import { setCentroidLat } from "$lib/db/units";
 import { detectColumns, type ColumnGuess } from "$lib/db/columns";
 import type { MatchColumnOptions } from "$lib/db/codeJoin";
-import { runStitch } from "../../edge-stitch/pipeline/index";
 import { buildMosaicIssues, type MosaicIssueRow } from "./issues";
 import { loadLayers } from "./load";
 
@@ -35,7 +38,8 @@ export interface MosaicResult {
   overlayFid: number;
   issues: MosaicIssueRow[];
   issuesGeoJSON: string;
-  hadResidualOverlaps: boolean;
+  invalidEdgeCount: number;
+  gapCount: number;
   inputColumns: ColumnGuess;
   overlayColumns: ColumnGuess;
 }
@@ -61,11 +65,8 @@ async function computeBounds(
   return null;
 }
 
-// A thin orchestrator chaining assign-one -> clip -> stitch, for an input
-// layer that is already a finished Edge Extender output being fit into a
-// new/different overlay feature (skips re-running Voronoi extension entirely).
-// Ported from topo-tools' mosaic; see docs/explanation/edge-mosaic.md for
-// the single-input-file scoping this shares with clip (docs/adr/0026).
+// Ported from topo-tools' mosaic: assign-one, then a clip to the winning overlay
+// polygon on shared border points, with no re-extension and no stitch.
 export async function runMosaic(
   db: AsyncDuckDB,
   conn: AsyncDuckDBConnection,
@@ -75,9 +76,21 @@ export async function runMosaic(
   onProgress: ProgressFn,
   matchColumns: MatchColumnOptions = {},
   carryColumns: string[] = [],
+  clean = true,
 ): Promise<MosaicResult> {
   onProgress(1, "Loading input");
   await loadLayers(db, conn, inputFiles, overlayFiles, originalFiles);
+  try {
+    await checkValidTopology(conn, "input_layer_01", 0);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    throw new PipelineError(`input ${inputFiles[0]?.name} is not a clean coverage: ${message}`, 1);
+  }
+  try {
+    await checkNoOverlaps(conn, "overlay_layer_01");
+  } catch (e) {
+    throw new PipelineError(e instanceof Error ? e.message : String(e), 1);
+  }
   const inputGeoJSON = await tableToGeoJSON(conn, "input_layer_01", null);
   const overlayOutlineGeoJSON = await tableToGeoJSON(conn, "overlay_layer_01", null);
   const bounds = await computeBounds(conn, "input_layer_01");
@@ -107,12 +120,16 @@ export async function runMosaic(
   onProgress(3, "Clipping to overlay boundary");
   let engineResult;
   try {
-    engineResult = await clipEngine(
-      conn,
-      "SELECT c.fid, c.geom FROM input_layer_01 c JOIN cl_assign a ON a.input_fid = c.fid",
-      `SELECT geom FROM overlay_layer_01 WHERE fid = ${assign.overlayFid}`,
-      "cl_clip",
-    );
+    await conn.query(`--sql
+      CREATE OR REPLACE TABLE cl_clip_in AS
+      SELECT c.fid, a.overlay_fid, c.geom FROM input_layer_01 c JOIN cl_assign a ON a.input_fid = c.fid
+    `);
+    await conn.query("DROP TABLE IF EXISTS cl_tiles_all");
+    await buildTiles(conn, "overlay_layer_01", "SELECT overlay_fid FROM cl_clip_in", "cl_tiles_all");
+    engineResult = await clipEngine(conn, "cl_clip_in", "cl_tiles_all", "cl_clip");
+    await conn.query("DROP TABLE IF EXISTS cl_tiles_all");
+    await conn.query("DROP TABLE IF EXISTS cl_clip_in");
+    await conn.query("DROP TABLE IF EXISTS cl_clip_dropped");
   } catch (e) {
     throw new PipelineError(e instanceof Error ? e.message : String(e), 3);
   }
@@ -126,45 +143,36 @@ export async function runMosaic(
     throw new PipelineError(e instanceof Error ? e.message : String(e), 3);
   }
 
-  // runStitch's own stage numbers (2=Loading input, 3=Closing seams,
-  // 4=Checking for residual gaps) are remapped onto mosaic's own stage
-  // list; its "Loading input" is suppressed since mosaic already loaded
-  // both layers in stage 1. The only step inside runStitch that can throw
-  // is "Closing seams" (its own stage 3), remapped to mosaic's stage 4.
-  let stitch;
+  onProgress(4, clean ? "Closing seams" : "Checking edges");
+  let invalidEdgeCount;
   try {
-    stitch = await runStitch(
-      conn,
-      (stage, label) => {
-        if (stage === 3) onProgress(4, label);
-        else if (stage === 4) onProgress(5, label);
-      },
-      "cl_clip",
-      "input_layer_attr",
-      "input_layer_01",
-    );
+    if (clean) await coverageCleanRows(conn, "cl_clip", "TRUE", "ms_micro");
+    else await mergeMicroPolygons(conn, "cl_clip", "cl_clip", "ms_micro");
+    invalidEdgeCount = await invalidEdgeIssues(conn, "cl_clip", "ms_invalid");
   } catch (e) {
     throw new PipelineError(e instanceof Error ? e.message : String(e), 4);
   }
 
-  onProgress(6, "Assembling issues report");
+  onProgress(5, "Assembling issues report");
   const { rows, geojson } = await buildMosaicIssues(conn, assign.overlayFid, {
     assignmentMethod: assign.assignmentMethod,
     spatialAgrees: assign.spatialAgrees,
-  });
+  }, clean);
+  const gapCount = rows.filter((r) => r.kind === "gap").length;
 
   return {
     inputGeoJSON,
     overlayOutlineGeoJSON,
-    mosaicGeoJSON: stitch.stitchedGeoJSON,
-    changedGeoJSON: stitch.changedGeoJSON,
+    mosaicGeoJSON: await tableToGeoJSON(conn, "cl_clip", "input_layer_attr"),
+    changedGeoJSON: await changedGeoJSON(conn, "cl_clip", "input_layer_01"),
     bounds,
     overlayFid: assign.overlayFid,
     detachedMergedCount: detached.merged,
     detachedKeptCount: detached.kept,
     issues: rows,
     issuesGeoJSON: geojson,
-    hadResidualOverlaps: stitch.hadResidualOverlaps,
+    invalidEdgeCount,
+    gapCount,
     inputColumns,
     overlayColumns,
   };
