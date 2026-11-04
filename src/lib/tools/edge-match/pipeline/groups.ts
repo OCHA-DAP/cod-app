@@ -33,16 +33,22 @@ export type GroupStageFn = (
 
 export type GroupDoneFn = (groupIndex: number, groupTotal: number, result: GroupResult) => void;
 
-// Map preview only, so a failure leaves the group done without one.
+// Map preview only, so a failure leaves the group done without one. Clipped for display,
+// since the real clip runs after every group.
 async function groupGeoJSON(
   conn: AsyncDuckDBConnection,
   overlayFid: number,
 ): Promise<string | undefined> {
+  const geom =
+    overlayFid === PASSTHROUGH_OVERLAY_FID
+      ? "e.geom"
+      : `ST_Intersection(e.geom, (SELECT geom FROM overlay_layer_01 WHERE fid = ${overlayFid}))`;
   try {
     return await queryToGeoJSON(
       conn,
-      `SELECT ST_AsGeoJSON(geom) AS _geom, ${overlayFid} AS group_id FROM ge_extended
-       WHERE overlay_fid = ${overlayFid}`,
+      `SELECT ST_AsGeoJSON(g) AS _geom, ${overlayFid} AS group_id FROM (
+         SELECT ${geom} AS g FROM ge_extended e WHERE e.overlay_fid = ${overlayFid}
+       ) WHERE NOT ST_IsEmpty(g)`,
     );
   } catch (e) {
     console.warn("group preview failed:", e);
