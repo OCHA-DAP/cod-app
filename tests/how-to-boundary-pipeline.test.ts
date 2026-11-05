@@ -50,7 +50,7 @@ function pipeline() {
     await exportColumns("clean_topology");
 
     await load(await exported("topo.parquet"));
-    await runCodeCreate(conn, "TT", ".", "2", "replace", SCHEMA);
+    await runCodeCreate(conn, "TT", ".", "2", "replace", null);
     await exportColumns("code_create");
     return { mapped, issues, coded: await exported("coded.parquet") };
   })();

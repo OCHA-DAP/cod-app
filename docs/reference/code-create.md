@@ -44,11 +44,15 @@ shares with `code-update`.
   MUST raise, naming the level and the row count.
 - With source codes `copy`, each non-seeded level's source code column
   MUST be copied to its next free numbered sibling (`adm1_pcode1`), placed
-  right after it, before any code is assigned.
+  right after it, before any code is assigned. Level 0 gets a sibling only
+  when level 1 does.
 - A seeded level MUST have its code column filled from its name column,
-  raising when there is no name column. At the finest level, a name that
-  repeats under one parent MUST raise.
-- A level 0 code column MUST be set to the root code on every row.
+  raising when there is no name column. A new code column MUST go right
+  after its level's name columns. At the finest level, a name that repeats
+  under one parent MUST raise.
+- With explicit templates, level 0's code column MUST hold the root code on
+  every row, added after level 0's name column (else after level 1's
+  columns) when missing. Structural detection MUST NOT add a level 0 column.
 - With source codes `replace` or `copy`, for each level `1..N`,
   ascending, `code-create` MUST rank that level's distinct source values
   under their parent level's assigned code (or the root code, for level

@@ -92,8 +92,7 @@ test.each(SCHEMAS)("fills every coarser level (%s)", async (_, schema) => {
   expect(r.issues).toEqual([]);
 });
 
-// drift: py #130/#200 keep the input layer's own column order; the site sorts each level name-first
-test.fails.each(SCHEMAS)("fills every coarser level: column order (%s)", async (_, schema) => {
+test.each(SCHEMAS)("fills every coarser level: column order (%s)", async (_, schema) => {
   expect((await join(inputRows(), joinRows(), schema)).columns).toEqual([
     "geometry",
     "adm3_code",
@@ -212,8 +211,7 @@ test("a join layer without a coarser code compares names", async () => {
   expect(issues(r).map((i) => i.kind)).toEqual(["value-mismatch"]);
 });
 
-// drift: py #130/#200 keep the input layer's own column order
-test.fails("a sibling of a digit-ending column is separated", async () => {
+test("a sibling of a digit-ending column is separated", async () => {
   const joinLayer = PARENTS.map(([GID_1, NAME_1, GID_2, NAME_2, x, y]) => ({
     GID_1,
     NAME_1,
@@ -243,13 +241,30 @@ test.fails("a sibling of a digit-ending column is separated", async () => {
   ]);
 });
 
+test("added columns go within their level", async () => {
+  const input = inputRows().map((r) => ({
+    adm3_name: r.adm3_name,
+    adm3_code: r.adm3_code,
+    adm1_code: (r.adm3_code as string).slice(0, 1),
+    wkt: r.wkt,
+  }));
+  expect((await join(input)).columns).toEqual([
+    "geometry",
+    "adm3_name",
+    "adm3_code",
+    "adm2_name",
+    "adm2_code",
+    "adm1_name",
+    "adm1_code",
+  ]);
+});
+
 test("a shared column of another type is kept side by side", async () => {
   const r = await join(inputRows().map((x) => ({ ...x, adm2_code: 7 })));
   expect(byCode(r.out, "A0101")).toMatchObject({ adm2_code: 7, adm2_code1: "A01" });
 });
 
-// drift: py #130/#200 keep the input layer's own column order
-test.fails("keeps the input column order and places added columns", async () => {
+test("keeps the input column order and places added columns", async () => {
   const input = inputRows().map((r) => {
     const code = r.adm3_code as string;
     return {

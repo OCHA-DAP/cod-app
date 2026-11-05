@@ -1,5 +1,11 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { canonicalOrder, nextFreeSibling, templateFamilies } from "$lib/db/adminColumns";
+import {
+  canonicalOrder,
+  familyLevel,
+  nextFreeSibling,
+  siblingName,
+  templateFamilies,
+} from "$lib/db/adminColumns";
 import { ROW_ORDER_COLUMN } from "$lib/db/export";
 import { detectLevelColumns } from "$lib/tools/schema-map/pipeline/levelColumns";
 import { quoteIdent } from "$lib/tools/schema-map/pipeline/queries";
@@ -53,6 +59,48 @@ async function joinHierarchyColumns(
   return columns.filter((c) => selected.has(c));
 }
 
+// Input columns in input order, each added column within its hierarchy level.
+function outputOrder(
+  inputColumns: string[],
+  siblings: Array<[string, string]>,
+  added: string[],
+  { nameField, codeField }: TargetSchema,
+): string[] {
+  const columns = [...inputColumns];
+  for (const [column, sibling] of siblings) {
+    const family = new Set([column, ...columns.map((_, i) => siblingName(column, i + 1))]);
+    columns.splice(columns.findLastIndex((c) => family.has(c)) + 1, 0, sibling);
+  }
+  const levelOf = (c: string) => familyLevel(c, nameField) ?? familyLevel(c, codeField);
+  const newLevels: string[] = [];
+  for (const column of canonicalOrder(added, nameField, codeField).ordered) {
+    const level = levelOf(column);
+    if (level === null) {
+      newLevels.push(column);
+      continue;
+    }
+    const indexes = (match: (c: string) => boolean) =>
+      columns.flatMap((c, i) => (match(c) ? [i] : []));
+    const same = indexes((c) => levelOf(c) === level);
+    const coarser = indexes((c) => (levelOf(c) ?? level) < level);
+    const isName = familyLevel(column, nameField) !== null;
+    const own = isName ? nameField : codeField;
+    const ownColumns = same.filter((i) => familyLevel(columns[i], own) === level);
+    const codeColumns = same.filter((i) => familyLevel(columns[i], codeField) === level);
+    let at: number;
+    if (ownColumns.length) at = ownColumns[ownColumns.length - 1] + 1;
+    else if (isName && codeColumns.length) at = codeColumns[0];
+    else if (same.length) at = same[same.length - 1] + 1;
+    else if (coarser.length) at = coarser[0];
+    else {
+      newLevels.push(column);
+      continue;
+    }
+    columns.splice(at, 0, column);
+  }
+  return [...columns, ...newLevels];
+}
+
 // Builds sj_result_attr (joined attributes, row order in __row_order) and
 // sj_mismatch (each input value that differs from its join feature's).
 export async function joinColumns(
@@ -71,11 +119,14 @@ export async function joinColumns(
     ]),
   );
   const mismatchParts: string[] = [];
+  const siblings: Array<[string, string]> = [];
+  const added: string[] = [];
   const joinLayerColumns = [...joinTypes.keys()];
   for (const column of await joinHierarchyColumns(conn, joinLayerColumns, schema)) {
     const col = quoteIdent(column);
     if (!inputTypes.has(column)) {
       exprs.set(column, `p.${col}`);
+      added.push(column);
       joined.set(column, { column, source: "added", joinColumn: column, differingRows: 0 });
       continue;
     }
@@ -98,6 +149,7 @@ export async function joinColumns(
     }
     const sibling = nextFreeSibling(column, taken);
     taken.add(sibling);
+    siblings.push([column, sibling]);
     exprs.set(sibling, `p.${col}`);
     joined.set(sibling, {
       column: sibling,
@@ -114,11 +166,12 @@ export async function joinColumns(
   }
 
   const template = schema ?? DEFAULT_TARGET_SCHEMA;
-  const { ordered, sortColumn } = canonicalOrder(
+  const { sortColumn } = canonicalOrder(
     [...exprs.keys()],
     template.nameField,
     template.codeField,
   );
+  const ordered = outputOrder([...inputTypes.keys()], siblings, added, template);
   const select = ordered.map((c) => `, ${exprs.get(c)} AS ${quoteIdent(c)}`).join("");
   const order = sortColumn ? `${exprs.get(sortColumn)} NULLS LAST, ` : "";
   // __row_order is the output row number, so issue rows point at output rows.

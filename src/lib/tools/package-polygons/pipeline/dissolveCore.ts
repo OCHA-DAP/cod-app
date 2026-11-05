@@ -159,12 +159,17 @@ export async function runDissolveCore(
   }
 
   const groupColsSql = groupBy.map((c) => `"${c}"`);
-  const keptSql = kept.map((c) => `any_value("${c}") AS "${c}"`);
-  const summedSql = summed.map((c) => `SUM("${c}") AS "${c}"`);
-  const overriddenSql = overridden.map(
-    (c) => `${ALLOWED_AGGREGATIONS[aggregations![c]]}("${c}") AS "${c}"`,
-  );
-  const selectSql = [...groupColsSql, ...keptSql, ...summedSql, ...overriddenSql].join(", ");
+  const exprs = new Map<string, string>([
+    ...groupBy.map((c): [string, string] => [c, `"${c}"`]),
+    ...kept.map((c): [string, string] => [c, `any_value("${c}") AS "${c}"`]),
+    ...summed.map((c): [string, string] => [c, `SUM("${c}") AS "${c}"`]),
+    ...overridden.map((c): [string, string] => [
+      c,
+      `${ALLOWED_AGGREGATIONS[aggregations![c]]}("${c}") AS "${c}"`,
+    ]),
+  ]);
+  // Input column order, so an admin hierarchy keeps its own level order.
+  const selectSql = [...columnTypes.keys()].flatMap((c) => exprs.get(c) ?? []).join(", ");
   const groupClause = groupBy.length > 0 ? `GROUP BY ${groupColsSql.join(", ")}` : "";
 
   await conn.query(`--sql

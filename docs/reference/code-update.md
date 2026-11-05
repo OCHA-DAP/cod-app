@@ -132,6 +132,9 @@ is already taken, new code assigned`.
 - `code-update` MUST write each level's new code into the column OLD's own
   resolution named at that level, in place on `cu_b_attr`. NEW's own raw column at that level, if differently
   named, MUST be left untouched as an ordinary passthrough attribute.
+- With OLD's templates, the output's level 0 code column MUST hold the root
+  code on every row, added after level 0's name column (else after level
+  1's columns) when missing.
 - `code-update` MUST add a `predecessor_code` column, populated only for
   the finest level's own rows.
 - `code-update` MUST always write a changelog, even when it would be

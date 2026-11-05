@@ -462,8 +462,7 @@ test("same-named siblings seeded from names raise", async () => {
   );
 });
 
-// drift: py #194 writes the root code as a level-0 column
-test.fails("a template writes the root code at level 0", async () => {
+test("a template writes the root code at level 0", async () => {
   const raw: Row[] = [
     ["51", "5101"],
     ["51", "5102"],

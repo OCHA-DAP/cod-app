@@ -77,8 +77,7 @@ test("fills down and stamps depth", async () => {
   expect(find(out, "BB", "BB", "BB")).toMatchObject({ adm_lvl: 1, adm3_name: "Country B" });
 });
 
-// drift: py #193 keeps the input column order; the site sorts each level
-test.fails("keeps input column order", async () => {
+test("keeps input column order", async () => {
   const order = ["adm3_name", "adm3_code", "adm2_name", "adm2_code", "adm1_name"];
   const reordered = LEAF_ROWS.map((r) =>
     Object.fromEntries([...order, "adm1_code", "wkt"].map((c) => [c, r[c]])),

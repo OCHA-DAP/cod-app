@@ -50,9 +50,16 @@ any input value.
 
 - `schema-join` MUST NOT modify geometry.
 - The joined layer (`schema_join`, suffix `_join`) MUST keep every input
-  polygon. Columns MUST follow `canonicalOrder` under the templates, or
-  `adm{n}_name`/`adm{n}_code` when templates are off; rows MUST be sorted by
-  the deepest level's own code column, NULLs last, then input order.
+  polygon. Columns MUST keep input order under the templates, or
+  `adm{n}_name`/`adm{n}_code` when templates are off, each added numbered
+  sibling right after the last existing column of its family, and every
+  other added column within its own level: a name after the level's last
+  name column or else before its first code column, any other column after
+  the level's last column of its own family or else its last column. A level
+  absent from the input layer MUST go before the first coarser input level,
+  or after all input columns when there is none, in `canonicalOrder`. Rows
+  MUST be sorted by the deepest level's own code column, NULLs last, then
+  input order.
 - The issues report (`schema_join_issues`, suffix `_issues`) MUST have
   columns `key`, `kind`, `unit_a`, `join_fid`, `reason`, `area_m2`, sorted by
   `unit_a` then `kind`, with one row per:

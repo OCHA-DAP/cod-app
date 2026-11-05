@@ -432,8 +432,7 @@ test("copy keeps source codes in numbered siblings", async () => {
   ]);
 });
 
-// drift: py #193 places each copied code beside its own level
-test.fails("copy keeps source codes in numbered siblings: column order", async () => {
+test("copy keeps source codes in numbered siblings: column order", async () => {
   const { columns } = await copied();
   for (const code of ["adm1_code", "adm3_code"])
     expect(columns.indexOf(`${code}1`)).toBe(columns.indexOf(code) + 1);
@@ -454,8 +453,7 @@ test("copy keeps adm0_code alongside adm1", async () => {
   expect(await copyWithAdm0("51")).toContain("adm0_code1");
 });
 
-// drift: py #193 copies adm0_code only when adm1 has a source code
-test.fails("copy drops adm0_code without adm1", async () => {
+test("copy drops adm0_code without adm1", async () => {
   expect(await copyWithAdm0(null)).not.toContain("adm0_code1");
 });
 
@@ -551,11 +549,16 @@ test("same-named siblings seeded from names raise", async () => {
   );
 });
 
-// drift: py #194 writes the root code as a level-0 column
-test.fails("a template writes the root code at level 0", async () => {
+test("a template writes the root code at level 0", async () => {
   const rs = sourceCodedRows().map(({ adm3_name, ...r }) => ({ adm3_name, ...r }));
   const { out, columns } = await codeCreate(rs, "BH", ".", "1", "replace", TEMPLATES);
   expect(columns.indexOf("adm0_code")).toBe(columns.indexOf("adm1_name") + 1);
+  expect(new Set(out.map((r) => r.adm0_code))).toEqual(new Set(["BH"]));
+});
+
+test("a template seeds a single level with no level 0 column", async () => {
+  const rs = sourceCodedRows().map(({ adm3_name, wkt }) => ({ adm1_name: adm3_name, wkt }));
+  const { out } = await codeCreate(rs, "BH", ".", "1", "replace", TEMPLATES);
   expect(new Set(out.map((r) => r.adm0_code))).toEqual(new Set(["BH"]));
 });
 

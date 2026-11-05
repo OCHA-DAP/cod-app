@@ -91,33 +91,27 @@ export async function runFill(
 
   // A column at the level a row's own hierarchy really reaches, including a
   // legitimate NULL there, is pinned and never backfilled from a sibling.
-  const filledColumns = new Set<string>();
-  const filledSelectParts: string[] = [];
+  const filled = new Map<string, string>();
   for (const perLevel of families) {
-    for (const col of perLevel.values()) filledColumns.add(col);
-    if (perLevel.size === 1) {
-      const [[, onlyColumn]] = perLevel;
-      filledSelectParts.push(JSON.stringify(onlyColumn));
-      continue;
-    }
+    if (perLevel.size === 1) continue;
     const sortedLevels = [...perLevel.keys()].sort((a, b) => a - b);
     const fallbackCases = [...sortedLevels]
       .reverse()
       .map((lvl) => `WHEN "${depthColumn}" >= ${lvl} THEN ${JSON.stringify(perLevel.get(lvl))}`)
       .join(" ");
     const fallback = `CASE ${fallbackCases} END`;
-    for (const level of sortedLevels) {
-      const column = perLevel.get(level)!;
-      filledSelectParts.push(
+    for (const [level, column] of perLevel) {
+      filled.set(
+        column,
         `CASE WHEN "${depthColumn}" >= ${level} THEN ${JSON.stringify(column)} ELSE (${fallback}) END AS ${JSON.stringify(column)}`,
       );
     }
   }
 
+  // Input column order, so an admin hierarchy keeps its own level order.
   const selectParts = columns
-    .filter((c) => !filledColumns.has(c))
-    .map((c) => JSON.stringify(c))
-    .concat(filledSelectParts, [JSON.stringify(depthColumn)]);
+    .map((c) => filled.get(c) ?? JSON.stringify(c))
+    .concat([JSON.stringify(depthColumn)]);
 
   await conn.query(`--sql
     CREATE OR REPLACE TABLE "${tableOut}" AS

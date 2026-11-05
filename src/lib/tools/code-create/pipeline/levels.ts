@@ -47,7 +47,9 @@ export async function resolveCodeLevels(
       ).map((r) => r.column_name),
     );
     const result = new Map<number, Level>();
-    for (const n of await detectLevels(conn, table, schema, { requireCodes: false })) {
+    // Every code starts with the root code, so a template always gets level 0.
+    const detected = await detectLevels(conn, table, schema, { requireCodes: false });
+    for (const n of [...new Set([0, ...detected])].sort((a, b) => a - b)) {
       const code = schema.codeField.replace("{n}", String(n));
       const name = schema.nameField.replace("{n}", String(n));
       const seeded = n >= 1 && !(await hasCodes(conn, table, code, columns));
