@@ -114,7 +114,9 @@ with other tools.
   running group. Each finished group's result MUST replace that group's
   input polygons as it completes, and the final result MUST replace the
   streamed groups. A failed group's input MUST stay visible until the run
-  ends. A failure to preview a group MUST NOT fail that group.
+  ends. A preview that throws MUST be retried once with its rows on
+  `ST_ReducePrecision(geom, 1e-11)`, and a failure to preview a group MUST
+  NOT fail that group.
 
 ## Configuration
 

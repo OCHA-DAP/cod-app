@@ -1,4 +1,6 @@
 import { beforeAll, expect, test } from "vitest";
+import { clipEngine } from "$lib/db/clipEngine";
+import { buildTiles } from "$lib/db/clipTiles";
 import { SNAP_TOLERANCE } from "$lib/db/constants";
 import { hasNoiseFloorGap } from "$lib/db/coverage";
 import { hasInvalidEdges } from "$lib/db/invalidEdges";
@@ -6,7 +8,8 @@ import type { MatchColumnOptions } from "$lib/db/codeJoin";
 import { runEdgeMatch } from "$lib/tools/edge-match/pipeline";
 import type { MatchMode } from "$lib/tools/edge-match/pipeline/assign";
 import { loadLayers } from "$lib/tools/edge-match/pipeline/load";
-import { db, exportColumns, ready, rows, scalar, write } from "./helpers";
+import { db, exportColumns, ready, rows, run, scalar, write } from "./helpers";
+import nodingPairUrl from "./fixtures/match/noding_pair.parquet?url";
 
 // Overlay A contains inputs 1 & 2, Overlay B only input 3, input 4 is far from both.
 const INPUT: [number, string][] = [
@@ -258,3 +261,37 @@ test.todo("multi-file rejects multi-overlay, step and a missing output path (API
 test.todo("record_dropped_group and the clip step's bad overlay_fid abort (py stage internals)");
 test.todo("default output paths (file output, no TS counterpart)");
 test.todo("each step runs standalone (no TS counterpart)");
+
+// NLD fid 85 in Utrecht: both are valid, and their exact ST_Intersection throws in WASM GEOS.
+test("clip retries a noding failure on the grid and keeps the overlay exact", async () => {
+  const bytes = await (await fetch(nodingPairUrl)).arrayBuffer();
+  await db().db.registerFileBuffer("noding_pair.parquet", new Uint8Array(bytes));
+  await run(`--sql
+    CREATE OR REPLACE TABLE np_rows AS
+    SELECT 85::BIGINT AS fid, 10::BIGINT AS overlay_fid, ST_GeomFromWKB(row_wkb) AS geom
+    FROM 'noding_pair.parquet'
+  `);
+  await run(`--sql
+    CREATE OR REPLACE TABLE np_overlay AS
+    SELECT 10::BIGINT AS fid, ST_GeomFromWKB(overlay_wkb) AS geom FROM 'noding_pair.parquet'
+  `);
+  await run("DROP TABLE IF EXISTS np_tiles");
+  await buildTiles(conn, "np_overlay", "SELECT fid FROM np_overlay", "np_tiles");
+
+  const { outputCount } = await clipEngine(conn, "np_rows", "np_tiles", "np_clip");
+
+  expect(outputCount).toBe(1);
+  expect(await scalar<boolean>("SELECT ST_IsValid(geom) FROM np_clip")).toBe(true);
+  expect(await scalar<number>("SELECT ST_Area(geom) FROM np_clip")).toBeCloseTo(0.00434248, 7);
+  const overlayVertices = await scalar<number>(`--sql
+    WITH pts AS (SELECT 'clip' AS src, UNNEST(ST_Dump(ST_Points(geom))).geom AS p FROM np_clip
+                 UNION ALL
+                 SELECT 'overlay', UNNEST(ST_Dump(ST_Points(geom))).geom FROM np_overlay)
+    SELECT count(*) FROM (
+      SELECT ST_X(p) x, ST_Y(p) y FROM pts WHERE src = 'clip'
+      INTERSECT
+      SELECT ST_X(p), ST_Y(p) FROM pts WHERE src = 'overlay'
+    )
+  `);
+  expect(overlayVertices).toBeGreaterThan(0);
+});

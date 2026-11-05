@@ -217,8 +217,10 @@ Shared by `edge-mosaic` and `edge-match`'s per-group clip.
   bounding boxes meet its own, in batches whose vertex totals stay under
   `CLIP_PAIR_VERTEX_BUDGET`.
 - A row's clip MUST be the polygon parts of the union of its tile
-  intersections. The clip MUST NOT snap, and a failing intersection MUST
-  propagate.
+  intersections. The clip MUST NOT snap. A batch whose intersection throws
+  MUST be retried once with its input rows on
+  `ST_ReducePrecision(geom, 1e-11)` and the overlay tiles exact, and a batch
+  that still throws MUST propagate the failure.
 - A row whose clip is empty MUST be dropped from the output and recorded
   with its pre-clip geometry and overlay fid, for a `clip-empty` issue.
 

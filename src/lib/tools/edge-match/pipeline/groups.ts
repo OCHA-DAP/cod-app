@@ -2,7 +2,7 @@ import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { GEOMETRY_TYPE } from "$lib/db/constants";
 import { PipelineError, runPipeline } from "$lib/tools/edge-extend/pipeline/index";
 import { clipEngine } from "$lib/db/clipEngine";
-import { emptyDetachedIssues, mergeDetachedParts } from "$lib/db/coverage";
+import { emptyDetachedIssues, gridOnThrow, mergeDetachedParts } from "$lib/db/coverage";
 import { queryToGeoJSON } from "$lib/db/geojson";
 import { buildTiles } from "$lib/db/clipTiles";
 
@@ -40,16 +40,18 @@ async function groupGeoJSON(
   conn: AsyncDuckDBConnection,
   overlayFid: number,
 ): Promise<string | undefined> {
-  const geom =
+  const geom = (g: (expr: string) => string) =>
     overlayFid === PASSTHROUGH_OVERLAY_FID
       ? "e.geom"
-      : `ST_Intersection(e.geom, (SELECT geom FROM overlay_layer_01 WHERE fid = ${overlayFid}))`;
+      : `ST_Intersection(${g("e.geom")}, (SELECT geom FROM overlay_layer_01 WHERE fid = ${overlayFid}))`;
   try {
-    return await queryToGeoJSON(
-      conn,
-      `SELECT ST_AsGeoJSON(g) AS _geom, ${overlayFid} AS group_id FROM (
-         SELECT ${geom} AS g FROM ge_extended e WHERE e.overlay_fid = ${overlayFid}
-       ) WHERE NOT ST_IsEmpty(g)`,
+    return await gridOnThrow(`group ${overlayFid} preview`, (g) =>
+      queryToGeoJSON(
+        conn,
+        `SELECT ST_AsGeoJSON(g) AS _geom, ${overlayFid} AS group_id FROM (
+           SELECT ${geom(g)} AS g FROM ge_extended e WHERE e.overlay_fid = ${overlayFid}
+         ) WHERE NOT ST_IsEmpty(g)`,
+      ),
     );
   } catch (e) {
     console.warn("group preview failed:", e);

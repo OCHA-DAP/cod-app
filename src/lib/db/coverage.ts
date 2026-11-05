@@ -390,19 +390,26 @@ export async function emptyDetachedIssues(
   `);
 }
 
-// Runs `build(g)` with exact geometry, then once more on the fallback grid
+// Runs `run(g)` with exact geometry, then once more on the fallback grid
 // when WASM GEOS throws a noding error that native GEOS doesn't.
+export async function gridOnThrow<T>(
+  label: string,
+  run: (g: (expr: string) => string) => Promise<T>,
+): Promise<T> {
+  try {
+    return await run((expr) => expr);
+  } catch (e) {
+    console.warn(`${label} failed; retrying on a ${NODING_FALLBACK_GRID} grid:`, e);
+    return await run((expr) => `ST_ReducePrecision(${expr}, ${NODING_FALLBACK_GRID})`);
+  }
+}
+
 async function queryOrGrid(
   conn: AsyncDuckDBConnection,
   label: string,
   build: (g: (expr: string) => string) => string,
 ): Promise<void> {
-  try {
-    await conn.query(build((expr) => expr));
-  } catch (e) {
-    console.warn(`${label} failed; retrying on a ${NODING_FALLBACK_GRID} grid:`, e);
-    await conn.query(build((expr) => `ST_ReducePrecision(${expr}, ${NODING_FALLBACK_GRID})`));
-  }
+  await gridOnThrow(label, (g) => conn.query(build(g)));
 }
 
 // Ported from topo-tools' merge_detached_parts, which holds the merge rule;
