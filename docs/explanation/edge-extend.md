@@ -32,10 +32,15 @@ from the input.
    by point-in-polygon join. A peripheral cell whose bbox exceeds valid
    WGS84 range is clipped to world bounds; see
    [ADR 0030](../adr/0030-voronoi-conditional-per-cell-world-bounds-clip.md).
-5. **Merge** (`pipeline/merge.ts`), for each fid, takes its Voronoi cell's
-   remainder (the cell minus whatever's already covered by a nearby
-   original polygon) and unions it with the original polygon via a direct
-   `ST_Union_Agg`. The merged result is checked against the loaded input by
+   A cell holding several distinct points is a degenerate GEOS cell that
+   would overlap its neighbours, so `checkCells` fails the run (topo-tools'
+   ADR 0146). Points on each line start at a stable offset because evenly
+   spaced points lined up across lines cause those cells, and points on
+   ±180 or ±90 are dropped because those edges are map cuts.
+5. **Merge** (`pipeline/merge.ts`), for each fid, takes its Voronoi cell
+   minus nearby other fids' originals and unions it with the part of its
+   own original outside the cell, so its coastline is never noded only to
+   be dissolved away (topo-tools' ADR 0147). The merged result is checked against the loaded input by
    the shared no-erosion guard (`$lib/db/coverage.ts::checkNoErosion`, see
    `docs/reference/shared.md`), a hard failure rather than a warn-only
    check, before (unless the caller is Edge Matcher's per-group loop) a
@@ -51,9 +56,11 @@ segment length — boundaries with genuinely finer detail than the default
 start there instead of losing it to a coarser default. Falls back to
 `DEFAULT_DISTANCE` when the input has no real segments.
 
-If a spacing attempt still fails (too many points, or a Voronoi/points-stage
-error), `pipeline/index.ts`'s outer retry loop doubles the distance and
-tries again, up to 10 attempts.
+`pipeline/index.ts`'s outer retry loop doubles the distance after a failed
+attempt (too many points, or a Voronoi/points-stage error), up to 10
+attempts, and skips a distance estimated over the point limit without
+building it. Assignment and cell-check failures end the run, since a wider
+spacing would hide them.
 
 ## WASM-only GEOS noding failures
 
@@ -67,9 +74,9 @@ resulting near-but-not-quite-coincident seam. See
 for the general pattern. `merge.ts` snaps each cell to the union of the
 original parts it intersects (`ST_Snap`, tolerance from `SNAP_TOLERANCE`)
 before differencing, which resolves most near-coincident seams, and a
-difference that still throws propagates as a pipeline error. The dissolve
+difference that still throws propagates as a pipeline error. The union
 that follows can also throw in WASM where native GEOS succeeds. It then
-unions fid by fid and retries only the failing fids on a 1e-11° grid, three
+runs fid by fid and retries only the failing fids on a 1e-11° grid, three
 orders of magnitude below `SNAP_TOLERANCE`, which the final coverage-clean
 pass absorbs; see
 [`docs/adr/0038-extend-merge-union-grid-fallback.md`](../adr/0038-extend-merge-union-grid-fallback.md).

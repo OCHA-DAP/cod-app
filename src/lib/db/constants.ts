@@ -1,6 +1,8 @@
 // Snap/gap tolerance shared across tools, in decimal degrees (~1.1mm at the equator).
 export const SNAP_TOLERANCE = 1e-8;
 
+export const WORLD_BOUNDS_WKT = "POLYGON((-180 -90, 180 -90, 180 90, -180 90, -180 -90))";
+
 // Grid a union retries on when WASM GEOS throws a noding error that native GEOS doesn't.
 export const NODING_FALLBACK_GRID = 1e-11;
 
@@ -10,6 +12,10 @@ export const SUBDIVIDE_MIN_VERTICES = 5000;
 export const SUBDIVIDE_MAX_VERTICES = 1350;
 // Input vertices one batch of clip input/tile (or invalid-edge part) pairs may carry.
 export const CLIP_PAIR_VERTEX_BUDGET = 20_000_000;
+// Boundary plus neighbour-union vertices one batch of Edge Extender's lines difference may carry.
+export const LINES_VERTEX_BUDGET = 10_000_000;
+// Cell plus nearby original-part vertices one batch of Edge Extender's merge difference may carry.
+export const MERGE_VERTEX_BUDGET = 10_000_000;
 
 // Ported from topo-tools' core/constants.py; clip-detached piece merge rule,
 // see mergeDetachedParts in $lib/db/coverage.ts.

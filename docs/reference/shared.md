@@ -89,8 +89,10 @@ name instead of repeating them.
   the geometry column as raw WKB taken as WGS84 lon/lat.
 - GeoParquet bbox covering columns (a `STRUCT` column named `bbox` or
   ending in `_bbox`) MUST be excluded from the loaded attributes.
-- A loaded layer whose extent falls outside [-180, 180] x [-90, 90] MUST be
-  rejected with an error naming a missing CRS as the likely cause.
+- A loaded row whose bounding box goes past [-180, 180] x [-90, 90] MUST be
+  clipped to those bounds, and a row inside them MUST stay byte-identical. A
+  row entirely outside MUST reject the layer with an error naming a missing
+  CRS as the likely cause.
 - A GeoJSON or GeoJSONL feature carrying a property literally named
   `OGC_FID` MUST have it renamed before loading, to avoid colliding with
   `ST_Read`'s own reserved FID column of the same name.

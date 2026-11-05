@@ -1,5 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { beforeAll, expect, test } from "vitest";
+import { beforeAll, expect, test, vi } from "vitest";
 import { hasAnyHole } from "$lib/db/coverageClean";
 import { SNAP_TOLERANCE } from "$lib/db/constants";
 import { detectNotches } from "$lib/db/notches";
@@ -8,7 +8,7 @@ import { stageCleanInput } from "$lib/tools/edge-extend/pipeline/clean";
 import { stageLines } from "$lib/tools/edge-extend/pipeline/lines";
 import { stageMerge } from "$lib/tools/edge-extend/pipeline/merge";
 import { buildSegments, stagePoints } from "$lib/tools/edge-extend/pipeline/points";
-import { stageVoronoi } from "$lib/tools/edge-extend/pipeline/voronoi";
+import { checkCells, stageVoronoi } from "$lib/tools/edge-extend/pipeline/voronoi";
 import { db, layer, ready, rows, run, scalar, table, write } from "./helpers";
 import { listFormats, runExport } from "$lib/db/export";
 import { loadFile } from "$lib/db/loader";
@@ -171,8 +171,7 @@ test("the bbox-prefiltered point zone matches one global union", async () => {
   await run("DROP TABLE IF EXISTS layer_03_tmp4");
 });
 
-// drift: py #229 clips input just past the antimeridian instead of refusing it
-test.fails("runs on input just past the antimeridian", async () => {
+test("runs on input just past the antimeridian", async () => {
   const file = await write(
     `SELECT * FROM (VALUES
       (0, ST_GeomFromText('POLYGON((179 0, 179.5 0, 179.5 1, 179 1, 179 0))')),
@@ -187,8 +186,7 @@ test.fails("runs on input just past the antimeridian", async () => {
   ]);
 });
 
-// drift: py #229 seeds no Voronoi points on antimeridian or pole edges
-test.fails("points skip map-cut edges", async () => {
+test("points skip map-cut edges", async () => {
   await wktLayer([
     [0, "POLYGON((170 -90, 180 -90, 180 -80, 170 -80, 170 -90))"],
     [1, "POLYGON((160 -90, 170 -90, 170 -80, 160 -80, 160 -90))"],
@@ -247,10 +245,66 @@ test("merge equals original plus cell minus the other originals", async () => {
   for (const { d } of diffs) expect(d).toBeCloseTo(0, 12);
 });
 
-test.todo("a distance estimated over MAX_POINTS is skipped (needs a MAX_POINTS override, py #231)");
-test.todo("raises when every distance is skipped (needs a MAX_POINTS override, py #231)");
-test.todo("an assignment error raises without retry (site retries at doubled distance, py #231)");
-test.todo("check_cells accepts one point per cell and duplicates (no TS counterpart, py #232)");
-test.todo("check_cells raises on a cell holding several points (no TS counterpart, py #232)");
+test("a forced small vertex budget changes neither lines nor merge", async () => {
+  await merge();
+  const expected = await rows("SELECT fid, ST_AsText(geom) AS t FROM layer_05 ORDER BY fid");
+  await table("layer_01", ["fid", "geom"], MERGE_ORIGINALS);
+  await run("CREATE OR REPLACE TABLE layer_04 AS SELECT * FROM cells");
+  await stageMerge(conn, 1);
+  expect(await rows("SELECT fid, ST_AsText(geom) AS t FROM layer_05 ORDER BY fid")).toEqual(
+    expected,
+  );
+
+  const lines = "SELECT fid, ST_AsText(geom) AS t FROM layer_02a ORDER BY fid, t";
+  await wktLayer(SYNTHETIC);
+  await stageLines(conn);
+  const whole = await rows(lines);
+  await stageLines(conn, 1);
+  expect(await rows(lines)).toEqual(whole);
+});
+
+test("a distance estimated over the point limit is skipped", async () => {
+  const info = vi.spyOn(console, "info");
+  await wktLayer(SYNTHETIC);
+  await runPipeline(conn, () => {}, { maxPoints: 1_500 });
+  expect(info.mock.calls.flat().join()).toContain("skip: distance=0.0002,");
+  expect(await scalar("SELECT count(*)::INT FROM layer_05")).toBe(SYNTHETIC.length);
+  info.mockRestore();
+});
+
+test("raises when every distance is skipped", async () => {
+  await wktLayer(SYNTHETIC);
+  await expect(runPipeline(conn, () => {}, { maxPoints: 0 })).rejects.toThrow(
+    /every distance estimated over 0 points/,
+  );
+});
+
+test.todo("an assignment error raises without retry (needs a module mock)");
+
+async function cellTables(cells: [number, string][]) {
+  await run(`CREATE OR REPLACE TABLE layer_04_tmp0 AS SELECT * FROM (VALUES
+    (1, 1, ST_Point(0.5, 0.5)), (2, 2, ST_Point(1.5, 0.5)),
+    (3, 3, ST_Point(1.5, 0.5))) v(point_id, fid, geom)`);
+  await run(`CREATE OR REPLACE TABLE layer_04_tmp1 AS SELECT * FROM (VALUES ${cells
+    .map(([i, w]) => `(${i}, ST_GeomFromText('${w}'))`)
+    .join(", ")}) v(cell_id, geom)`);
+  await run(`CREATE OR REPLACE TABLE layer_04_tmp2 AS
+    SELECT a.point_id, a.fid, b.cell_id, b.geom, ST_Contains(b.geom, a.geom) AS inside
+    FROM layer_04_tmp0 a JOIN layer_04_tmp1 b ON ST_Intersects(a.geom, b.geom)`);
+}
+
+test("check cells accepts one point per cell and duplicates", async () => {
+  await cellTables([
+    [1, "POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"],
+    [2, "POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))"],
+  ]);
+  await expect(checkCells(conn)).resolves.toBeUndefined();
+});
+
+test("check cells raises on a cell holding several points", async () => {
+  await cellTables([[1, "POLYGON((0 0, 2 0, 2 1, 0 1, 0 0))"]]);
+  await expect(checkCells(conn)).rejects.toThrow(/holds 2 points from 3/);
+});
+
 test.todo("default output path (file output, no TS counterpart)");
 test.todo("each step runs standalone (no TS counterpart)");

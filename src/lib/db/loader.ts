@@ -1,6 +1,6 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { unzip } from "fflate";
-import { CRS, GEOMETRY_TYPE } from "./constants";
+import { CRS, GEOMETRY_TYPE, WORLD_BOUNDS_WKT } from "./constants";
 import { randomId } from "./id";
 import { SHP_EXTS, SINGLE_EXTS, extOf as ext } from "../utils/formats";
 
@@ -43,6 +43,7 @@ function renameCollidingOgcFid(text: string): string {
 }
 
 // Geometry column names a WKB BLOB may carry in a Parquet file without GeoParquet metadata.
+const OUTSIDE_WORLD = "entirely outside world bounds (-180 -90 180 90)";
 const WKB_NAMES = ["geometry", "geom", "wkb_geometry", "the_geom"];
 
 // Normalized geometry expression: fid + MakeValid + Force2D + optional Transform.
@@ -56,6 +57,19 @@ function loadGeomExpr(geomType: string, quotedCol: string): string {
   if (geomType !== "GEOMETRY" && geomType !== GEOMETRY_TYPE)
     return `ST_Force2D(ST_Transform(ST_MakeValid(${quotedCol}), '${CRS}', true))`;
   return `ST_SetCRS(ST_Force2D(ST_MakeValid(${quotedCol})), '${CRS}')`;
+}
+
+// Clips only rows past world bounds: an unconditional intersection rewrites every row.
+function worldClipSql(col: string): string {
+  const world = `ST_GeomFromText('${WORLD_BOUNDS_WKT}')`;
+  return `CASE
+    WHEN ST_IsEmpty(${col}) OR (
+      ST_XMin(${col}) >= -180 AND ST_XMax(${col}) <= 180
+      AND ST_YMin(${col}) >= -90 AND ST_YMax(${col}) <= 90
+    ) THEN ${col}
+    WHEN NOT ST_Intersects(${col}, ${world}) THEN error('${OUTSIDE_WORLD}')
+    ELSE ST_SetCRS(ST_CollectionExtract(ST_Intersection(ST_MakeValid(${col}), ${world}), 3), '${CRS}')
+  END`;
 }
 
 function isIncluded(file: File): boolean {
@@ -235,11 +249,19 @@ export async function loadFile(
   `);
 
   const quotedGeomCol = JSON.stringify(geomCol);
-  await conn.query(`
-    CREATE OR REPLACE TABLE ${geomName} AS
-    SELECT fid, ${loadGeomExpr(geomType, quotedGeomCol)} AS geom
-    FROM ${rawName}
-  `);
+  try {
+    await conn.query(`
+      CREATE OR REPLACE TABLE ${geomName} AS
+      SELECT fid, ${worldClipSql("geom")} AS geom
+      FROM (SELECT fid, ${loadGeomExpr(geomType, quotedGeomCol)} AS geom FROM ${rawName})
+    `);
+  } catch (e) {
+    if (!String(e).includes(OUTSIDE_WORLD)) throw e;
+    throw new Error(
+      `A feature lies ${OUTSIDE_WORLD}, so the layer may be projected with no usable CRS. Re-export it with its CRS, or reproject it to EPSG:4326.`,
+      { cause: e },
+    );
+  }
 
   await conn.query(`DROP TABLE ${rawName}`);
 
@@ -252,26 +274,5 @@ export async function loadFile(
     } catch {
       // best-effort
     }
-  }
-
-  const [extent] = (
-    await conn.query(`
-      SELECT ST_XMin(e) AS xmin, ST_XMax(e) AS xmax, ST_YMin(e) AS ymin, ST_YMax(e) AS ymax
-      FROM (SELECT ST_Extent_Agg(geom) AS e FROM ${geomName})
-    `)
-  ).toArray() as Array<{
-    xmin: number | null;
-    xmax: number | null;
-    ymin: number | null;
-    ymax: number | null;
-  }>;
-  if (
-    extent &&
-    extent.xmin !== null &&
-    (extent.xmin < -180 || extent.xmax! > 180 || extent.ymin! < -90 || extent.ymax! > 90)
-  ) {
-    throw new Error(
-      "Coordinates fall outside longitude/latitude range, so the layer looks projected but has no usable CRS. Re-export it with its CRS, or reproject it to EPSG:4326.",
-    );
   }
 }
