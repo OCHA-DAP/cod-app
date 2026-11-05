@@ -12,7 +12,7 @@ const { planGroups, page } = Astro.props;
 const short = (g: PlanGroup) => {
   const year = g.label.match(/\((\d{4})\)/)?.[1];
   if (g.key === "no-plans") return "No plans";
-  const kind = g.key.endsWith("priority") ? "HNRP/HRP/FA" : "Other";
+  const kind = g.key.endsWith("hrp") ? "HNRP/HRP" : g.key.endsWith("fa") ? "FA" : "Other";
   return `${kind} ${year ?? "prior"}`;
 };
 
@@ -165,7 +165,7 @@ const segments = (g: (typeof groups)[number]) => {
 
   .donuts {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 1rem;
     text-align: center;
   }
