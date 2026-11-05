@@ -36,6 +36,9 @@ and a pair the snap doesn't rescue is intersected on a 1e-11° grid
 ([`0036`](../adr/0036-overlap-pairs-snap-fallback-on-wasm-noding-failure.md),
 [`0037`](../adr/0037-snap-and-grid-fallbacks-extended-past-overlap-pairs.md),
 [`0039`](../adr/0039-match-group-clip-uses-clip-engine-and-grid-tier.md)).
+The clip engine retries a batch that throws with its input rows on the
+1e-11° grid and the overlay exact
+([`0055`](../adr/0055-clip-retries-noding-failures-on-the-grid.md)).
 The shared gap check has no pair to snap, since its failure is in one
 whole-layer union: it retries the union on a 1e-11° grid, three orders of
 magnitude below `SNAP_TOLERANCE`, and drops each hole an input polygon

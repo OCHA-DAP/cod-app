@@ -23,7 +23,11 @@ shared with Edge Matcher. Ported from topo-tools' `edge-mosaic` (its ADR
    overlay polygon into tiles of at most `SUBDIVIDE_MAX_VERTICES`, and
    `pairBatches` pairs each input row with the tiles its bounding box
    touches, in batches under `CLIP_PAIR_VERTEX_BUDGET`. Each row's clip is
-   the union of its tile intersections. A row that clips to nothing becomes
+   the union of its tile intersections. A batch that throws a WASM noding
+   error is retried with its rows on a 1e-11° grid, leaving the overlay
+   exact so neighbouring groups are still cut by the same edge
+   ([`0055`](../adr/0055-clip-retries-noding-failures-on-the-grid.md)).
+   A row that clips to nothing becomes
    a `clip-empty` issue, and zero output rows fail the run. Clip-detached
    pieces are then merged or kept against the optional original layer
    (`docs/reference/shared.md`).
