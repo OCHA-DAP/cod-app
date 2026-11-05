@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { GEOMETRY_TYPE } from "$lib/db/constants";
 import { flaggedLayer, type FlaggedLayer } from "$lib/db/flagged";
 import { runCodeDetect } from "$lib/tools/code-detect/pipeline/index";
 import { runNameDetect } from "$lib/tools/name-detect/pipeline/index";
@@ -143,4 +144,4 @@ export async function runValidate(
   };
 }
 
-const NO_UNITS = "SELECT NULL::VARCHAR AS key, NULL::GEOMETRY AS geom WHERE false";
+const NO_UNITS = `SELECT NULL::VARCHAR AS key, NULL::${GEOMETRY_TYPE} AS geom WHERE false`;

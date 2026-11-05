@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { GEOMETRY_TYPE } from "$lib/db/constants";
 import { assignOneDropIssuesSql } from "$lib/db/assignOne";
 import {
   CODE_FALLBACK_REASON,
@@ -49,7 +50,7 @@ export async function buildMosaicIssues(
   gaps = true,
 ): Promise<MosaicIssuesResult> {
   await conn.query(`--sql
-    CREATE OR REPLACE TABLE ms_gap_regions AS SELECT NULL::BIGINT AS n, NULL::GEOMETRY AS geom WHERE FALSE
+    CREATE OR REPLACE TABLE ms_gap_regions AS SELECT NULL::BIGINT AS n, NULL::${GEOMETRY_TYPE} AS geom WHERE FALSE
   `);
   if (gaps) {
     await buildGapTable(conn, "ms_gap_regions", "cl_clip");

@@ -1,6 +1,7 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { DuckDBDataProtocol } from "@duckdb/duckdb-wasm";
 import { unzip as fflateUnzip, zip as fflateZip } from "fflate";
+import { CRS, GDAL_CRS } from "./constants";
 import { duckdbState } from "./duckdb.svelte";
 import { flaggedUnitsSql } from "./flagged";
 
@@ -748,7 +749,12 @@ async function exportGdal(
   const cfg = SOURCES[source];
   const { suffix } = cfg;
   const meta = format.driver ? KNOWN_DRIVERS[format.driver] : undefined;
-  const select = await buildSpatialSelect(conn, cfg, "ST_Multi(a.geom) AS geom");
+  const crs = format.driver === "KML" ? CRS : GDAL_CRS;
+  const select = await buildSpatialSelect(
+    conn,
+    cfg,
+    `ST_SetCRS(ST_Multi(a.geom), '${crs}') AS geom`,
+  );
 
   const layerOptionsClause =
     meta?.layerOptions && meta.layerOptions.length > 0
@@ -757,12 +763,12 @@ async function exportGdal(
 
   const layerName = `${stem}${suffix}`;
   const layerNameClause = `, LAYER_NAME ${quotePath(layerName)}`;
-  // The pipeline transforms input geometries to EPSG:4326 (loader.ts) and
+  // The pipeline transforms input geometries to WGS84 lon/lat (loader.ts) and
   // the DB session sets geometry_always_xy=true, so all output GDAL drivers
   // should declare WGS84 explicitly. Without this, GDAL writes no CRS info
   // (no .prj for Shapefile, "Undefined geographic SRS" in GPKG, no
   // srsName in GML).
-  const srsClause = `, SRS 'EPSG:4326'`;
+  const srsClause = `, SRS '${crs}'`;
   const filename = `${layerName}${format.ext}`;
 
   const root = await navigator.storage.getDirectory();
@@ -835,11 +841,11 @@ async function exportParquet(
   const { db, conn } = requireDb();
   const cfg = SOURCES[source];
   let select: string;
-  if (cfg.kind === "spatial") select = await buildSpatialSelect(conn, cfg, "a.geom AS geometry");
+  if (cfg.kind === "spatial") select = await buildSpatialSelect(conn, cfg, `ST_SetCRS(a.geom, '${CRS}') AS geometry`);
   else if (cfg.parquetGeometry) {
     const cols = cfg.tabularColumns!.map((c) => `r.${JSON.stringify(c)}`).join(", ");
     select = `--sql
-      SELECT g.geom AS geometry, ${cols}
+      SELECT ST_SetCRS(g.geom, '${CRS}') AS geometry, ${cols}
       FROM (SELECT *, row_number() OVER () AS __rn FROM ${cfg.table}) r
       LEFT JOIN (${cfg.parquetGeometry}) g USING (key)
       ORDER BY r.__rn`;
@@ -848,7 +854,7 @@ async function exportParquet(
   const path = vfsName(format.ext);
   try {
     await conn.query(
-      `COPY (${select}) TO ${quotePath(path)} (FORMAT PARQUET, COMPRESSION ZSTD, COMPRESSION_LEVEL 15, GEOPARQUET_VERSION 'BOTH')`,
+      `COPY (${select}) TO ${quotePath(path)} (FORMAT PARQUET, COMPRESSION ZSTD, COMPRESSION_LEVEL 15, GEOPARQUET_VERSION 'V2')`,
     );
     const bytes = await db.copyFileToBuffer(path);
     return {

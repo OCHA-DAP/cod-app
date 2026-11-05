@@ -21,7 +21,7 @@ prefixed `cw_`) compares two versions of a polygon layer ("Version A" = old,
 
 ## Loading and keying
 
-- `change` MUST reproject each side's geometry to EPSG:4326, run `ST_MakeValid`,
+- `change` MUST reproject each side's geometry to `OGC:CRS84`, run `ST_MakeValid`,
   and force it to 2D, independently of the other side.
 - `change` MUST run `gatedCoverageClean` over each side, triggered by any
   coverage violation, micro-polygon or enclosed hole.

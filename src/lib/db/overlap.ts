@@ -1,11 +1,11 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { bboxColumnsSql, bboxOverlapSql } from "./bbox";
-import { NODING_FALLBACK_GRID, SNAP_TOLERANCE } from "./constants";
+import { CRS, GEOMETRY_TYPE, NODING_FALLBACK_GRID, SNAP_TOLERANCE } from "./constants";
 
 // Drop intersection crumbs below SNAP_TOLERANCE², in deg² (matches topo-tools ADR-0030).
 export const SLIVER = SNAP_TOLERANCE ** 2;
 
-const AREA = (g: string) => `ST_Area(ST_Transform(${g}, 'EPSG:4326', 'EPSG:8857', true))`;
+const AREA = (g: string) => `ST_Area(ST_Transform(${g}, '${CRS}', 'EPSG:8857', true))`;
 
 async function withLooseMemoryLimit<T>(
   conn: AsyncDuckDBConnection,
@@ -44,7 +44,7 @@ async function intersectPairwise(
         ON ${bboxOverlapSql("a", "b")} AND ${pairPredicate}
     `)
   ).toArray() as Array<{ a_id: bigint | number; b_id: bigint | number }>;
-  await conn.query(`CREATE OR REPLACE TABLE ${outTable} (a_id BIGINT, b_id BIGINT, geom GEOMETRY)`);
+  await conn.query(`CREATE OR REPLACE TABLE ${outTable} (a_id BIGINT, b_id BIGINT, geom ${GEOMETRY_TYPE})`);
   let snapped = 0;
   let gridded = 0;
   for (const { a_id: aId, b_id: bId } of candidates) {

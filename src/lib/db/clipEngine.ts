@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { GEOMETRY_TYPE } from "./constants";
 import { bboxColumnsSql } from "./bbox";
 import { pairBatches } from "./clipTiles";
 import { mergeDetachedParts } from "./coverage";
@@ -19,8 +20,8 @@ export async function clipEngine(
   tableOut: string,
 ): Promise<ClipEngineResult> {
   const x = (sql: string) => conn.query(sql);
-  await x(`CREATE OR REPLACE TABLE ${tableOut} (fid BIGINT, geom GEOMETRY)`);
-  await x(`CREATE OR REPLACE TABLE ${tableOut}_dropped (fid BIGINT, overlay_fid BIGINT, geom GEOMETRY)`);
+  await x(`CREATE OR REPLACE TABLE ${tableOut} (fid BIGINT, geom ${GEOMETRY_TYPE})`);
+  await x(`CREATE OR REPLACE TABLE ${tableOut}_dropped (fid BIGINT, overlay_fid BIGINT, geom ${GEOMETRY_TYPE})`);
   const fids = (await x(`SELECT DISTINCT overlay_fid FROM ${tableIn} ORDER BY 1`))
     .toArray()
     .map((r) => Number((r as { overlay_fid: bigint | number }).overlay_fid));
@@ -36,7 +37,7 @@ export async function clipEngine(
     );
     if (nTiles === 0) throw new Error(`clip: no overlay geometry for overlay_fid=${g}`);
     await pairBatches(conn, "cl_in", "cl_tiles", "cl_bat");
-    await x("CREATE OR REPLACE TABLE cl_po (fid BIGINT, geom GEOMETRY)");
+    await x(`CREATE OR REPLACE TABLE cl_po (fid BIGINT, geom ${GEOMETRY_TYPE})`);
     const batches = (await x("SELECT DISTINCT b FROM cl_bat ORDER BY 1"))
       .toArray()
       .map((r) => Number((r as { b: bigint | number }).b));

@@ -46,15 +46,30 @@ test("an exported table leads with geometry and drops fid", async () => {
   expect(await exportColumns("extend")).toEqual(["geometry", "id", "x"]);
 });
 
-// drift: py #219 tags every loaded geometry OGC:CRS84
-test.fails.each([
+test.each([
   ["parquet-no-crs", ".parquet", "(FORMAT PARQUET, GEOPARQUET_VERSION 'NONE')"],
   ["geoparquet-crs84", ".parquet", "(FORMAT PARQUET, GEOPARQUET_VERSION 'V1')"],
-  ["geojson", ".geojson", "(FORMAT GDAL, DRIVER 'GeoJSON')"],
 ])("every source is tagged CRS84 on load (%s)", async (_, suffix, opts) => {
   const select = "SELECT 1 AS x, ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))') AS geom";
   await load(await write(select, `src${suffix}`, opts));
   expect(await scalar("SELECT typeof(geom) FROM layer_01")).toBe("GEOMETRY('OGC:CRS84')");
+});
+
+// GDAL's GeoJSON writer corrupts the first byte on the WASM filesystem, so this file is hand-written.
+test("a GeoJSON source is tagged CRS84 on load", async () => {
+  const geometry = { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] };
+  const text = JSON.stringify({
+    type: "FeatureCollection",
+    features: [{ type: "Feature", properties: { x: 1 }, geometry }],
+  });
+  await load(new File([text], "src.geojson"));
+  expect(await scalar("SELECT typeof(geom) FROM layer_01")).toBe("GEOMETRY('OGC:CRS84')");
+});
+
+test("a projected source is reprojected and tagged CRS84 on load", async () => {
+  await loadFixture(sliverUrl, "sliver.gpkg");
+  expect(await scalar("SELECT typeof(geom) FROM layer_01")).toBe("GEOMETRY('OGC:CRS84')");
+  expect(await scalar<number>("SELECT ST_XMax(geom) FROM layer_01")).toBeLessThan(180);
 });
 
 async function exportedParquet(): Promise<string> {
@@ -64,8 +79,7 @@ async function exportedParquet(): Promise<string> {
   return "_export.parquet";
 }
 
-// drift: py #219 writes CRS84-tagged GeoParquet
-test.fails("an exported geometry is tagged CRS84", async () => {
+test("an exported geometry is tagged CRS84", async () => {
   const path = await exportedParquet();
   expect(
     await scalar(
@@ -74,8 +88,7 @@ test.fails("an exported geometry is tagged CRS84", async () => {
   ).toBe("GEOMETRY('OGC:CRS84')");
 });
 
-// drift: py #219 writes GeoParquet 2.0 with the default CRS left implicit
-test.fails("exported geo metadata is 2.0.0 with no explicit default CRS", async () => {
+test("exported geo metadata is 2.0.0 with no explicit default CRS", async () => {
   const path = await exportedParquet();
   const geo = JSON.parse(
     await scalar<string>(

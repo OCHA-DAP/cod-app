@@ -23,3 +23,10 @@ export const NOTCH_SPACING = 0.0002;
 export const NOTCH_MIN_SCORE = 2;
 export const NOTCH_MAX_GAP_RATIO = 1 / 10;
 export const NOTCH_WINDOW_MARGIN = 0.002;
+
+// Every geometry is read, stored and written tagged with this CRS (WGS84 lon/lat,
+// the GeoParquet default, so its `geo` metadata omits the crs key).
+export const CRS = "OGC:CRS84";
+// GDAL drivers that can't take CRS: WASM's PROJ throws stoi exporting OGC:CRS84 as WKT2.
+export const GDAL_CRS = "EPSG:4326";
+export const GEOMETRY_TYPE = `GEOMETRY('${CRS}')`;

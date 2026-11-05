@@ -1,5 +1,6 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { unzip } from "fflate";
+import { CRS, GEOMETRY_TYPE } from "./constants";
 import { randomId } from "./id";
 import { SHP_EXTS, SINGLE_EXTS, extOf as ext } from "../utils/formats";
 
@@ -46,14 +47,15 @@ const WKB_NAMES = ["geometry", "geom", "wkb_geometry", "the_geom"];
 
 // Normalized geometry expression: fid + MakeValid + Force2D + optional Transform.
 // ST_Read tags geometry with source CRS; single-arg ST_Transform infers it.
-// read_parquet tags geometry with the GeoParquet CRS; untagged GEOMETRY is taken as EPSG:4326.
+// read_parquet tags geometry with the GeoParquet CRS; untagged GEOMETRY is taken as WGS84 lon/lat.
 // BLOB means WKB from a Parquet file without GeoParquet metadata; parse explicitly.
 // MakeValid is applied to the source before Transform so invalid input never reaches the projection.
 function loadGeomExpr(geomType: string, quotedCol: string): string {
-  if (geomType === "BLOB") return `ST_Force2D(ST_MakeValid(ST_GeomFromWKB(${quotedCol})))`;
-  if (geomType !== "GEOMETRY")
-    return `ST_Force2D(ST_Transform(ST_MakeValid(${quotedCol}), 'EPSG:4326', true))`;
-  return `ST_Force2D(ST_MakeValid(${quotedCol}))`;
+  if (geomType === "BLOB")
+    return `ST_SetCRS(ST_Force2D(ST_MakeValid(ST_GeomFromWKB(${quotedCol}))), '${CRS}')`;
+  if (geomType !== "GEOMETRY" && geomType !== GEOMETRY_TYPE)
+    return `ST_Force2D(ST_Transform(ST_MakeValid(${quotedCol}), '${CRS}', true))`;
+  return `ST_SetCRS(ST_Force2D(ST_MakeValid(${quotedCol})), '${CRS}')`;
 }
 
 function isIncluded(file: File): boolean {

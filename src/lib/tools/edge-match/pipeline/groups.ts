@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { GEOMETRY_TYPE } from "$lib/db/constants";
 import { PipelineError, runPipeline } from "$lib/tools/edge-extend/pipeline/index";
 import { clipEngine } from "$lib/db/clipEngine";
 import { emptyDetachedIssues, mergeDetachedParts } from "$lib/db/coverage";
@@ -100,12 +101,12 @@ export async function runGroups(
   onStage: GroupStageFn,
   onDone: GroupDoneFn,
 ): Promise<GroupResult[]> {
-  await conn.query("CREATE OR REPLACE TABLE ge_results (fid BIGINT, geom GEOMETRY)");
+  await conn.query(`CREATE OR REPLACE TABLE ge_results (fid BIGINT, geom ${GEOMETRY_TYPE})`);
   await conn.query(
-    "CREATE OR REPLACE TABLE ge_dropped (unit_a BIGINT, overlay_fid BIGINT, reason VARCHAR, geom GEOMETRY)",
+    `CREATE OR REPLACE TABLE ge_dropped (unit_a BIGINT, overlay_fid BIGINT, reason VARCHAR, geom ${GEOMETRY_TYPE})`,
   );
   await conn.query(
-    "CREATE OR REPLACE TABLE ge_extended (fid BIGINT, overlay_fid BIGINT, geom GEOMETRY)",
+    `CREATE OR REPLACE TABLE ge_extended (fid BIGINT, overlay_fid BIGINT, geom ${GEOMETRY_TYPE})`,
   );
   const results: GroupResult[] = [];
 
@@ -188,7 +189,7 @@ export async function runGroups(
 // pieces per group.
 export async function clipGroups(conn: AsyncDuckDBConnection): Promise<void> {
   await conn.query(
-    "CREATE OR REPLACE TABLE ge_clip_empty (unit_a BIGINT, overlay_fid BIGINT, geom GEOMETRY)",
+    `CREATE OR REPLACE TABLE ge_clip_empty (unit_a BIGINT, overlay_fid BIGINT, geom ${GEOMETRY_TYPE})`,
   );
   await emptyDetachedIssues(conn, "ge_detached");
   // The orphan passthrough group has no overlay boundary, so it stays unclipped.
