@@ -2,8 +2,9 @@
 
 This request is for an Azure Static Web App to host the site at
 `cod.unocha.org`, a private storage account for the open geodata it shows, and
-an Azure Front Door Standard profile that serves that geodata to visitors, all
-in an OCHA Azure subscription.
+an Azure Front Door endpoint that serves that geodata to visitors, all in an
+OCHA Azure subscription. The endpoint goes on an existing OCHA Front Door
+profile if there is one, or on a new Standard profile if not.
 
 ## What the app is
 
@@ -35,14 +36,14 @@ or account keys.
 | CORS             | Allow GET and HEAD from any origin (`*`), including the `Range` header and exposing `Content-Range`, `Content-Length` and `ETag`              | Browsers read only the parts of large files they need, and the same cached response works on the live site and preview links |
 | Upload           | Storage Blob Data Contributor on that container only, for two named maintainers, PIM-eligible if the tenant uses PIM                          | Maintainers can add, replace and remove geodata but can't change settings                                                    |
 
-## 3. Front Door Standard
+## 3. Front Door
 
-| Item        | Request                                                                                                                                                                          | Why                                                                                     |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Profile     | One Front Door Standard profile and endpoint on `data.cod.unocha.org`, with the storage account's blob endpoint as its origin (no Private Link)                                  | Visitors' browsers load the geodata without signing in, while the storage stays private |
-| Read access | A system-assigned managed identity for origin authentication, with Storage Blob Data Reader on that container only (granted before the identity is attached to the origin group) | Front Door can only read that container                                                 |
-| Caching     | On, with a cache duration of 1 hour                                                                                                                                              | Repeat reads come from Front Door's cache, and replaced files show up within an hour    |
-| Rate limit  | A WAF custom rule that limits requests per IP address                                                                                                                            | Slows scrapers and misconfigured bots                                                   |
+| Item        | Request                                                                                                                                                                                                              | Why                                                                                                                                          |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Profile     | An endpoint on `data.cod.unocha.org`, on an existing OCHA Standard or Premium profile if there is one, otherwise on a new Standard profile, with the storage account's blob endpoint as its origin (no Private Link) | Visitors' browsers load the geodata without signing in, while the storage stays private. An existing profile avoids the $420 yearly base fee |
+| Read access | A system-assigned managed identity for origin authentication, with Storage Blob Data Reader on that container only (granted before the identity is attached to the origin group)                                     | Front Door can only read that container                                                                                                      |
+| Caching     | On, with a cache duration of 1 hour                                                                                                                                                                                  | Repeat reads come from Front Door's cache, and replaced files show up within an hour                                                         |
+| Rate limit  | A WAF custom rule that limits requests per IP address                                                                                                                                                                | Slows scrapers and misconfigured bots                                                                                                        |
 
 The request does not include Owner or Contributor on the storage account, the
 Front Door profile or the resource group, account keys, or the right to give
@@ -59,24 +60,26 @@ credentials aren't stored anywhere.
 West Europe and Front Door Zone 1 (Europe and North America) list prices from
 the Azure Retail Prices API, November 2026:
 
-| Item                            | Price                                                                                     |
-| ------------------------------- | ----------------------------------------------------------------------------------------- |
-| Static Web App, Standard        | $9 a month, with 100 GB of bandwidth a month per subscription included, then $0.20 per GB |
-| Front Door Standard             | $35 a month, including WAF custom rules                                                   |
-| Front Door data to visitors     | $0.083 per GB for the first 10 TB a month                                                 |
-| Front Door requests             | $0.009 per 10,000 requests                                                                |
-| Storage                         | About $2 a month for 100 GB, at $0.0196 per GB                                            |
-| Data from storage to Front Door | Free                                                                                      |
+| Item                            | Price                                                                                              |
+| ------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Static Web App, Standard        | $108 a year, with 100 GB of bandwidth a month per subscription included, then $0.20 per GB         |
+| Front Door Standard             | $420 a year per profile, including WAF custom rules                                                |
+| Front Door custom domain        | $60 a year on the Azure price list if it applies to this domain, not included in the figures below |
+| Front Door data to visitors     | $0.083 per GB for the first 10 TB a month                                                          |
+| Front Door requests             | $0.009 per 10,000 requests                                                                         |
+| Storage                         | About $24 a year for 100 GB, at $0.0196 per GB a month                                             |
+| Data from storage to Front Door | Free                                                                                               |
 
-The fixed cost is about $46 a month, and bandwidth and data transfer add to it
-as traffic grows. The scenarios assume about 15 MB of site bandwidth, 10 MB of
-geodata and 200 geodata requests per visit, rounded up:
+The fixed cost is about $550 a year with a new Front Door profile and about
+$130 with an existing one, and bandwidth and data transfer add to it as traffic
+grows. The scenarios assume about 15 MB of site bandwidth, 10 MB of geodata and
+200 geodata requests per visit, rounded up:
 
-| Scenario   | Traffic in a month                                                      | Monthly    | Yearly                             |
-| ---------- | ----------------------------------------------------------------------- | ---------- | ---------------------------------- |
-| Average    | About 1,000 visits                                                      | $50        | $600                               |
-| Busy       | About 10,000 visits (150 GB site, 100 GB geodata)                       | $70 to $90 | $840 to $1,080                     |
-| Worst case | A misconfigured bot downloading all 40 GB of geodata every day (1.2 TB) | About $150 | About $1,800 if it lasted all year |
+| Scenario   | Traffic in a month                                                      | New profile, yearly                | Existing profile, yearly           |
+| ---------- | ----------------------------------------------------------------------- | ---------------------------------- | ---------------------------------- |
+| Average    | About 1,000 visits                                                      | $600                               | $180                               |
+| Busy       | About 10,000 visits (150 GB site, 100 GB geodata)                       | $840 to $1,080                     | $420 to $660                       |
+| Worst case | A misconfigured bot downloading all 40 GB of geodata every day (1.2 TB) | About $1,800 if it lasted all year | About $1,380 if it lasted all year |
 
 The busy range depends on whether other apps in the subscription already use
 the Static Web App's free 100 GB allowance. An Azure budget alert at $100 a
