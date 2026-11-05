@@ -181,8 +181,7 @@ test("a numbered sibling before its base is kept in place and reported", async (
   expect(result.misorderedSiblings).toEqual(["adm1_name"]);
 });
 
-// drift: py #234 accepts a crosswalk that lists GIS bookkeeping columns
-test.fails("noise columns listed in the crosswalk are accepted", async () => {
+test("noise columns listed in the crosswalk are accepted", async () => {
   await apply(
     csv([
       ["Name_Old", "adm1_name"],
