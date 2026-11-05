@@ -139,10 +139,10 @@ for a several-thousand-unit admin layer.
 
 ## Column auto-detection
 
-`$lib/db/columns.ts` picks a default code column and name column per side by
-regex, first-match-wins, against the attribute table's column names (e.g.
-`pcode`/`iso3`/`gid` patterns for code, `*_name`/`label`/`adm*_en` patterns
-for name). It only supplies the _default_ selection shown in the column
-picker; the user can override either pick per side at any time, and
+`pipeline/columns.ts` picks a default code column and name column per side
+from the finest admin level that Schema Map's `resolveLevels` finds in the
+data (topo-tools' ADR 0148), so a hierarchy's unit columns win over its
+parents'. A side with no detectable level starts at `(none)`. It only
+supplies the _default_ selection shown in the column picker; the user can override either pick per side at any time, and
 changing a selection re-keys that side and re-classifies without reloading
 or re-measuring overlap.
