@@ -1,6 +1,6 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { bboxColumnsSql } from "./bbox";
-import { CLIP_PAIR_VERTEX_BUDGET, SNAP_TOLERANCE } from "./constants";
+import { CLIP_PAIR_VERTEX_BUDGET, GEOMETRY_TYPE, SNAP_TOLERANCE } from "./constants";
 import { nearPartPairs } from "./gridPairs";
 
 export const INVALID_EDGE_REASON = "edges overlap or do not match the neighbouring polygon";
@@ -17,7 +17,7 @@ async function invalidPartPairs(conn: AsyncDuckDBConnection, on: string, first =
     JOIN (SELECT pid, n FROM _ie_parts) a USING (pid)
     JOIN (SELECT pid AS near_pid, n FROM _ie_parts) b USING (near_pid)
   `);
-  await x("CREATE OR REPLACE TABLE _ie_edges (pid BIGINT, near_pid BIGINT, geom GEOMETRY)");
+  await x(`CREATE OR REPLACE TABLE _ie_edges (pid BIGINT, near_pid BIGINT, geom ${GEOMETRY_TYPE})`);
   const batches = (await x("SELECT DISTINCT batch FROM _ie_batch ORDER BY 1"))
     .toArray()
     .map((r) => Number((r as { batch: bigint | number }).batch));

@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { GEOMETRY_TYPE } from "./constants";
 import { bboxColumnsSql, bboxOverlapSql, subdivideSql } from "./bbox";
 import {
   DETACHED_MAX_ORIGINAL_SHARE,
@@ -16,7 +17,7 @@ export async function emptyRegions(
   extra = "",
 ): Promise<void> {
   await conn.query(
-    `CREATE OR REPLACE TABLE ${table} AS SELECT NULL::BIGINT AS n${extra}, NULL::GEOMETRY AS geom WHERE FALSE`,
+    `CREATE OR REPLACE TABLE ${table} AS SELECT NULL::BIGINT AS n${extra}, NULL::${GEOMETRY_TYPE} AS geom WHERE FALSE`,
   );
 }
 
@@ -215,7 +216,7 @@ async function emptyMicroIssues(conn: AsyncDuckDBConnection, issuesTable: string
     CREATE OR REPLACE TABLE ${issuesTable} AS
     SELECT NULL::VARCHAR AS key, NULL::VARCHAR AS kind, NULL::BIGINT AS unit_a,
            NULL::BIGINT AS unit_b, NULL::VARCHAR AS reason, NULL::DOUBLE AS area_m2,
-           NULL::DOUBLE AS max_width_m, NULL::BOOLEAN AS fixed, NULL::GEOMETRY AS geom,
+           NULL::DOUBLE AS max_width_m, NULL::BOOLEAN AS fixed, NULL::${GEOMETRY_TYPE} AS geom,
            NULL::DOUBLE AS xmin, NULL::DOUBLE AS xmax, NULL::DOUBLE AS ymin, NULL::DOUBLE AS ymax
     WHERE FALSE
   `);
@@ -234,7 +235,7 @@ async function rebuildRowwise(
   const rnids = (await conn.query(`SELECT rnid FROM ${touched}`)).toArray() as Array<{
     rnid: bigint | number;
   }>;
-  await conn.query(`CREATE OR REPLACE TABLE ${rebuilt} (rnid BIGINT, geom GEOMETRY)`);
+  await conn.query(`CREATE OR REPLACE TABLE ${rebuilt} (rnid BIGINT, geom ${GEOMETRY_TYPE})`);
   let snapped = 0;
   for (const { rnid } of rnids) {
     const insert = (combine: string) => `--sql
@@ -383,7 +384,7 @@ export async function emptyDetachedIssues(
     SELECT NULL::VARCHAR AS key, NULL::VARCHAR AS kind, NULL::BIGINT AS unit_a,
            NULL::BIGINT AS unit_b, NULL::BIGINT AS overlay_fid, NULL::VARCHAR AS reason,
            NULL::DOUBLE AS area_m2, NULL::DOUBLE AS max_width_m, NULL::DOUBLE AS thinness_ratio,
-           NULL::BOOLEAN AS fixed, NULL::GEOMETRY AS geom,
+           NULL::BOOLEAN AS fixed, NULL::${GEOMETRY_TYPE} AS geom,
            NULL::DOUBLE AS xmin, NULL::DOUBLE AS xmax, NULL::DOUBLE AS ymin, NULL::DOUBLE AS ymax
     WHERE FALSE
   `);

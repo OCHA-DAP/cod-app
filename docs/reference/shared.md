@@ -59,8 +59,8 @@ name instead of repeating them.
   and GML. A driver absent from the current build MUST NOT appear as an
   option. GeoJSON export MUST be served from an already-cached string
   rather than a GDAL driver, when a cached copy is available.
-- A GDAL export MUST declare `SRS 'EPSG:4326'` explicitly, since loaded
-  geometry carries no other CRS.
+- A GDAL export MUST declare its output CRS in `SRS` explicitly: `OGC:CRS84`
+  for KML, `EPSG:4326` for every driver that can't write `OGC:CRS84` in WASM.
 
 ## Before/after view (`$lib/components/SideToggle.svelte`)
 
@@ -74,15 +74,19 @@ name instead of repeating them.
 
 ## Loading and normalization
 
-- Loading MUST reproject every input geometry to EPSG:4326, run
-  `ST_MakeValid`, and force it to 2D, before any tool-specific stage runs.
+- Loading MUST reproject every input geometry to `OGC:CRS84` (WGS84 lon/lat,
+  a CRS-less source being taken as already in it), run `ST_MakeValid`, force
+  it to 2D and tag it `OGC:CRS84`, before any tool-specific stage runs.
+  Internal tables MUST declare geometry columns with that tag. GeoParquet
+  output MUST be GeoParquet 2.0 with the default CRS signalled by omitting
+  the `geo` metadata's `crs` key.
 - Loading MUST assign a stable `fid` to every feature (`row_number()` over
   the load order) if the source format doesn't already carry one.
 - A GeoParquet file MUST be read with its embedded `geo` metadata, so its
   geometry is reprojected from the declared CRS (a column with no `crs`
   entry is OGC:CRS84). If that metadata cannot be parsed (e.g. a malformed
   field), the file MUST still load, by stripping the metadata and reading
-  the geometry column as raw WKB taken as EPSG:4326.
+  the geometry column as raw WKB taken as WGS84 lon/lat.
 - GeoParquet bbox covering columns (a `STRUCT` column named `bbox` or
   ending in `_bbox`) MUST be excluded from the loaded attributes.
 - A loaded layer whose extent falls outside [-180, 180] x [-90, 90] MUST be

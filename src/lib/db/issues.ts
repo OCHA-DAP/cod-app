@@ -1,5 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { NOTCH_SPACING, SNAP_TOLERANCE } from "./constants";
+import { GEOMETRY_TYPE, NOTCH_SPACING, SNAP_TOLERANCE } from "./constants";
 import { buildGapTable, buildOverlapTable, emptyRegions, isMicroSql } from "./coverage";
 import { detectNotches } from "./notches";
 import { degSqToM2, degToM } from "./units";
@@ -120,7 +120,7 @@ export async function buildNotchRegions(
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${targetTable} AS
       SELECT NULL::BIGINT AS n, NULL::BIGINT AS unit_a, NULL::BIGINT AS unit_b,
-             NULL::DOUBLE AS score, NULL::GEOMETRY AS geom WHERE FALSE
+             NULL::DOUBLE AS score, NULL::${GEOMETRY_TYPE} AS geom WHERE FALSE
     `);
     return false;
   }

@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { GEOMETRY_TYPE } from "./constants";
 import { bboxColumnsSql } from "./bbox";
 import {
   NODING_FALLBACK_GRID,
@@ -369,7 +370,7 @@ export async function closeNotches(conn: AsyncDuckDBConnection, table: string): 
     await conn.query(`--sql
       CREATE OR REPLACE TABLE _notch_w AS
       SELECT p.win, ST_Intersection(ST_Boundary(b.geom), p.win) AS tb,
-             NULL::GEOMETRY AS ta,
+             NULL::${GEOMETRY_TYPE} AS ta,
              ST_Intersection(a.geom, p.win) AS ai,
              ST_Difference(a.geom, p.win) AS ao,
              ST_Intersection(b.geom, p.win) AS bi,

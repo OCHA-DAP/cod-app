@@ -1,6 +1,6 @@
 // Meters ⇄ degrees conversion for display-only measurements (issue-report
 // area/width columns, gap-width sliders). All data is normalized to
-// EPSG:4326 (degrees) on load, so geometry math stays in degrees throughout;
+// WGS84 lon/lat (degrees) on load, so geometry math stays in degrees throughout;
 // this exists only to render distances/areas in units a user reasons in.
 // One degree of longitude shrinks by cos(latitude), so conversions scale by
 // the dataset's centroid latitude (cached once per load, per tool module

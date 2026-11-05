@@ -1,6 +1,6 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { bboxColumnsSql, subdivideSql } from "./bbox";
-import { CLIP_PAIR_VERTEX_BUDGET } from "./constants";
+import { CLIP_PAIR_VERTEX_BUDGET, GEOMETRY_TYPE } from "./constants";
 
 // Ported from topo-tools' core/clip/_tiles.py: adds `table` (tid, overlay_fid, geom,
 // bbox) rows for every fid not tiled yet.
@@ -12,7 +12,7 @@ export async function buildTiles(
 ): Promise<void> {
   await conn.query(`--sql
     CREATE TABLE IF NOT EXISTS ${table} (
-      tid BIGINT, overlay_fid BIGINT, geom GEOMETRY, xmin DOUBLE, xmax DOUBLE, ymin DOUBLE, ymax DOUBLE
+      tid BIGINT, overlay_fid BIGINT, geom ${GEOMETRY_TYPE}, xmin DOUBLE, xmax DOUBLE, ymin DOUBLE, ymax DOUBLE
     )
   `);
   const fids = (

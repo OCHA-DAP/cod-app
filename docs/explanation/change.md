@@ -10,7 +10,7 @@ original name, "Boundary Cross-walk".
 
 1. **Load** (`pipeline/load.ts`) — each side is loaded and normalized
    independently (`loadFile` in `$lib/db/loader.ts`: `ST_MakeValid`,
-   reproject to EPSG:4326, force 2D), then reduced to a keyed table
+   reproject to `OGC:CRS84`, force 2D), then reduced to a keyed table
    (`fid`, `code`, `name`, `geom`) from the user's column picks.
 2. **Overlap** (`$lib/db/overlap.ts`, shared with Edge Matcher) — computes
    `shared_area`/`coverage_a`/`coverage_b`/`iou` for every touching pair.
