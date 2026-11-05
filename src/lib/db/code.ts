@@ -262,12 +262,50 @@ export async function seedCodeFromNames(
       `level ${level} has neither ${JSON.stringify(code)} nor a name column in ${table}`,
     );
   }
+  const nameSql = `${quoteIdent(name)}::VARCHAR`;
+  if ((await describeColumns(conn, table)).includes(code)) {
+    await conn.query(`UPDATE ${quoteIdent(table)} SET ${quoteIdent(code)} = ${nameSql}`);
+  } else {
+    await insertColumnAfter(conn, table, code, nameSql, [name]);
+  }
+}
+
+async function describeColumns(conn: AsyncDuckDBConnection, table: string): Promise<string[]> {
+  const desc = await conn.query(`DESCRIBE ${quoteIdent(table)}`);
+  return (desc.toArray() as Array<{ column_name: string }>).map((r) => r.column_name);
+}
+
+// Adds column (valued by sql) after the last column starting with any of after, else last.
+async function insertColumnAfter(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  column: string,
+  sql: string,
+  after: Array<string | null | undefined>,
+): Promise<void> {
+  const columns = await describeColumns(conn, table);
+  const hits = columns.flatMap((c, i) => (after.some((a) => a && c.startsWith(a)) ? [i] : []));
+  const select = columns.map(quoteIdent);
+  const at = hits.length ? hits[hits.length - 1] + 1 : columns.length;
+  select.splice(at, 0, `${sql} AS ${quoteIdent(column)}`);
   await conn.query(
-    `ALTER TABLE ${quoteIdent(table)} ADD COLUMN IF NOT EXISTS ${quoteIdent(code)} VARCHAR`,
+    `CREATE OR REPLACE TABLE ${quoteIdent(table)} AS SELECT ${select.join(", ")} FROM ${quoteIdent(table)}`,
   );
-  await conn.query(
-    `UPDATE ${quoteIdent(table)} SET ${quoteIdent(code)} = ${quoteIdent(name)}::VARCHAR`,
-  );
+}
+
+// Sets column to rootCode on every row, adding it after `after` if missing.
+export async function writeRootCode(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  column: string,
+  rootCode: string,
+  after: Array<string | null | undefined>,
+): Promise<void> {
+  if (!(await describeColumns(conn, table)).includes(column)) {
+    await insertColumnAfter(conn, table, column, "NULL::VARCHAR", after);
+  }
+  const literal = "'" + rootCode.replace(/'/g, "''") + "'";
+  await conn.query(`UPDATE ${quoteIdent(table)} SET ${quoteIdent(column)} = ${literal}`);
 }
 
 // Throws if two rows share a name under one parent, so seeding would merge them.

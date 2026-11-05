@@ -84,5 +84,6 @@ renamed.
 Structurally resolved levels are renumbered to a clean `1..N`, coarsest
 first. A genuinely constant coarsest column (a single-country file's own
 admin0 code) never becomes a level, so the root code is only the literal
-parent of level 1. With explicit templates, a level 0 code column is set
-to the root code on every row, and only levels `>= 1` are numbered.
+parent of level 1, since no level 0 column name follows from the data.
+With explicit templates, level 0 always exists: its code column holds the
+root code on every row, and only levels `>= 1` are numbered.

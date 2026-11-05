@@ -80,6 +80,12 @@ function familyPattern(template: string): RegExp {
   return new RegExp(`^${escapeRegExp(before)}(\\d+)${escapeRegExp(after)}(?:${sep}(\\d+))?$`);
 }
 
+// A column's level within a template's family (`adm2_name1` is 2), else null.
+export function familyLevel(column: string, template: string): number | null {
+  const m = familyPattern(template).exec(column);
+  return m ? Number(m[1]) : null;
+}
+
 // Deepest level first (names, other, codes), then the rest in input order; also
 // returns the deepest level's own code column to sort rows by, if any.
 export function canonicalOrder(

@@ -93,6 +93,10 @@ name instead of repeating them.
 - Re-registering a same-named file within one session MUST NOT reuse a
   prior registration's name — each load MUST use a fresh, session-unique
   registered name.
+- Every tool but `schema-map` MUST keep its input's column order. A column
+  it adds MUST go next to its own level's columns: a code column seeded from
+  names right after that level's name columns, and a numbered sibling right
+  after its source column.
 
 ## Coverage-topology checks
 

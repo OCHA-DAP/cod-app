@@ -7,6 +7,7 @@ import {
   quoteIdent,
   seedCodeFromNames,
   widthFor,
+  writeRootCode,
   type CodeFormat,
 } from "$lib/db/code";
 import type { Level } from "./levels";
@@ -51,7 +52,7 @@ async function copySourceCodes(
   const siblings = new Map<string, string>();
   for (const n of ascending(levels)) {
     const level = levels.get(n)!;
-    if (level.seeded) continue;
+    if (level.seeded || (n === 0 && (!levels.has(1) || levels.get(1)!.seeded))) continue;
     const sibling = nextFreeSibling(level.code, taken);
     siblings.set(level.code, sibling);
     taken.add(sibling);
@@ -211,14 +212,18 @@ export async function assignCreateCodes(
     if (!level.seeded) continue;
     await seedCodeFromNames(conn, table, n, level.code, level.name);
     if (n === finest) {
-      await checkUniqueNames(conn, table, n, level.code, levels.get(n - 1)?.code ?? null);
+      // Level 0's column may not exist until the root code is written.
+      const parent = levels.get(n - 1)?.code ?? null;
+      const present = parent !== null && (await columnNames(conn, table)).includes(parent);
+      await checkUniqueNames(conn, table, n, level.code, present ? parent : null);
     }
   }
   if (sourceCodes === "embed") await stripParentPrefixes(conn, table, levels, fmt, integers);
   if (levels.has(0)) {
-    await conn.query(
-      `UPDATE ${qTable} SET ${quoteIdent(levels.get(0)!.code)} = ${sqlStr(fmt.rootCode)}`,
-    );
+    const root = levels.get(0)!;
+    const top = levels.get(1);
+    const after = root.name ? [root.name] : [top?.name, top?.code];
+    await writeRootCode(conn, table, root.code, fmt.rootCode, after);
   }
 
   let parentSql = sqlStr(fmt.rootCode);
