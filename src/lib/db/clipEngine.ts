@@ -2,7 +2,7 @@ import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { GEOMETRY_TYPE } from "./constants";
 import { bboxColumnsSql } from "./bbox";
 import { pairBatches } from "./clipTiles";
-import { mergeDetachedParts } from "./coverage";
+import { gridOnThrow, mergeDetachedParts } from "./coverage";
 
 export interface ClipEngineResult {
   outputCount: number;
@@ -42,13 +42,16 @@ export async function clipEngine(
       .toArray()
       .map((r) => Number((r as { b: bigint | number }).b));
     for (const b of batches) {
-      await x(`--sql
-        INSERT INTO cl_po
-        SELECT p.fid, ST_CollectionExtract(ST_Union_Agg(ST_Intersection(i.geom, t.geom)), 3)
-        FROM cl_bat p JOIN cl_in i USING (fid) JOIN cl_tiles t USING (tid)
-        WHERE p.b = ${b}
-        GROUP BY p.fid
-      `);
+      // Only rows go on the grid, so the overlay boundary stays exact between groups.
+      await gridOnThrow(`clip overlay_fid=${g} batch ${b}`, (grid) =>
+        x(`--sql
+          INSERT INTO cl_po
+          SELECT p.fid, ST_CollectionExtract(ST_Union_Agg(ST_Intersection(${grid("i.geom")}, t.geom)), 3)
+          FROM cl_bat p JOIN cl_in i USING (fid) JOIN cl_tiles t USING (tid)
+          WHERE p.b = ${b}
+          GROUP BY p.fid
+        `),
+      );
     }
     // A row split across batches is unioned once more; a row with no tile pair is dropped.
     await x(`--sql
