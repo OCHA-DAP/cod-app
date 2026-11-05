@@ -66,11 +66,10 @@
 
   // sliderCeilingM: 2× the widest detected gap (Manual slider's ceiling, and
   // All mode's display estimate — its actual fill width is a fixed sentinel,
-  // see pipeline/index.ts). thinFillM: 2× the widest gap shaped like a
-  // digitization sliver (Thin mode). minimalFillM: SNAP_TOLERANCE, only when
+  // see pipeline/index.ts). minimalFillM: SNAP_TOLERANCE, only when
   // a noise-scale gap exists (Minimal mode, the default). Any can be 0,
   // meaning "fill nothing."
-  const { sliderCeilingM, thinFillM, minimalFillM } = $derived(resolveGapFillWidths(issues));
+  const { sliderCeilingM, minimalFillM } = $derived(resolveGapFillWidths(issues));
 
   const gapMaxM = $derived(sliderCeilingM || 100);
   const gapStepM = $derived(niceNum(gapMaxM / 100));
@@ -123,6 +122,7 @@
   let modifiedGeoJSON = $state<string | null>(null);
   let issuesGeoJSON = $state<string | null>(null);
   let issues = $state<IssueRow[]>([]);
+  let thinFillM = $state(0);
   let fixedKeys = $state<Set<string>>(new Set());
   let detectionFailed = $state<Set<IssueKind>>(new Set());
   let exportCheck = $state<ExportCheck | null>(null);
@@ -171,6 +171,7 @@
     modifiedGeoJSON = null;
     issuesGeoJSON = null;
     issues = [];
+    thinFillM = 0;
     fixedKeys = new Set();
     detectionFailed = new Set();
     exportCheck = null;
@@ -233,6 +234,7 @@
       modifiedGeoJSON = result.modifiedGeoJSON;
       issuesGeoJSON = result.issuesGeoJSON;
       issues = result.issues;
+      thinFillM = result.thinFillM;
       fixedKeys = result.fixedKeys;
       detectionFailed = result.detectionFailed;
       exportCheck = result.exportCheck;
@@ -252,6 +254,7 @@
         originalGeoJSON = analysis.originalGeoJSON;
         issuesGeoJSON = analysis.issuesGeoJSON;
         issues = analysis.issues;
+        thinFillM = analysis.thinFillM;
         detectionFailed = analysis.detectionFailed;
         bounds = analysis.bounds;
         totalCount = analysis.totalCount;

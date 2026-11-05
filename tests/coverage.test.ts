@@ -684,8 +684,7 @@ describe("notches", () => {
     ).toBe(true);
   });
 
-  // drift: py #201
-  test.fails("closeNotches keeps a vertex shared with a third unit", async () => {
+  test("closeNotches keeps a vertex shared with a third unit", async () => {
     const poly = (pts: [number, number][]) =>
       "POLYGON((" + pts.map(([x, y]) => `${x * M} ${y * M}`).join(", ") + "))";
     const c: [number, number][] = [
@@ -770,8 +769,7 @@ describe("notches", () => {
     expect(await detectNotches(conn, "units", "after")).toBe(0);
   }
   test("open wedge rising 15 m is a notch", () => openWedge(15, 1));
-  // drift: py #210
-  test.fails("open wedge rising 22 m is past the move limit, not a notch", () => openWedge(22, 0));
+  test("open wedge rising 22 m is past the move limit, not a notch", () => openWedge(22, 0));
 
   test("wide wedge and T-junction are not notches", async () => {
     await wedge([[600, 100]]);

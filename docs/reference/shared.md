@@ -172,13 +172,15 @@ name instead of repeating them.
 
 - A notch is a pair of units whose unshared boundary segments (segments no
   other unit has) run within `NOTCH_SPACING / 8` of each other along at
-  least `NOTCH_MIN_SCORE` spacings, summed over both units. Detection MUST
-  match topo-tools' `detect_notches` unit pairs and scores.
+  least `NOTCH_MIN_SCORE` spacings, summed over both units, and closing
+  would move at least one end of a segment in the run. Detection MUST match
+  topo-tools' `detect_notches` unit pairs and scores.
 - Closing a notch MUST move each flagged segment's endpoint exactly onto
   the other unit, inside a window `NOTCH_WINDOW_MARGIN` around the notch,
   only when the gap is at most `NOTCH_MAX_GAP_RATIO` of the segment's
-  length. A gap those moves enclose between the two units, with no other
-  unit inside it, MUST merge into the unit sharing more of its border.
+  length and the endpoint touches no third unit. A gap those moves enclose,
+  bounded by the two units and their neighbours with no other unit inside
+  it, MUST merge into whichever of the two shares more of its border.
 - A closing failure MUST be caught and logged, leaving the table untouched
   (`tryCloseNotches`).
 

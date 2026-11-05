@@ -4,6 +4,7 @@ import {
   assembleIssues,
   buildGapRegions as sharedBuildGapRegions,
   buildOverlapRegions as sharedBuildOverlapRegions,
+  gapIssuesSql,
   readIssues,
   replaceMicroIssues,
   type IssueKind,
@@ -20,7 +21,7 @@ export type { IssueKind, IssueRow, IssuesResult } from "$lib/db/issues";
 // →0 = elongated crack) below which a gap is treated as a digitization
 // sliver rather than a real feature. Same formula and cutoff guidance
 // ArcGIS Pro's "Polygon Sliver" data-quality check uses. Not user-tunable —
-// see resolveGapFillWidths.
+// see measureThinFillM.
 const DEFAULT_THINNESS_RATIO = 0.3;
 
 // Headroom over the widest qualifying gap's width in Thin mode, so that gap
@@ -31,6 +32,8 @@ const DEFAULT_THINNESS_RATIO = 0.3;
 // (AUTO_GAP_WIDTH_EPSILON_FACTOR, widened from 1.001 to 1.01 after real-data
 // testing).
 const AUTO_GAP_WIDTH_EPSILON_FACTOR = 1.01;
+
+const NEW_GAP_PREFIX = "gap-new-";
 
 // A discrete topology problem in the *input* coverage, surfaced in the issues
 // table so the user can click to zoom to it. Gaps and overlaps are computed once
@@ -111,10 +114,9 @@ export async function syncOutputMicroIssues(
 // Check which issues are resolved in the current cleaned output (tc_clean),
 // persisting the result into tc_issues.fixed so it survives into any export
 // (see export.ts's topology_issues columns) rather than living only in this
-// function's return value. Overlaps are always fixed by ST_CoverageClean. For
-// gaps, we test whether a representative interior point of the gap polygon is
-// now covered by any cleaned polygon — if so, the gap has been merged into a
-// neighbour.
+// function's return value. Overlaps are always fixed by ST_CoverageClean. A gap
+// is fixed when no gap still open in tc_clean overlaps it; an open gap that
+// overlaps no detected gap gets its own unfixed row.
 //
 // Also persists outcome columns (measured after the fix, not detection-time
 // values) matching topo-tools' issues-file schema: unit_a/b_area_change_m2
@@ -123,6 +125,7 @@ export async function syncOutputMicroIssues(
 export async function checkFixedIssues(
   conn: AsyncDuckDBConnection,
   rows: IssueRow[],
+  failedKinds: Set<IssueKind> = new Set(),
 ): Promise<Set<string>> {
   const fixed = new Set<string>();
   rows
@@ -170,31 +173,55 @@ export async function checkFixedIssues(
     }
   }
 
-  const hasGaps = rows.some((r) => r.kind === "gap");
-  if (!hasGaps) return fixed;
-
   try {
+    await conn.query(`DELETE FROM tc_issues WHERE starts_with(key, '${NEW_GAP_PREFIX}')`);
+    if (!(await sharedBuildGapRegions(conn, "tc_open_gap_regions", "tc_clean"))) return fixed;
     await conn.query(`--sql
-      UPDATE tc_issues SET fixed = EXISTS (
-        SELECT 1 FROM tc_clean c WHERE ST_Contains(c.geom, ST_PointOnSurface(tc_issues.geom))
-      )
-      WHERE kind = 'gap'
+      CREATE OR REPLACE TABLE tc_open_gaps AS SELECT * FROM (${gapIssuesSql("tc_open_gap_regions")})
     `);
-    await conn.query(`--sql
-      UPDATE tc_issues
-      SET filled_area_m2 = ST_Area(ST_Intersection(tc_issues.geom, u.geom)) * ${areaFactor}
-      FROM (
-        SELECT ST_Union_Agg(geom) AS geom FROM tc_clean
-        WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
-      ) AS u
-      WHERE tc_issues.kind = 'gap'
-    `);
-    const result = await conn.query(`SELECT key FROM tc_issues WHERE kind = 'gap' AND fixed`);
-    for (const row of result.toArray() as Array<{ key: string }>) {
-      fixed.add(row.key);
+    if (rows.some((r) => r.kind === "gap")) {
+      await conn.query(`--sql
+        UPDATE tc_issues i SET fixed = NOT EXISTS (
+          SELECT 1 FROM tc_open_gaps r
+          WHERE ST_Intersects(r.geom, i.geom) AND ST_Area(ST_Intersection(r.geom, i.geom)) > 0
+        )
+        WHERE kind = 'gap'
+      `);
+      await conn.query(`--sql
+        UPDATE tc_issues
+        SET filled_area_m2 = ST_Area(ST_Intersection(tc_issues.geom, u.geom)) * ${areaFactor}
+        FROM (
+          SELECT ST_Union_Agg(geom) AS geom FROM tc_clean
+          WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+        ) AS u
+        WHERE tc_issues.kind = 'gap'
+      `);
+      const result = await conn.query(`SELECT key FROM tc_issues WHERE kind = 'gap' AND fixed`);
+      for (const row of result.toArray() as Array<{ key: string }>) {
+        fixed.add(row.key);
+      }
+    }
+    // With load-time gap detection failed, every open gap would look new.
+    if (!failedKinds.has("gap")) {
+      await conn.query(`--sql
+        INSERT INTO tc_issues BY NAME
+        SELECT * REPLACE (
+          '${NEW_GAP_PREFIX}' || row_number() OVER (ORDER BY hash(geom)) AS key,
+          'gap opened by the fix' AS reason
+        )
+        FROM tc_open_gaps r
+        WHERE NOT EXISTS (
+          SELECT 1 FROM tc_issues i
+          WHERE i.kind = 'gap' AND ST_Intersects(r.geom, i.geom)
+            AND ST_Area(ST_Intersection(r.geom, i.geom)) > 0
+        )
+      `);
     }
   } catch (e) {
     console.warn("checkFixedIssues failed; fixed status unavailable:", e);
+  } finally {
+    await conn.query("DROP TABLE IF EXISTS tc_open_gap_regions");
+    await conn.query("DROP TABLE IF EXISTS tc_open_gaps");
   }
 
   return fixed;
@@ -207,13 +234,6 @@ export async function checkFixedIssues(
 // exactly that width. Matches topo-tools' own default (no shape
 // heuristic; ADR-0033/0034).
 //
-// Thin (topo-tools' "thin", formerly this UI's default "Auto") only
-// considers gaps shaped like a digitization sliver
-// (thinnessRatio <= DEFAULT_THINNESS_RATIO), and uses just enough headroom
-// over the widest one (AUTO_GAP_WIDTH_EPSILON_FACTOR) to reliably clear it —
-// not "2x and round," which would risk also filling a wider, non-thin gap
-// Thin wasn't meant to touch.
-//
 // sliderCeilingM ("2x the widest detected gap, rounded up to a nice number")
 // is UI-only: it sizes the Manual slider's max/step and All mode's display
 // text. All mode's actual fill width is topo-tools' fixed
@@ -224,18 +244,42 @@ export async function checkFixedIssues(
 // Any of these can be 0 (no qualifying gaps), meaning "fill nothing."
 export function resolveGapFillWidths(rows: IssueRow[]): {
   sliderCeilingM: number;
-  thinFillM: number;
   minimalFillM: number;
 } {
   const widthsOf = (predicate: (r: IssueRow) => boolean) =>
-    rows.filter((r) => r.kind === "gap" && r.maxWidthM > 0 && predicate(r)).map((r) => r.maxWidthM);
+    rows
+      .filter(
+        (r) =>
+          r.kind === "gap" &&
+          !r.key.startsWith(NEW_GAP_PREFIX) &&
+          r.maxWidthM > 0 &&
+          predicate(r),
+      )
+      .map((r) => r.maxWidthM);
   const allWidths = widthsOf(() => true);
-  const thinWidths = widthsOf((r) => (r.thinnessRatio ?? 1) <= DEFAULT_THINNESS_RATIO);
   const snapToleranceM = degToM(SNAP_TOLERANCE);
   const hasNoiseScaleGap = widthsOf((r) => r.maxWidthM <= snapToleranceM).length > 0;
   return {
     sliderCeilingM: allWidths.length ? niceNum(Math.max(...allWidths) * 2) : 0,
-    thinFillM: thinWidths.length ? Math.max(...thinWidths) * AUTO_GAP_WIDTH_EPSILON_FACTOR : 0,
     minimalFillM: hasNoiseScaleGap ? snapToleranceM : 0,
   };
+}
+
+// Thin mode's fill width, 0 with no thin gap. Measured on the table the clean
+// starts from, since closing notches reshapes gaps.
+export async function measureThinFillM(
+  conn: AsyncDuckDBConnection,
+  sourceTable: string,
+): Promise<number> {
+  const regions = sourceTable === "layer_01" ? "tc_gap_regions" : "tc_source_gap_regions";
+  if (sourceTable !== "layer_01") await sharedBuildGapRegions(conn, regions, sourceTable);
+  try {
+    const r = await conn.query(`--sql
+      SELECT MAX(max_width_m) AS width FROM (${gapIssuesSql(regions)})
+      WHERE thinness_ratio <= ${DEFAULT_THINNESS_RATIO}
+    `);
+    return ((r.toArray()[0] as { width: number | null }).width ?? 0) * AUTO_GAP_WIDTH_EPSILON_FACTOR;
+  } finally {
+    await conn.query("DROP TABLE IF EXISTS tc_source_gap_regions");
+  }
 }

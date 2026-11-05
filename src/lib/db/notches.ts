@@ -13,7 +13,15 @@ import {
 
 // Two edges this close count as touching, not as a notch.
 const NOTCH_TOUCH = 1e-9;
-const NOTCH_TMP = ["_notch_all", "_notch_ext", "_notch_near", "_notch_runs", "_notch_fseg"];
+const NOTCH_TMP = [
+  "_notch_all",
+  "_notch_ext",
+  "_notch_near",
+  "_notch_ends",
+  "_notch_moves",
+  "_notch_runs",
+  "_notch_fseg",
+];
 const NOTCH_FIX_TMP = [
   "_notch_flags",
   "_notch_pairs",
@@ -70,7 +78,7 @@ async function buildNotchRuns(conn: AsyncDuckDBConnection, table: string): Promi
   await conn.query(`--sql
     CREATE OR REPLACE TABLE _notch_near AS
     WITH sp AS (
-      SELECT a.sid, a.rnid AS own, b.rnid AS other, a.geom AS ag, b.geom AS bg
+      SELECT a.sid, a.rnid AS own, b.rnid AS other, b.sid AS osid, a.geom AS ag, b.geom AS bg
       FROM _notch_ext a JOIN _notch_ext b
         ON a.rnid <> b.rnid
        AND b.xmin <= a.xmax + ${r} AND b.xmax >= a.xmin - ${r}
@@ -101,19 +109,67 @@ async function buildNotchRuns(conn: AsyncDuckDBConnection, table: string): Promi
             FROM starts)
       GROUP BY sid, own, other, near, isl
     )
-    SELECT sid, own, least(own, other) AS ua, greatest(own, other) AS ub,
-           ST_Collect(list(ST_LineSubstring(ag, f0, f1)) FILTER (WHERE near)) AS piece,
-           ST_Length(any_value(ag))
-             * (sum(f1 - f0) FILTER (WHERE near)
-                - coalesce(sum(f1 - f0) FILTER (WHERE NOT near), 0)) AS len
-    FROM merged
-    GROUP BY sid, own, other
-    HAVING count(*) FILTER (WHERE near) > 0
+    SELECT m.sid, m.own, m.other, any_value(o.osids) AS osids,
+           least(m.own, m.other) AS ua, greatest(m.own, m.other) AS ub,
+           ST_Collect(list(ST_LineSubstring(m.ag, m.f0, m.f1)) FILTER (WHERE m.near)) AS piece,
+           ST_Length(any_value(m.ag))
+             * (sum(m.f1 - m.f0) FILTER (WHERE m.near)
+                - coalesce(sum(m.f1 - m.f0) FILTER (WHERE NOT m.near), 0)) AS len
+    FROM merged m
+    JOIN (SELECT sid, other, list(DISTINCT osid) AS osids FROM sp GROUP BY sid, other) o
+      USING (sid, other)
+    GROUP BY m.sid, m.own, m.other
+    HAVING count(*) FILTER (WHERE m.near) > 0
+  `);
+  // closeNotches moves an endpoint touching no third unit onto the other unit
+  // when it lies within NOTCH_MAX_GAP_RATIO of its longest flagged segment.
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE _notch_ends AS
+    SELECT n.sid, n.own, n.other, ST_Length(e.geom) AS seglen,
+           UNNEST([ST_StartPoint(e.geom), ST_EndPoint(e.geom)]) AS p
+    FROM _notch_near n JOIN _notch_ext e USING (sid)
+    WHERE n.len > 1e-12
+  `);
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE _notch_moves AS
+    WITH v AS (
+      SELECT own, other, x, y, any_value(p) AS p, max(seglen) * ${NOTCH_MAX_GAP_RATIO} AS lim
+      FROM (SELECT *, ST_X(p) AS x, ST_Y(p) AS y FROM _notch_ends)
+      GROUP BY own, other, x, y
+    ),
+    vd AS (
+      SELECT v.own, v.other, v.x, v.y,
+             coalesce(min(ST_Distance(v.p, s.geom)) FILTER (WHERE s.rnid = v.other), 'inf'::DOUBLE)
+               BETWEEN ${NOTCH_TOUCH} AND v.lim
+             AND NOT coalesce(bool_or(s.rnid <> v.other AND ST_DWithin(v.p, s.geom, ${NOTCH_TOUCH})),
+                              FALSE) AS moves
+      FROM v JOIN _notch_ext s
+        ON s.rnid <> v.own
+       AND s.xmin <= v.x + v.lim AND s.xmax >= v.x - v.lim
+       AND s.ymin <= v.y + v.lim AND s.ymax >= v.y - v.lim
+      GROUP BY v.own, v.other, v.x, v.y, v.lim
+    )
+    SELECT e.sid, e.other, bool_or(coalesce(vd.moves, FALSE)) AS moves
+    FROM _notch_ends e LEFT JOIN vd
+      ON vd.own = e.own AND vd.other = e.other AND vd.x = ST_X(e.p) AND vd.y = ST_Y(e.p)
+    GROUP BY e.sid, e.other
   `);
   // Gridded first: WASM GEOS hits non-noded intersections unioning the raw buffers.
   await conn.query(`--sql
     CREATE OR REPLACE TABLE _notch_runs AS
-    WITH h AS (SELECT * FROM _notch_near WHERE len > 1e-12),
+    WITH k AS (SELECT sid, other FROM _notch_moves WHERE moves),
+    moved AS (
+      SELECT n.sid, n.other FROM _notch_near n SEMI JOIN k USING (sid, other)
+      UNION
+      SELECT n.sid, n.other
+      FROM (SELECT sid, own, other, UNNEST(osids) AS osid FROM _notch_near) n
+      JOIN k ON k.sid = n.osid AND k.other = n.own
+    ),
+    h AS (
+      SELECT n.*, m.sid IS NOT NULL AS moved FROM _notch_near n
+      LEFT JOIN moved m USING (sid, other)
+      WHERE len > 1e-12
+    ),
     b AS (
       SELECT row_number() OVER () AS bid, ua, ub, blob FROM (
         SELECT ua, ub,
@@ -126,7 +182,8 @@ async function buildNotchRuns(conn: AsyncDuckDBConnection, table: string): Promi
     SELECT b.ua, b.ub, any_value(b.blob) AS blob, sum(h.len) / ${s} AS score
     FROM h JOIN b ON h.ua = b.ua AND h.ub = b.ub AND ST_Intersects(h.piece, b.blob)
     GROUP BY b.bid, b.ua, b.ub
-    HAVING sum(h.len) / ${s} >= ${NOTCH_MIN_SCORE}
+    -- A run is a notch only if closeNotches moves an end of one of its segments.
+    HAVING sum(h.len) / ${s} >= ${NOTCH_MIN_SCORE} AND bool_or(h.moved)
   `);
 }
 
@@ -184,7 +241,8 @@ function projectNotchSideSql(
      QUALIFY row_number() OVER (PARTITION BY v.vid ORDER BY ST_Distance(v.g, s.s)) = 1`,
     `CREATE OR REPLACE TABLE ${p}_moved AS
      SELECT v.pid, v.rn, v.k,
-            CASE WHEN ST_Distance(v.g, ST_Boundary(w.win)) <= ${NOTCH_TOUCH} THEN v.g
+            CASE WHEN ST_Distance(v.g, ST_Boundary(w.win)) <= ${NOTCH_TOUCH}
+                   OR ST_DWithin(v.g, w.others, ${NOTCH_TOUCH}) THEN v.g
                  WHEN n.dd > ${NOTCH_TOUCH} AND n.dd <= f.seglen * ${NOTCH_MAX_GAP_RATIO}
                  THEN n.cp ELSE v.g END AS g
      FROM ${p}_v v
@@ -214,11 +272,16 @@ async function fillEnclosedNotchGaps(
 ): Promise<void> {
   await conn.query(`--sql
     CREATE OR REPLACE TABLE _notch_holes AS
-    WITH u AS (
-      SELECT FALSE AS before, ST_Union(na, nb) AS g FROM _notch_one
+    WITH nbr AS (
+      SELECT coalesce(ST_Union_Agg(x.geom), 'POLYGON EMPTY'::GEOMETRY) AS g
+      FROM _notch_all x, _notch_w w
+      WHERE x.rnid NOT IN (${ua}, ${ub}) AND ST_Intersects(x.geom, w.win)
+    ),
+    u AS (
+      SELECT FALSE AS before, ST_Union(ST_Union(na, nb), nbr.g) AS g FROM _notch_one, nbr
       UNION ALL
-      SELECT TRUE, ST_Union(a.geom, b.geom)
-      FROM _notch_all a, _notch_all b WHERE a.rnid = ${ua} AND b.rnid = ${ub}
+      SELECT TRUE, ST_Union(ST_Union(a.geom, b.geom), nbr.g)
+      FROM _notch_all a, _notch_all b, nbr WHERE a.rnid = ${ua} AND b.rnid = ${ub}
     ),
     parts AS (SELECT before, UNNEST(ST_Dump(g)).geom AS p FROM u),
     holes AS (
@@ -310,7 +373,9 @@ export async function closeNotches(conn: AsyncDuckDBConnection, table: string): 
              ST_Intersection(a.geom, p.win) AS ai,
              ST_Difference(a.geom, p.win) AS ao,
              ST_Intersection(b.geom, p.win) AS bi,
-             ST_Difference(b.geom, p.win) AS bo
+             ST_Difference(b.geom, p.win) AS bo,
+             (SELECT ST_Union_Agg(ST_Boundary(x.geom)) FROM _notch_all x
+              WHERE x.rnid NOT IN (${ua}, ${ub}) AND ST_Intersects(x.geom, p.win)) AS others
       FROM _notch_pairs p
       JOIN _notch_all a ON a.rnid = p.ua JOIN _notch_all b ON b.rnid = p.ub
       WHERE p.ua = ${ua} AND p.ub = ${ub}

@@ -51,7 +51,8 @@ four UI modes:
   compactness ratio (`4·π·Area / Perimeter²`) at or below 0.3, the same
   formula and cutoff guidance ArcGIS Pro's "Polygon Sliver" check uses. The
   fill width is the widest qualifying gap's Maximum-Inscribed-Circle
-  diameter plus 1% headroom.
+  diameter plus 1% headroom, measured after notch closing, which reshapes
+  gaps.
 - **All** — fills every detected gap regardless of shape or width, via a
   fixed sentinel width (`GAP_MAXIMUM_WIDTH_ALL_DEG`, 360°) rather than one
   derived from the widest detected gap.

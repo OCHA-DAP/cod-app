@@ -50,8 +50,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   is at or below `SNAP_TOLERANCE` (floating-point-noise scale), and MUST
   set the fill width to exactly `SNAP_TOLERANCE` — no shape heuristic.
 - The `thin` mode MUST fill a gap only when its compactness ratio is at or
-  below `0.3` (a digitization-sliver shape), and MUST set the fill width to
-  the widest such gap's maximum width plus 1% headroom — just enough to
+  below `0.3` (a digitization-sliver shape), measured after notch closing,
+  and MUST set the fill width to the widest such gap's maximum width plus 1%
+  headroom — just enough to
   reliably clear `ST_CoverageClean`'s internal width comparison, not enough
   to also sweep in a wider, non-thin gap.
 - The `all` mode MUST consider every detected gap regardless of shape or
@@ -102,10 +103,13 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   display, not rejected.
 - `topo-clean` MUST report, for every originally-detected issue, whether it
   ended up resolved in the current cleaned output: an overlap or a
-  micro-polygon MUST always count as resolved; a gap MUST count as resolved only if a representative
-  interior point of the gap is now covered by some polygon in the cleaned
-  output; a notch MUST count as resolved only if no notch between the same
-  two units still intersects it in the cleaned output.
+  micro-polygon MUST always count as resolved; a gap MUST count as resolved
+  only if no gap still open in the cleaned output overlaps it; a notch MUST
+  count as resolved only if no notch between the same two units still
+  intersects it in the cleaned output. A gap open in the cleaned output that
+  overlaps no detected gap MUST get its own unresolved `gap` row (key
+  `gap-new-N`, reason `gap opened by the fix`), replaced on every reclean, so
+  the unresolved gap rows match `topo-detect` on the output.
 - `topo-clean` MUST merge or drop every micro-polygon left in its output,
   including when the clean was skipped, and MUST replace the previous
   clean's output `micro-polygon` issues with this clean's on every reclean.
