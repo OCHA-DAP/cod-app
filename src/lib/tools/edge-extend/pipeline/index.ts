@@ -7,8 +7,8 @@ import { stageCleanInput } from "./clean";
 import { computeEffectiveDistance } from "./distance";
 import { stageLines } from "./lines";
 import { stageMerge } from "./merge";
-import { buildSegments, stagePoints } from "./points";
-import { stageVoronoi } from "./voronoi";
+import { buildSegments, estimateCount, stagePoints } from "./points";
+import { AssignmentError, stageVoronoi } from "./voronoi";
 
 export type ProgressFn = (stage: number, label: string) => void;
 
@@ -42,6 +42,7 @@ const INTERNAL_TABLES = [
   "layer_03_tmp2",
   "layer_03_tmp3",
   "layer_03_tmp4",
+  "layer_04_tmp0",
   "layer_04_tmp1",
   "layer_04_tmp2",
   "layer_04",
@@ -127,12 +128,17 @@ export interface RunPipelineOptions {
   skipOutputClean?: boolean;
   // Edge Matcher already closed the whole input's notches and cleaned it with the any-hole trigger.
   skipInputHoleCheck?: boolean;
+  maxPoints?: number;
 }
 
 export async function runPipeline(
   conn: AsyncDuckDBConnection,
   onProgress: ProgressFn,
-  { skipOutputClean = false, skipInputHoleCheck = false }: RunPipelineOptions = {},
+  {
+    skipOutputClean = false,
+    skipInputHoleCheck = false,
+    maxPoints = MAX_POINTS,
+  }: RunPipelineOptions = {},
 ): Promise<PipelineResult> {
   // Defensive sweep in case a prior run in this session left tables behind
   // (e.g. an Edge Matcher loop iterating over multiple groups).
@@ -153,8 +159,10 @@ export async function runPipeline(
   console.log("[EE-DEBUG] === buildSegments ===");
   await buildSegments(conn);
 
-  // Stages 3+4: points → MAX_POINTS check → voronoi, retry with doubling
+  // Stages 3+4: points → MAX_POINTS check → voronoi, retry with doubling.
+  // A distance estimated over the limit is skipped unbuilt.
   let succeeded = false;
+  let skipped = 0;
   let lastFailedStage = "";
   let lastDistance: number;
   try {
@@ -163,12 +171,18 @@ export async function runPipeline(
     for (let i = 0; i < MAX_ATTEMPTS; i++) {
       const d = startDistance * Math.pow(2, i);
       lastDistance = d;
+      const estimate = await estimateCount(conn, d);
+      if (estimate > maxPoints) {
+        console.info(`skip: distance=${d}, about ${estimate.toLocaleString()} points estimated`);
+        skipped++;
+        continue;
+      }
       let inVoronoi = false;
       try {
         console.log(`[EE-DEBUG] === stagePoints (attempt ${i + 1}, distance=${d}) ===`);
         onProgress(
           3,
-          i === 0
+          !lastFailedStage
             ? "Interpolating points"
             : `Interpolating points (retry ${i}, distance=${d.toFixed(6)}, ${lastFailedStage} failed)`,
         );
@@ -177,7 +191,7 @@ export async function runPipeline(
         const cnt = Number(
           (await conn.query("SELECT COUNT(*) AS n FROM layer_03b")).toArray()[0].n,
         );
-        if (cnt > MAX_POINTS) throw new Error(`too many points: ${cnt.toLocaleString()}`);
+        if (cnt > maxPoints) throw new Error(`too many points: ${cnt.toLocaleString()}`);
 
         inVoronoi = true;
         console.log(`[EE-DEBUG] === stageVoronoi (attempt ${i + 1}, distance=${d}) ===`);
@@ -187,16 +201,32 @@ export async function runPipeline(
         succeeded = true;
         break;
       } catch (e) {
+        if (e instanceof AssignmentError) {
+          throw new PipelineError(`distance=${d}: ${e.message}`, 4);
+        }
         lastFailedStage = inVoronoi ? "voronoi" : "points";
         console.warn(`Attempt ${i + 1} failed at ${lastFailedStage} stage (distance=${d}):`, e);
         // Drop only points/voronoi tables; preserve _02a/_02b across retries.
-        for (const t of ["layer_03a", "layer_03b", "layer_04_tmp1", "layer_04_tmp2", "layer_04"]) {
+        for (const t of [
+          "layer_03a",
+          "layer_03b",
+          "layer_04_tmp0",
+          "layer_04_tmp1",
+          "layer_04_tmp2",
+          "layer_04",
+        ]) {
           await conn.query(`DROP TABLE IF EXISTS ${t}`);
         }
       }
     }
   } finally {
     await conn.query("DROP TABLE IF EXISTS layer_03_tmp1");
+  }
+  if (skipped === MAX_ATTEMPTS) {
+    throw new PipelineError(
+      `Failed to generate Voronoi polygons: every distance estimated over ${maxPoints.toLocaleString()} points.`,
+      3,
+    );
   }
   if (!succeeded) {
     const failedStageNum = lastFailedStage === "voronoi" ? 4 : 3;

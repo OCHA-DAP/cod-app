@@ -99,8 +99,7 @@ test("exported geo metadata is 2.0.0 with no explicit default CRS", async () => 
   expect(geo.columns.geometry).not.toHaveProperty("crs");
 });
 
-// drift: py #229 clips rows just past ±180/±90 to world bounds
-test.fails("only rows past world bounds are clipped", async () => {
+test("only rows past world bounds are clipped", async () => {
   const inside = "POLYGON((179 0, 179.5 0, 179.5 1, 179 1, 179 0))";
   const past = "POLYGON((179.5 0, 180.0000001 0, 180.0000001 1, 179.5 1, 179.5 0))";
   await load(await write(wkt([inside, past]), "antimeridian.parquet"));

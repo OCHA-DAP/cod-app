@@ -8,6 +8,14 @@ import { SNAP_TOLERANCE } from "$lib/db/constants";
 // (100/250/500/1000/2000), with zero downside on files that don't hit the cap.
 const MAX_POINTS_PER_SEGMENT = 100;
 
+// Points every `step` along geom from a stable per-line offset of up to one step:
+// evenly spaced points lined up across lines break GEOS's Voronoi diagram.
+function shiftedPoints(length: string, step: string): string {
+  const shift = `LEAST((${step}) * (hash(fid, ST_AsWKB(geom)) % 1000) / 1000.0, ${length} / 2)`;
+  return `ST_LineInterpolatePoints(ST_LineSubstring(geom, ${shift} / ${length}, 1.0),
+    LEAST((${step}) / (${length} - ${shift}), 1.0), true)`;
+}
+
 // Decompose each layer_02a line into its own real vertex-to-vertex segments. No geometry
 // alteration — every downstream point stays exactly on the true digitized boundary.
 // Independent of distance, so callers build this once and reuse it across the retry loop
@@ -45,6 +53,22 @@ export async function buildSegments(conn: AsyncDuckDBConnection): Promise<void> 
     )
     WHERE prev_geom IS NOT NULL
   `);
+}
+
+// stagePoints' point count before differencing, from layer_03_tmp1.
+export async function estimateCount(
+  conn: AsyncDuckDBConnection,
+  distance: number,
+): Promise<number> {
+  const cap = distance * MAX_POINTS_PER_SEGMENT;
+  const r = await conn.query(`--sql
+    SELECT (
+      count(*) FILTER (WHERE seg_len > ${cap}) * ${MAX_POINTS_PER_SEGMENT}
+      + coalesce(sum(seg_len) FILTER (WHERE seg_len <= ${cap}), 0) / ${distance}
+    )::BIGINT AS n
+    FROM layer_03_tmp1
+  `);
+  return Number((r.toArray()[0] as { n: bigint | number }).n);
 }
 
 // Assumes buildSegments has already created layer_03_tmp1.
@@ -85,16 +109,7 @@ export async function stagePoints(conn: AsyncDuckDBConnection, distance: number)
   console.log("[EE-DEBUG] points:2 interpolate long segments (layer_03_tmp2)");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE layer_03_tmp2 AS
-    SELECT
-      fid,
-      ST_LineInterpolatePoints(
-        geom,
-        GREATEST(
-          LEAST(${distance} / seg_len, 1.0),
-          1.0 / ${MAX_POINTS_PER_SEGMENT}
-        ),
-        true
-      ) AS geom
+    SELECT fid, ${shiftedPoints("seg_len", `seg_len / ${MAX_POINTS_PER_SEGMENT}`)} AS geom
     FROM layer_03_tmp1
     WHERE seg_len > ${capThreshold}
   `);
@@ -102,18 +117,14 @@ export async function stagePoints(conn: AsyncDuckDBConnection, distance: number)
   console.log("[EE-DEBUG] points:3 remerge+interpolate normal segments (layer_03_tmp3)");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE layer_03_tmp3 AS
-    SELECT
-      fid,
-      ST_LineInterpolatePoints(
-        geom,
-        LEAST(${distance} / ST_Length(geom), 1.0),
-        true
-      ) AS geom
+    SELECT fid, ${shiftedPoints("len", String(distance))} AS geom
     FROM (
-      SELECT fid, UNNEST(ST_Dump(ST_LineMerge(ST_Union_Agg(geom)))).geom AS geom
-      FROM layer_03_tmp1
-      WHERE seg_len <= ${capThreshold}
-      GROUP BY fid
+      SELECT fid, geom, ST_Length(geom) AS len FROM (
+        SELECT fid, UNNEST(ST_Dump(ST_LineMerge(ST_Union_Agg(geom)))).geom AS geom
+        FROM layer_03_tmp1
+        WHERE seg_len <= ${capThreshold}
+        GROUP BY fid
+      )
     )
   `);
 
@@ -155,6 +166,8 @@ export async function stagePoints(conn: AsyncDuckDBConnection, distance: number)
       LEFT JOIN layer_03a AS b ON a.fid = b.fid
     )
     WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+      -- Edges on +-180/+-90 are map cuts, not borders, so they seed no cells.
+      AND abs(ST_X(geom)) != 180 AND abs(ST_Y(geom)) != 90
   `);
 
   const [beforeFids, afterFids] = await Promise.all([

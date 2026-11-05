@@ -38,6 +38,10 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   file's own median real-segment length.
 - A single real segment MUST NOT contribute more than a fixed cap's worth
   of interpolated points, independent of the resolved spacing.
+- Points on each line MUST start at a stable per-line offset of up to one
+  spacing, so the same input always gives the same points.
+- Generated points MUST NOT lie on x = ±180 or y = ±90: those edges are map
+  cuts, not borders.
 - Generated points MUST exclude a buffered zone around every shared
   boundary endpoint, so junction vertices don't become redundant Voronoi
   generators.
@@ -45,26 +49,30 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   each cell to the polygon whose point generated it via a point-in-polygon
   join, and union cells by polygon into that polygon's extension.
 - `edge-extend` MUST verify every generator point was assigned to a Voronoi
-  cell; an incomplete assignment MUST be treated as a failure of this
-  stage, not silently accepted.
-- On a failure of point generation or Voronoi assignment, or a generated
-  point count exceeding a fixed maximum, `edge-extend` MUST retry with the
-  resolved spacing doubled, up to 10 attempts, then MUST raise, reporting
-  which stage and spacing last failed.
+  cell and that no cell holds more than one distinct point. Either failure
+  MUST raise at once, naming the spacing, with no retry.
+- A spacing whose estimated point count exceeds a fixed maximum MUST be
+  skipped without building its points.
+- On any other failure of point generation or the Voronoi diagram, or a
+  generated point count exceeding that maximum, `edge-extend` MUST retry with
+  the resolved spacing doubled, up to 10 attempts, then MUST raise, reporting
+  which stage and spacing last failed. When all 10 spacings are skipped, the
+  error MUST say so.
 
 ## Merging
 
-- Each polygon's final geometry MUST be its original geometry combined
-  with the portion of its own Voronoi extension not already covered by an
-  original polygon part that intersects the extension.
+- Each polygon's final geometry MUST be its Voronoi extension minus the
+  other polygons' original parts that intersect it, unioned with the part of
+  its own original outside the extension. A polygon with no Voronoi cell MUST
+  keep its original geometry.
 - Before differencing, a polygon's Voronoi extension MUST be snapped
   (`ST_Snap`, `SNAP_TOLERANCE`) to the union of those intersecting parts, so
   near-but-not-quite-coincident seams from Voronoi cell generation don't
   cause a GEOS noding failure on the subsequent difference. A noding failure
   that survives the snap MUST propagate as a normal pipeline error.
-- When the per-fid union of original and extension pieces throws, each fid
-  MUST be unioned on its own, and a fid whose union still throws MUST be
-  retried once on `ST_ReducePrecision(geom, 1e-11)`. A retry that still
+- When the union of those two pieces throws, each fid MUST be unioned on its
+  own, and a fid whose union still throws MUST be retried once with both
+  pieces on `ST_ReducePrecision(geom, 1e-11)`. A retry that still
   throws MUST propagate. The number of fids unioned on the grid MUST be
   logged to the console.
 - `edge-extend` MUST run the shared no-erosion guard (`docs/reference/shared.md`)
