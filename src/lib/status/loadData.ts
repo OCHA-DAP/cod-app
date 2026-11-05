@@ -87,7 +87,14 @@ export interface InfoRow {
 }
 
 export interface PlanGroup {
-  key: "current-priority" | "prior-priority" | "current-other" | "prior-other" | "no-plans";
+  key:
+    | "current-hrp"
+    | "current-fa"
+    | "current-other"
+    | "prior-hrp"
+    | "prior-fa"
+    | "prior-other"
+    | "no-plans";
   label: string;
   countries: PlanCountry[];
 }
@@ -530,10 +537,13 @@ export function loadData() {
   }
 
   const priorityTypes = new Set(["HRP", "HNRP", "FA"]);
+  const isHrp = (t: string) => t === "HRP" || t === "HNRP";
 
-  const currentPriority: PlanCountry[] = [];
+  const currentHrp: PlanCountry[] = [];
+  const currentFa: PlanCountry[] = [];
   const currentOther: PlanCountry[] = [];
-  const priorPriority: PlanCountry[] = [];
+  const priorHrp: PlanCountry[] = [];
+  const priorFa: PlanCountry[] = [];
   const priorOther: PlanCountry[] = [];
 
   for (const [iso3, byYear] of plansByIso3) {
@@ -558,7 +568,7 @@ export function loadData() {
         const priorTypes = mostRecentPriorYear
           ? [...(byYear.get(mostRecentPriorYear) ?? [])].filter((t) => !currentTypes.includes(t))
           : [];
-        bucket = currentPriority;
+        bucket = currentTypes.some(isHrp) ? currentHrp : currentFa;
         planTypes = [...currentTypes, ...priorTypes];
         planYears = [
           ...currentTypes.map(() => latestPlanYear),
@@ -585,8 +595,9 @@ export function loadData() {
       // country's old HNRP/HRP/FA still outranks another country's old
       // REG/Other (mirrors scripts/catalog/explorer/plan_status.py's).
       const best = bestPlanType(byYear);
-      const hasPriority = best.types.some((t) => priorityTypes.has(t));
-      bucket = hasPriority ? priorPriority : priorOther;
+      if (best.types.some(isHrp)) bucket = priorHrp;
+      else if (best.types.some((t) => priorityTypes.has(t))) bucket = priorFa;
+      else bucket = priorOther;
       planTypes = best.types;
       planYears = best.types.map(() => best.year);
     }
@@ -650,9 +661,14 @@ export function loadData() {
   };
   const planGroups: PlanGroup[] = [
     {
-      key: "current-priority",
-      label: `HNRP / HRP / FA (${latestPlanYear})`,
-      countries: currentPriority.sort(byNextReview),
+      key: "current-hrp",
+      label: `HNRP / HRP (${latestPlanYear})`,
+      countries: currentHrp.sort(byNextReview),
+    },
+    {
+      key: "current-fa",
+      label: `Flash Appeals (${latestPlanYear})`,
+      countries: currentFa.sort(byNextReview),
     },
     {
       key: "current-other",
@@ -660,9 +676,14 @@ export function loadData() {
       countries: currentOther.sort(byNextReview),
     },
     {
-      key: "prior-priority",
-      label: "HNRP / HRP / FA (Prior Years)",
-      countries: priorPriority.sort(byNextReview),
+      key: "prior-hrp",
+      label: "HNRP / HRP (Prior Years)",
+      countries: priorHrp.sort(byNextReview),
+    },
+    {
+      key: "prior-fa",
+      label: "Flash Appeals (Prior Years)",
+      countries: priorFa.sort(byNextReview),
     },
     {
       key: "prior-other",

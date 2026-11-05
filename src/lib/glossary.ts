@@ -199,15 +199,25 @@ export const GLOSSARY = {
     label: "Plan Coverage",
     definition: "Locations covered by HRP or Flash Appeal plans in a given year.",
   },
-  "current-priority": {
-    label: "HNRP / HRP / FA (Current)",
+  "current-hrp": {
+    label: "HNRP / HRP (Current)",
     definition:
-      "Locations with an active Humanitarian Needs and Response Plan (HNRP), Humanitarian Response Plan (HRP), or Flash Appeal (FA) in the current cycle. These are the priority group for boundary readiness.",
+      "Locations with an active Humanitarian Needs and Response Plan (HNRP) or Humanitarian Response Plan (HRP) in the current cycle. These are the priority group for boundary readiness.",
   },
-  "prior-priority": {
-    label: "HNRP / HRP / FA (Prior Years)",
+  "current-fa": {
+    label: "Flash Appeals (Current)",
     definition:
-      "Locations with no plan in the current cycle whose most recent prior plan was an HNRP, HRP, or Flash Appeal. These rank above a current-cycle Other Plan for boundary readiness.",
+      "Locations with an active Flash Appeal (FA) in the current cycle and no HNRP or HRP.",
+  },
+  "prior-hrp": {
+    label: "HNRP / HRP (Prior Years)",
+    definition:
+      "Locations with no plan in the current cycle that have had an HNRP or HRP in a prior year.",
+  },
+  "prior-fa": {
+    label: "Flash Appeals (Prior Years)",
+    definition:
+      "Locations with no plan in the current cycle whose highest-ranked prior plan was a Flash Appeal.",
   },
 } as const satisfies Record<string, GlossaryEntry>;
 
