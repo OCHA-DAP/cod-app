@@ -200,7 +200,9 @@ async function issuesTable(values: string) {
   await run(`CREATE OR REPLACE TABLE tc_issues AS
     SELECT key, kind, unit_a, unit_b, geom, NULL::BOOLEAN AS fixed,
       NULL::DOUBLE AS unit_a_area_change_m2, NULL::DOUBLE AS unit_b_area_change_m2,
-      NULL::DOUBLE AS filled_area_m2
+      NULL::DOUBLE AS filled_area_m2, NULL::DOUBLE AS area_m2, NULL::DOUBLE AS max_width_m,
+      NULL::DOUBLE AS thinness_ratio, NULL::VARCHAR AS reason, NULL::DOUBLE AS xmin,
+      NULL::DOUBLE AS ymin, NULL::DOUBLE AS xmax, NULL::DOUBLE AS ymax
     FROM (VALUES ${values}) AS t(key, kind, unit_a, unit_b, geom)`);
 }
 const issue = (key: string, kind: IssueRow["kind"], units: number[] = []): IssueRow => ({
@@ -214,8 +216,7 @@ const issue = (key: string, kind: IssueRow["kind"], units: number[] = []): Issue
   bbox: [0, 0, 0, 0],
 });
 
-// drift: py #201 counts a gap fixed only when the fill closes it, not just its interior point
-test.fails("a partly filled gap is not fixed", async () => {
+test("a partly filled gap is not fixed", async () => {
   const left = "POLYGON((0 0, 1 0, 1 1, 1 1.6, 1 2, 1 3, 0 3, 0 0))";
   const right = "POLYGON((2 0, 3 0, 3 3, 2 3, 2 2, 2 1.6, 2 1, 2 0))";
   const top = "POLYGON((1 2, 2 2, 2 3, 1 3, 1 2))";
@@ -226,6 +227,18 @@ test.fails("a partly filled gap is not fixed", async () => {
   await issuesTable("('gap-1', 'gap', NULL::BIGINT, NULL::BIGINT, ST_MakeEnvelope(1, 1, 2, 2))");
   await checkFixedIssues(conn, [issue("gap-1", "gap")]);
   expect(await rows("SELECT key, fixed FROM tc_issues")).toEqual([{ key: "gap-1", fixed: false }]);
+});
+
+test("a gap the fix opens gets one unfixed row across recleans", async () => {
+  const ring = "POLYGON((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1))";
+  await table("layer_01", ["fid", "geom"], [[1, "POLYGON((0 0, 3 0, 3 3, 0 3, 0 0))"]]);
+  await table("tc_clean", ["fid", "geom"], [[1, ring]]);
+  await issuesTable("('overlap-1', 'overlap', 1, 2, ST_MakeEnvelope(5, 5, 6, 6))");
+  await checkFixedIssues(conn, []);
+  await checkFixedIssues(conn, []);
+  expect(await rows("SELECT key, fixed, reason FROM tc_issues WHERE kind = 'gap'")).toEqual([
+    { key: "gap-new-1", fixed: false, reason: "gap opened by the fix" },
+  ]);
 });
 
 test("a notch's fixed status matches its location, not just its unit pair", async () => {

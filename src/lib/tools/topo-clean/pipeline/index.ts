@@ -1,13 +1,14 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { changedGeoJSON, tableToGeoJSON } from "$lib/db/geojson";
 import { setCentroidLat } from "$lib/db/units";
-import { buildNotchRegions } from "$lib/db/issues";
+import { buildNotchRegions, readIssues } from "$lib/db/issues";
 import { buildClean, buildInput, buildNotched, countRows, inputHasViolations } from "./clean";
 import {
   buildGapRegions,
   buildIssues,
   buildOverlapRegions,
   checkFixedIssues,
+  measureThinFillM,
   resolveGapFillWidths,
   syncOutputMicroIssues,
   type IssueKind,
@@ -45,14 +46,15 @@ export interface CleanOptions {
 function fillWidthDeg(opts: CleanOptions, issues: IssueRow[]): number {
   if (opts.mode === "all") return GAP_MAXIMUM_WIDTH_ALL_DEG;
   if (opts.mode === "manual") return metersToDegrees(opts.gapWidthM);
-  const { thinFillM, minimalFillM } = resolveGapFillWidths(issues);
-  return metersToDegrees(opts.mode === "thin" ? thinFillM : minimalFillM);
+  if (opts.mode === "thin") return metersToDegrees(cachedThinFillM);
+  return metersToDegrees(resolveGapFillWidths(issues).minimalFillM);
 }
 
 export interface AnalysisResult {
   originalGeoJSON: string;
   issues: IssueRow[];
   issuesGeoJSON: string;
+  thinFillM: number;
   bounds: [number, number, number, number] | null;
   totalCount: number;
   // Kinds whose detection query failed (even after retry) and was degraded to
@@ -88,6 +90,7 @@ export interface RecleanResult {
 let totalCount = 0;
 let cachedIssues: IssueRow[] = [];
 let cachedIssuesGeoJSON = "";
+let cachedThinFillM = 0;
 let cachedFailedKinds = new Set<IssueKind>();
 // The clean's source table is static per load, so its violations check (see clean.ts's
 // buildClean skip-gate) is computed once in runFromLoaded and reused by every
@@ -114,20 +117,26 @@ async function computeBounds(
   return null;
 }
 
+// Refreshes the rows that describe tc_clean, and returns the fixed issue keys.
+async function syncOutputIssues(conn: AsyncDuckDBConnection): Promise<Set<string>> {
+  const synced = await syncOutputMicroIssues(conn, cachedFailedKinds);
+  const fixedKeys = await checkFixedIssues(conn, synced.rows, cachedFailedKinds);
+  const issuesRes = await readIssues(conn, "tc_issues", cachedFailedKinds);
+  cachedIssues = issuesRes.rows;
+  cachedIssuesGeoJSON = issuesRes.geojson;
+  return fixedKeys;
+}
+
 // Re-clean at the current gap-fill mode. Snapping tolerance is runCoverageClean's
 // own SNAP_TOLERANCE default. Gap + overlap regions are static (built once per
-// load) and are NOT recomputed here; only the output's micro-polygon rows are.
+// load) and are NOT recomputed here; only the rows that describe the output are.
 export async function recleanOnly(
   conn: AsyncDuckDBConnection,
   opts: CleanOptions,
 ): Promise<RecleanResult> {
   await buildClean(conn, "tc_clean", fillWidthDeg(opts, cachedIssues), cachedHasViolations);
   const kept = await countRows(conn, "tc_clean");
-  const issuesRes = await syncOutputMicroIssues(conn, cachedFailedKinds);
-  cachedIssues = issuesRes.rows;
-  cachedIssuesGeoJSON = issuesRes.geojson;
-
-  const fixedKeys = await checkFixedIssues(conn, cachedIssues);
+  const fixedKeys = await syncOutputIssues(conn);
   const exportCheck = await verifyExport(conn);
 
   return {
@@ -182,6 +191,7 @@ export async function runFromLoaded(
     cachedFailedKinds = issuesRes.failedKinds;
     cachedIssues = issuesRes.rows;
     cachedIssuesGeoJSON = issuesRes.geojson;
+    cachedThinFillM = await measureThinFillM(conn, source);
   } catch (e) {
     throw new PipelineError(e instanceof Error ? e.message : String(e), 4);
   }
@@ -189,6 +199,7 @@ export async function runFromLoaded(
     originalGeoJSON,
     issues: cachedIssues,
     issuesGeoJSON: cachedIssuesGeoJSON,
+    thinFillM: cachedThinFillM,
     bounds,
     totalCount,
     detectionFailed: cachedFailedKinds,
@@ -203,10 +214,7 @@ export async function runFromLoaded(
     await buildClean(conn, "tc_clean", fillWidthDeg(opts, cachedIssues), cachedHasViolations);
 
     const kept = await countRows(conn, "tc_clean");
-    const synced = await syncOutputMicroIssues(conn, cachedFailedKinds);
-    cachedIssues = synced.rows;
-    cachedIssuesGeoJSON = synced.geojson;
-    fixedKeys = await checkFixedIssues(conn, cachedIssues);
+    fixedKeys = await syncOutputIssues(conn);
     exportCheck = await verifyExport(conn);
     cleanedGeoJSON = await tableToGeoJSON(conn, "tc_clean", "layer_attr");
     modified = await changedGeoJSON(conn, "tc_clean", "layer_01");
@@ -221,6 +229,7 @@ export async function runFromLoaded(
     modifiedGeoJSON: modified,
     issues: cachedIssues,
     issuesGeoJSON: cachedIssuesGeoJSON,
+    thinFillM: cachedThinFillM,
     bounds,
     totalCount,
     collapsedCount,
