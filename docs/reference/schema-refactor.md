@@ -18,8 +18,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   `source_column` more than once.
 - `schema-refactor` MUST raise an error if the crosswalk's `source_column`
   set does not exactly equal the input layer's own column set, excluding
-  `fid`/`geom` and any column matching `isNoiseColumn()` (extra columns in
-  either direction), naming the columns present in the layer but missing
+  `fid`/`geom` and any column matching `isNoiseColumn()` that the crosswalk
+  doesn't list (extra columns in either direction), naming the columns present in the layer but missing
   from the crosswalk AND the columns present in the crosswalk but not in
   the layer. This catches a stale crosswalk or a crosswalk paired with the
   wrong file.

@@ -26,11 +26,11 @@ prefixed `cw_`) compares two versions of a polygon layer ("Version A" = old,
 - `change` MUST run `gatedCoverageClean` over each side, triggered by any
   coverage violation, micro-polygon or enclosed hole.
 - `change` MUST let the user pick a code column and a name column
-  independently for each side, defaulting to the shared column
-  auto-detector's guess (`src/lib/db/columns.ts`) for that side's attribute
-  table. Either or both MAY be left unset (`(none)`). Each pick MUST
+  independently for each side, defaulting to the finest admin level's code
+  and primary name column (`detectUnitColumns`), or `(none)` when no level
+  is detected. Either or both MAY be left unset. Each pick MUST
   sync to `code-a`, `name-a`, `code-b` or `name-b` under `shared.md`'s
-  query-parameter rules, with the auto-detector's guess as the default; a
+  query-parameter rules, with the detected column as the default; a
   URL value naming a column that side lacks MUST be ignored.
 - `change` MUST derive a per-side keyed table (`fid`, `code`, `name`, `geom`)
   from the selected columns. A code column choice with more than one source

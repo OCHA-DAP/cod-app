@@ -4,10 +4,14 @@ import type { CrosswalkRow } from "./crosswalk";
 
 const RESERVED_NAMES = new Set(["fid", "geom", "geometry"]);
 
-export async function actualColumns(conn: AsyncDuckDBConnection): Promise<Set<string>> {
+// A noise column counts only when `listed` in the crosswalk.
+export async function actualColumns(
+  conn: AsyncDuckDBConnection,
+  listed: Set<string> = new Set(),
+): Promise<Set<string>> {
   const desc = await conn.query("DESCRIBE layer_attr");
   const names = (desc.toArray() as Array<{ column_name: string }>).map((r) => r.column_name);
-  return new Set(names.filter((c) => c !== "fid" && !isNoiseColumn(c)));
+  return new Set(names.filter((c) => c !== "fid" && (!isNoiseColumn(c) || listed.has(c))));
 }
 
 // Ports topo-tools' _validate_columns_match.

@@ -21,7 +21,8 @@ its table or an imported crosswalk CSV. Ported from topo-tools'
    column or listing the same `source_column` twice.
 4. **Validate** (`pipeline/validate.ts`) - the crosswalk's `source_column`
    set must exactly equal `layer_attr`'s own column set, minus `fid` and
-   minus a noise column. Noise-column detection (`isNoiseColumn`) is
+   minus a noise column the crosswalk doesn't list, so a crosswalk naming
+   `OBJECTID` or `GlobalID` still applies. Noise-column detection (`isNoiseColumn`) is
    imported directly from `schema-map`'s `pipeline/constants.ts` rather than
    reimplemented, since it already carries ~20 real-world edge cases from
    topo-tools' own ADR history. A second check rejects a duplicate or

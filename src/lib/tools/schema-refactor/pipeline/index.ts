@@ -24,8 +24,8 @@ export async function runSchemaRefactor(
   crosswalk: CrosswalkRow[],
   schema: TargetSchema,
 ): Promise<SchemaRefactorResult> {
-  const actual = await actualColumns(conn);
   const crosswalkColumns = new Set(crosswalk.map((r) => r.sourceColumn));
+  const actual = await actualColumns(conn, crosswalkColumns);
   validateColumnsMatch(crosswalkColumns, actual);
   validateTargets(crosswalk);
 

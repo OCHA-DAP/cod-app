@@ -17,6 +17,7 @@
     type TableRow,
   } from "./pipeline";
   import { detectColumns, type ColumnGuess } from "$lib/db/columns";
+  import { detectUnitColumns } from "./pipeline/columns";
   import { buildKeyed, loadSide } from "./pipeline/load";
 
   const STAGE_LABELS = [
@@ -171,7 +172,11 @@
     try {
       const files = side === "a" ? filesA : filesB;
       await loadSide(duckdbState.db!, duckdbState.conn!, side, files);
-      const cols = await detectColumns(duckdbState.conn!, `cw_${side}_layer_attr`);
+      const table = `cw_${side}_layer_attr`;
+      const cols = {
+        ...(await detectColumns(duckdbState.conn!, table)),
+        ...(await detectUnitColumns(duckdbState.conn!, table)),
+      };
       if (side === "a") {
         aCodeCol = pick(cols, aCodeCol, cols.code ?? null);
         aNameCol = pick(cols, aNameCol, cols.name);

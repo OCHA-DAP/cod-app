@@ -1,6 +1,6 @@
 import { beforeAll, expect, test } from "vitest";
-import { detectColumns } from "$lib/db/columns";
 import { runPipeline, type PipelineOptions, type TableRow } from "$lib/tools/change/pipeline";
+import { detectUnitColumns } from "$lib/tools/change/pipeline/columns";
 import { db, ready, write } from "./helpers";
 
 // Nine spatially separated regions, one relationship class (or pair) each.
@@ -102,14 +102,13 @@ test("identity-claim guard keeps a genuine split", async () => {
   expect(classOf(rows, "GD1", "GD2")).toBe("split");
 });
 
-// drift: py #236 fills code and name from the finest level; the site's detectColumns picks the first match
-test.fails.each([false, true])(
+test.each([false, true])(
   "the finest level's columns are detected (link by code %s)",
   async (linkByCode) => {
     const files = [hierarchy(OLD, "old.parquet"), hierarchy(NEW, "new.parquet")];
     const { conn } = db();
     await change({}, files);
-    const guess = await detectColumns(conn, "cw_a_layer_attr");
+    const guess = await detectUnitColumns(conn, "cw_a_layer_attr");
     const cols = {
       aCodeCol: [guess.code!],
       aNameCol: guess.name,
@@ -128,9 +127,12 @@ test.fails.each([false, true])(
   },
 );
 
-test.todo(
-  "name/code field templates pick the levels; only one of a pair raises (no TS counterpart, py #236)",
-);
+test("a layer with no admin levels detects no columns", async () => {
+  await change({}, [flat(OLD, "old.parquet"), flat(NEW, "new.parquet")]);
+  expect(await detectUnitColumns(db().conn, "cw_a_layer_attr")).toEqual({ code: null, name: null });
+});
+
+test.todo("name/code field templates pick the levels (the UI's column pickers cover this)");
 test.todo("link by code without a detected column raises (UI disables it, no TS counterpart)");
 test.todo("CSV changelog starts with a BOM (export shape)");
 test.todo("default output paths (file output, no TS counterpart)");
