@@ -15,10 +15,6 @@ export interface Decision {
 
 const SHEET_URL = import.meta.env.PUBLIC_DECISIONS_SHEET_URL as string | undefined;
 
-export function acceptedLabel(accepted: boolean): string {
-  return accepted ? "Accepted" : "Pending";
-}
-
 function parseAccepted(raw: string): boolean {
   return raw.trim().toLowerCase() === "true";
 }
