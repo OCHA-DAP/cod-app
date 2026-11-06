@@ -4,7 +4,7 @@
   import { getCountries } from "$lib/explorer/parquet/countries";
   import { getAllOfficeTypes, type OfficeType } from "$lib/explorer/parquet/officeType";
   import { getAllPlanStatus, type PlanStatus } from "$lib/explorer/parquet/planStatus";
-  import { acceptedLabel, getDecisions, type Decision } from "$lib/explorer/sheet/decisions";
+  import { getDecisions, type Decision } from "$lib/explorer/sheet/decisions";
   import { ADMIN_SOURCES } from "$lib/explorer/sources";
   import ToolHeader from "$lib/components/ToolHeader.svelte";
   import { base } from "$lib/utils/paths";
@@ -24,7 +24,7 @@
   let rows: Row[] = $state([]);
   let loading = $state(true);
   let filter = $state("");
-  let sortKey: "officeType" | "relevance" | "name" | "accepted" = $state("officeType");
+  let sortKey: "officeType" | "relevance" | "name" = $state("officeType");
   let listEl: HTMLUListElement | undefined = $state();
   let skipNextCenter = false;
 
@@ -67,8 +67,7 @@
     });
   });
 
-  function sourceLabel(id: string | null): string {
-    if (!id) return "";
+  function sourceLabel(id: string): string {
     return ADMIN_SOURCES.find((s) => s.id === id)?.label ?? id;
   }
 
@@ -95,11 +94,6 @@
   let sorted: Row[] = $derived(
     [...filtered].sort((a, b) => {
       if (sortKey === "name") return a.name.localeCompare(b.name);
-      if (sortKey === "accepted") {
-        const acceptedA = a.decision?.accepted ?? false;
-        const acceptedB = b.decision?.accepted ?? false;
-        return Number(acceptedA) - Number(acceptedB);
-      }
       if (sortKey === "officeType") {
         const rankA = a.officeType ? OFFICE_TYPE_RANK[a.officeType] : 3;
         const rankB = b.officeType ? OFFICE_TYPE_RANK[b.officeType] : 3;
@@ -144,7 +138,6 @@
         <option value="officeType">OCHA office type</option>
         <option value="relevance">Humanitarian relevance</option>
         <option value="name">Country name</option>
-        <option value="accepted">Decision status</option>
       </select>
     </div>
   </div>
@@ -163,9 +156,6 @@
       >
       <span class="header-label tooltip"
         >Source<span class="tooltip-text">Team's selected source</span></span
-      >
-      <span class="header-label tooltip"
-        >Status<span class="tooltip-text">Decision status</span></span
       >
     </div>
     <ul class="country-list" bind:this={listEl}>
@@ -187,13 +177,11 @@
               planYear={row.plan?.planYear ?? null}
             />
             {#if row.decision?.noSourceSuitable}
-              <span class="decision-status none">None suitable</span>
-            {:else if row.decision && (row.decision.accepted || row.decision.selectedSource)}
+              <span class="decision-source none" title="None suitable">None</span>
+            {:else if row.decision?.selectedSource}
               <span class="decision-source">{sourceLabel(row.decision.selectedSource)}</span>
-              <span class="decision-status">{acceptedLabel(row.decision.accepted)}</span>
             {:else}
               <span class="decision-source" aria-hidden="true"></span>
-              <span class="decision-status" aria-hidden="true"></span>
             {/if}
           </button>
         </li>
@@ -260,9 +248,9 @@
 
   .country-row-header {
     display: grid;
-    grid-template-columns: 1fr 32px 28px 28px 44px 50px;
+    grid-template-columns: 1fr 32px 28px 28px 44px;
     align-items: center;
-    gap: 8px;
+    gap: 14px;
     padding: 6px 16px;
     border-bottom: 1px solid var(--cd-grey--400);
   }
@@ -321,9 +309,9 @@
     padding: 6px 16px;
     cursor: pointer;
     display: grid;
-    grid-template-columns: 1fr 32px 28px 28px 44px 50px;
+    grid-template-columns: 1fr 32px 28px 28px 44px;
     align-items: center;
-    gap: 8px;
+    gap: 14px;
     font-family: inherit;
   }
 
@@ -349,27 +337,18 @@
     color: var(--cd-grey--600);
   }
 
-  .decision-source,
-  .decision-status {
+  .decision-source {
     font-size: 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .decision-source {
     color: var(--cd-grey--800);
     font-weight: 600;
   }
 
-  .decision-status {
-    color: var(--cd-grey--600);
-    font-weight: 400;
-  }
-
-  .decision-status.none {
-    grid-column: span 2;
+  .decision-source.none {
     color: var(--cd-red--aaa);
+    font-weight: 400;
     font-style: italic;
   }
 </style>
