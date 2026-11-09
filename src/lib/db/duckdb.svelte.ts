@@ -12,13 +12,27 @@ export const DUCKDB_BUNDLES: duckdb.DuckDBBundles = {
 const SESSION_PREFIX = "__edge_matcher_";
 
 class DuckDBState {
-  db: duckdb.AsyncDuckDB | null = null;
-  conn: duckdb.AsyncDuckDBConnection | null = null;
   ready = $state(false);
   initError = $state<string | null>(null);
 }
 
 export const duckdbState = new DuckDBState();
+
+let db: duckdb.AsyncDuckDB | null = null;
+let conn: duckdb.AsyncDuckDBConnection | null = null;
+let tail: Promise<unknown> = Promise.resolve();
+
+// Operations share one connection and fixed scratch tables, so each runs alone; calling withDb inside fn deadlocks.
+export function withDb<T>(
+  fn: (db: duckdb.AsyncDuckDB, conn: duckdb.AsyncDuckDBConnection) => Promise<T>,
+): Promise<T> {
+  const run = tail.then(() => {
+    if (!db || !conn) throw new Error(duckdbState.initError ?? "DuckDB is not ready yet.");
+    return fn(db, conn);
+  });
+  tail = run.catch(() => {});
+  return run;
+}
 
 // Delete earlier tabs' session DBs; a live tab's DB is open, so the browser refuses its removal.
 async function sweepSessionDbs(): Promise<void> {
@@ -56,28 +70,28 @@ export async function initDuckDB(): Promise<void> {
       opfs: { fileHandling: "auto" },
     });
 
-    duckdbState.db = instance;
-    const conn = await instance.connect();
-    duckdbState.conn = conn;
+    const c = await instance.connect();
 
-    await conn.query("SET preserve_insertion_order = false");
+    await c.query("SET preserve_insertion_order = false");
     // Cache core's OGC:CRS84 before spatial's PROJ lookup, whose WKT2 export of "CRS84" throws stoi
     // in WASM. Outside an explicit transaction the cast throws an INTERNAL error.
-    await conn.query("BEGIN");
-    await conn.query("SELECT NULL::GEOMETRY('OGC:CRS84')");
-    await conn.query("COMMIT");
+    await c.query("BEGIN");
+    await c.query("SELECT NULL::GEOMETRY('OGC:CRS84')");
+    await c.query("COMMIT");
 
     try {
       try {
-        await conn.query("LOAD spatial;");
+        await c.query("LOAD spatial;");
       } catch {
-        await conn.query("INSTALL spatial; LOAD spatial;");
+        await c.query("INSTALL spatial; LOAD spatial;");
       }
-      await conn.query("SET geometry_always_xy = true");
+      await c.query("SET geometry_always_xy = true");
     } catch {
       console.warn("DuckDB spatial extension unavailable, GDAL support disabled.");
     }
 
+    db = instance;
+    conn = c;
     duckdbState.ready = true;
   } catch (e) {
     duckdbState.initError = e instanceof Error ? e.message : String(e);

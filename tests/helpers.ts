@@ -1,16 +1,20 @@
-import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { initDuckDB, withDb } from "$lib/db/duckdb.svelte";
 import { listFormats, runExport, type ExportSource } from "$lib/db/export";
 import { loadFile } from "$lib/db/loader";
 
+let handles: { db: AsyncDuckDB; conn: AsyncDuckDBConnection } | null = null;
+
+// Tests run one at a time, so they hold the handles outside withDb's lock.
 export function db() {
-  const { db, conn } = duckdbState;
-  if (!db || !conn) throw new Error(duckdbState.initError ?? "DuckDB not ready");
-  return { db, conn };
+  if (!handles) throw new Error("DuckDB not ready; await ready() first");
+  return handles;
 }
 
 export async function ready() {
   await initDuckDB();
-  return db().conn;
+  handles ??= await withDb(async (db, conn) => ({ db, conn }));
+  return handles.conn;
 }
 
 // Plain JS rows, BigInt counts narrowed to Number.

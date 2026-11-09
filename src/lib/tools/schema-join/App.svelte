@@ -1,6 +1,6 @@
 <script lang="ts">
   import ToolHeader from "$lib/components/ToolHeader.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { boolParam, numberParam, textParam, syncParam } from "$lib/utils/syncParam.svelte";
   import { attributesAt, type Bounds } from "$lib/db/layerView";
   import {
@@ -81,12 +81,7 @@
     selectedValues = null;
     selectedKey = null;
     try {
-      const layers = await loadAndAssign(
-        duckdbState.db!,
-        duckdbState.conn!,
-        inputFiles,
-        joinFiles,
-      );
+      const layers = await withDb((db, conn) => loadAndAssign(db, conn, inputFiles, joinFiles));
       inputGeoJSON = layers.inputGeoJSON;
       joinGeoJSON = layers.joinGeoJSON;
       viewBounds = layers.bounds;
@@ -104,10 +99,8 @@
     selectedValues = null;
     selectedKey = null;
     try {
-      result = await runSchemaJoin(
-        duckdbState.conn!,
-        useTemplates ? { nameField, codeField } : null,
-        minOverlap,
+      result = await withDb((_db, conn) =>
+        runSchemaJoin(conn, useTemplates ? { nameField, codeField } : null, minOverlap),
       );
       error = null;
     } catch (e) {
@@ -129,14 +122,14 @@
     selectedKey = null;
     selectedValues =
       lngLat && result
-        ? await attributesAt(duckdbState.conn!, lngLat, "input_layer_01", "sj_result_attr")
+        ? await withDb((_db, conn) => attributesAt(conn, lngLat, "input_layer_01", "sj_result_attr"))
         : null;
   }
 
   async function showIssue(issue: JoinIssueRow): Promise<void> {
     selectedKey = issue.key;
     viewBounds = issue.bbox;
-    selectedValues = await joinedRow(duckdbState.conn!, issue.unitA);
+    selectedValues = await withDb((_db, conn) => joinedRow(conn, issue.unitA));
   }
 
   function fileStem(file: File): string {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import ToolHeader from "$lib/components/ToolHeader.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { textParam, syncParam } from "$lib/utils/syncParam.svelte";
   import { loadFile } from "$lib/db/loader";
   import { tableToGeoJSON } from "$lib/db/geojson";
@@ -103,11 +103,12 @@
     error = null;
 
     try {
-      const conn = duckdbState.conn!;
-      await loadFile(duckdbState.db!, conn, files);
-      layerGeoJSON = await tableToGeoJSON(conn, "layer_01", "layer_attr");
-      loadedBounds = await layerBounds(conn);
-      samples = await sampleValues(conn);
+      await withDb(async (db, conn) => {
+        await loadFile(db, conn, files);
+        layerGeoJSON = await tableToGeoJSON(conn, "layer_01", "layer_attr");
+        loadedBounds = await layerBounds(conn);
+        samples = await sampleValues(conn);
+      });
       loaded = true;
     } catch (e) {
       loadError = message(e);
@@ -119,7 +120,7 @@
   async function handleSavedLoad(f: File[]): Promise<void> {
     savedError = null;
     try {
-      saved = await loadSavedCrosswalk(duckdbState.db!, duckdbState.conn!, f);
+      saved = await withDb((db, conn) => loadSavedCrosswalk(db, conn, f));
       resetAll();
     } catch (e) {
       saved = null;
@@ -131,10 +132,8 @@
     running = true;
     try {
       const schema = { nameField, codeField };
-      inferred = await inferCrosswalk(
-        duckdbState.conn!,
-        schema,
-        finestLevel.trim() === "" ? null : Number(finestLevel),
+      inferred = await withDb((_db, conn) =>
+        inferCrosswalk(conn, schema, finestLevel.trim() === "" ? null : Number(finestLevel)),
       );
       inferredSchema = schema;
       error = null;
@@ -154,7 +153,7 @@
       return;
     }
     try {
-      applied = await applyCrosswalk(duckdbState.conn!, current, inferredSchema);
+      applied = await withDb((_db, conn) => applyCrosswalk(conn, current, inferredSchema));
       error = null;
     } catch (e) {
       applied = null;
@@ -178,7 +177,7 @@
   });
 
   async function inspectAt(lngLat: [number, number] | null): Promise<void> {
-    selectedValues = lngLat ? await attributesAt(duckdbState.conn!, lngLat) : null;
+    selectedValues = lngLat ? await withDb((_db, conn) => attributesAt(conn, lngLat)) : null;
   }
 
   function setKeep(source: string, keep: boolean): void {

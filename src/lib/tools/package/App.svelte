@@ -1,6 +1,7 @@
 <script lang="ts">
   import ToolHeader from "$lib/components/ToolHeader.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { textParam, syncParam } from "$lib/utils/syncParam.svelte";
   import { serialRunner } from "$lib/utils/serialRunner";
   import { loadFile } from "$lib/db/loader";
@@ -41,8 +42,9 @@
     initDuckDB();
   });
 
-  async function computeLoadedBounds(): Promise<[number, number, number, number] | null> {
-    const conn = duckdbState.conn!;
+  async function computeLoadedBounds(
+    conn: AsyncDuckDBConnection,
+  ): Promise<[number, number, number, number] | null> {
     const r = await conn.query(`--sql
       SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
              MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
@@ -74,9 +76,11 @@
     levelIndex = -1;
 
     try {
-      await loadFile(duckdbState.db!, duckdbState.conn!, files);
-      originalGeoJSON = await tableToGeoJSON(duckdbState.conn!, "layer_01", null);
-      loadedBounds = await computeLoadedBounds();
+      await withDb(async (db, conn) => {
+        await loadFile(db, conn, files);
+        originalGeoJSON = await tableToGeoJSON(conn, "layer_01", null);
+        loadedBounds = await computeLoadedBounds(conn);
+      });
       loaded = true;
     } catch (e) {
       loadError = e instanceof Error ? e.message : String(e);
@@ -92,7 +96,7 @@
 
     const schema: TargetSchema | null = bothBlank ? null : { nameField, codeField };
     try {
-      result = await runPackage(duckdbState.conn!, schema);
+      result = await withDb((_db, conn) => runPackage(conn, schema));
       const n = result.polygons.levels.length;
       if (levelIndex < 0 || levelIndex >= n) levelIndex = n - 1;
     } catch (e) {

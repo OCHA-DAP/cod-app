@@ -2,7 +2,7 @@ import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { DuckDBDataProtocol } from "@duckdb/duckdb-wasm";
 import { unzip as fflateUnzip, zip as fflateZip } from "fflate";
 import { CRS, GDAL_CRS } from "./constants";
-import { duckdbState } from "./duckdb.svelte";
+import { withDb } from "./duckdb.svelte";
 import { flaggedUnitsSql } from "./flagged";
 
 export type ExportSource =
@@ -501,7 +501,8 @@ export function resetFormatsCache(): void {
 export async function listFormats(source?: ExportSource): Promise<ExportFormat[]> {
   const kind: SourceKind = source ? SOURCES[source].kind : "spatial";
   if (kind === "tabular") return tabularFormats();
-  if (!cachedSpatialFormats) cachedSpatialFormats = discoverSpatialFormats();
+  if (!cachedSpatialFormats)
+    cachedSpatialFormats = withDb((_db, conn) => discoverSpatialFormats(conn));
   return cachedSpatialFormats;
 }
 
@@ -529,10 +530,7 @@ function tabularFormats(): ExportFormat[] {
   ];
 }
 
-async function discoverSpatialFormats(): Promise<ExportFormat[]> {
-  const conn = duckdbState.conn;
-  if (!conn) throw new Error("DuckDB is not ready yet.");
-
+async function discoverSpatialFormats(conn: AsyncDuckDBConnection): Promise<ExportFormat[]> {
   // GeoJSON is intentionally omitted: the primary download button already
   // serves the cached GeoJSON, so listing it here would duplicate that entry.
   const formats: ExportFormat[] = [];
@@ -600,11 +598,11 @@ export async function runExport(
       };
     }
     case "gdal":
-      return exportGdal(source, format, filenameStem);
+      return withDb((db, conn) => exportGdal(db, conn, source, format, filenameStem));
     case "parquet":
-      return exportParquet(source, format, filenameStem);
+      return withDb((db, conn) => exportParquet(db, conn, source, format, filenameStem));
     case "csv":
-      return exportCsv(source, format, filenameStem);
+      return withDb((db, conn) => exportCsv(db, conn, source, format, filenameStem));
   }
 }
 
@@ -630,13 +628,6 @@ export async function runExportZip(
     fflateZip(files, (err, data) => (err ? reject(err) : resolve(data))),
   );
   return { blob: toBlob(zipped, "application/zip"), filename: `${zipName}.zip` };
-}
-
-function requireDb(): { db: AsyncDuckDB; conn: AsyncDuckDBConnection } {
-  const db = duckdbState.db;
-  const conn = duckdbState.conn;
-  if (!db || !conn) throw new Error("DuckDB is not ready yet.");
-  return { db, conn };
 }
 
 function exportId(): string {
@@ -741,11 +732,12 @@ async function buildTabularSelect(source: SourceConfig): Promise<string> {
 }
 
 async function exportGdal(
+  db: AsyncDuckDB,
+  conn: AsyncDuckDBConnection,
   source: ExportSource,
   format: ExportFormat,
   stem: string,
 ): Promise<ExportResult> {
-  const { db, conn } = requireDb();
   const cfg = SOURCES[source];
   const { suffix } = cfg;
   const meta = format.driver ? KNOWN_DRIVERS[format.driver] : undefined;
@@ -834,14 +826,16 @@ async function exportGdal(
 }
 
 async function exportParquet(
+  db: AsyncDuckDB,
+  conn: AsyncDuckDBConnection,
   source: ExportSource,
   format: ExportFormat,
   stem: string,
 ): Promise<ExportResult> {
-  const { db, conn } = requireDb();
   const cfg = SOURCES[source];
   let select: string;
-  if (cfg.kind === "spatial") select = await buildSpatialSelect(conn, cfg, `ST_SetCRS(a.geom, '${CRS}') AS geometry`);
+  if (cfg.kind === "spatial")
+    select = await buildSpatialSelect(conn, cfg, `ST_SetCRS(a.geom, '${CRS}') AS geometry`);
   else if (cfg.parquetGeometry) {
     const cols = cfg.tabularColumns!.map((c) => `r.${JSON.stringify(c)}`).join(", ");
     select = `--sql
@@ -867,11 +861,12 @@ async function exportParquet(
 }
 
 async function exportCsv(
+  db: AsyncDuckDB,
+  conn: AsyncDuckDBConnection,
   source: ExportSource,
   format: ExportFormat,
   stem: string,
 ): Promise<ExportResult> {
-  const { db, conn } = requireDb();
   const cfg = SOURCES[source];
   if (cfg.kind !== "tabular") {
     throw new Error(`CSV export is only supported for tabular sources (got ${source}).`);
