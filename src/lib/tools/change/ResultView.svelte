@@ -15,7 +15,6 @@
     processing,
     sideLabels = ["Version A", "Version B"],
     classes = REL_ORDER,
-    listUnchanged = false,
     showSide = $bindable("b"),
     selectedClusterId = $bindable(null),
   }: {
@@ -27,7 +26,6 @@
     processing: boolean;
     sideLabels?: [string, string];
     classes?: RelClass[];
-    listUnchanged?: boolean;
     showSide?: "a" | "b";
     selectedClusterId?: number | null;
   } = $props();
@@ -41,11 +39,8 @@
     a_fid: number | null;
     b_fid: number | null;
   } | null>(null);
-  // Unchanged units are base fill on the map, and listed in the table only under listUnchanged.
-  const shownClasses = $derived(listUnchanged ? classes : classes.filter((c) => c !== "unchanged"));
-  let visibleClasses = $state<Set<RelClass>>(
-    new Set(untrack(() => (listUnchanged ? REL_ORDER : REL_ORDER.filter((c) => c !== "unchanged")))),
-  );
+  // Unchanged units are base fill on the map, and listed, hovered and clicked like any other class.
+  let visibleClasses = $state<Set<RelClass>>(new Set(REL_ORDER));
 
   function toggleClass(c: RelClass): void {
     const next = new Set(visibleClasses);
@@ -136,7 +131,6 @@
       {hoveredFid}
       {visibleClasses}
       baseClasses={["unchanged"]}
-      interactiveBase={listUnchanged}
       onClusterClick={(id) => (selectedClusterId = id)}
       onFeatureHover={setHoveredFromMap}
       {describe}
@@ -152,7 +146,7 @@
       {showSide}
       {visibleClasses}
       {sideLabels}
-      classes={shownClasses}
+      {classes}
       onRowHover={setHoveredFromRow}
       onToggleClass={toggleClass}
       onSetSide={(side) => (showSide = side)}

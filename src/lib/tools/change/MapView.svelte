@@ -26,7 +26,6 @@
     hoveredFid = null,
     visibleClasses = null,
     baseClasses = [],
-    interactiveBase = false,
     showSide = "b" as "a" | "b",
     onClusterClick,
     onFeatureHover,
@@ -40,9 +39,8 @@
     hoveredClusterId?: number | null;
     hoveredFid?: number | null;
     visibleClasses?: Set<string> | null;
-    // Always drawn in the base fill like other tools' input layer, hovered and clicked only under interactiveBase.
+    // Drawn in the base fill like other tools' input layer.
     baseClasses?: string[];
-    interactiveBase?: boolean;
     showSide?: "a" | "b";
     onClusterClick?: (id: number | null) => void;
     onFeatureHover?: (payload: { cluster_id: number | null; fid: number | null }) => void;
@@ -59,8 +57,7 @@
   let hovered = $state<FeatureInfo[]>([]);
   let hoverLngLat = $state<LngLatLike | null>(null);
 
-  function hover(cid: number | null, fid: number | null, lngLat: LngLatLike | null, cls?: string): void {
-    if (!interactiveBase && cls != null && baseClasses.includes(cls)) [cid, fid, lngLat] = [null, null, null];
+  function hover(cid: number | null, fid: number | null, lngLat: LngLatLike | null): void {
     if (map) map.getCanvas().style.cursor = cid == null ? "" : "pointer";
     hovered = describe && cid != null && fid != null ? describe(cid, fid) : [];
     hoverLngLat = lngLat;
@@ -287,7 +284,7 @@
       const props = e.features?.[0]?.properties;
       const cid = props?.cluster_id == null ? null : Number(props.cluster_id);
       const fid = props?.fid == null ? null : Number(props.fid);
-      hover(cid, fid, e.lngLat, props?.relationship_class);
+      hover(cid, fid, e.lngLat);
     });
     map.on("mouseleave", `cw-outline-${side}-fill`, () => {
       hover(null, null, null);
@@ -325,7 +322,7 @@
       return;
     }
     const props = feats[0].properties;
-    const cid = !interactiveBase && baseClasses.includes(props?.relationship_class) ? null : props?.cluster_id;
+    const cid = props?.cluster_id;
     onClusterClick(cid == null ? null : Number(cid));
   }
 
@@ -352,7 +349,7 @@
         const cid = props?.cluster_id == null ? null : Number(props.cluster_id);
         const sideFid = showSide === "a" ? props?.a_fid : props?.b_fid;
         const fid = sideFid == null ? null : Number(sideFid);
-        hover(cid, fid, e.lngLat, props?.relationship_class);
+        hover(cid, fid, e.lngLat);
       });
       map?.on("mouseleave", "cw-overlay-fill", () => {
         hover(null, null, null);

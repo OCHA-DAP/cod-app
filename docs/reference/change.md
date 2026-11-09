@@ -93,9 +93,10 @@ prefixed `cw_`) compares two versions of a polygon layer ("Version A" = old,
 - Moving either threshold slider MUST re-classify from the existing pair
   table and MUST re-render the map and table, without reloading or
   re-measuring overlap.
-- The map MUST draw `unchanged` units in the base input fill, without
-  hover or click; the table MUST NOT list them or offer an `unchanged`
-  filter. The changelog download MUST still include them.
+- The map MUST draw `unchanged` units in the base input fill and MUST
+  make them hoverable and clickable; the table MUST list them under an
+  `unchanged` filter that starts on. The changelog download MUST include
+  them.
 
 ## Outputs
 
