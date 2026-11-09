@@ -6,6 +6,7 @@ import { runDissolveCore } from "$lib/tools/package-polygons/pipeline/dissolveCo
 import { DEFAULT_DEPTH_COLUMN } from "$lib/tools/schema-fill/pipeline/index";
 import type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 import { resolvePointLevelPlans, type LevelPlan } from "./points";
+import { layerBounds } from "$lib/db/layerView";
 
 export type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 export { DEFAULT_DEPTH_COLUMN } from "$lib/tools/schema-fill/pipeline/index";
@@ -170,17 +171,7 @@ export async function runPackagePoints(
   );
   await conn.query(`DROP TABLE IF EXISTS pkpt_combined`);
 
-  const r = await conn.query(`--sql
-    SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-           MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-    FROM pkpt_geom WHERE geom IS NOT NULL
-  `);
-  const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-  const bounds: [number, number, number, number] | null = [xmin, ymin, xmax, ymax].every((v) =>
-    Number.isFinite(v),
-  )
-    ? [xmin, ymin, xmax, ymax]
-    : null;
+  const bounds = await layerBounds(conn, "pkpt_geom");
   if (bounds) setCentroidLat((bounds[1] + bounds[3]) / 2);
 
   const resultGeoJSON = await tableToGeoJSON(conn, "pkpt_geom", "pkpt_attr");

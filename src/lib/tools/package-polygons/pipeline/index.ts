@@ -14,6 +14,7 @@ import {
 import { detectLevels } from "$lib/tools/schema-fill/pipeline/levels";
 import { runDissolveCore } from "./dissolveCore";
 import { buildPolygonIssues, type PolygonIssueRow } from "./issues";
+import { layerBounds } from "$lib/db/layerView";
 
 export type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 export type { PolygonIssueRow } from "./issues";
@@ -84,21 +85,6 @@ async function resolveLevelPlans(
   return plans;
 }
 
-async function computeBounds(
-  conn: AsyncDuckDBConnection,
-  table: string,
-): Promise<[number, number, number, number] | null> {
-  const r = await conn.query(`--sql
-    SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-           MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-    FROM ${table} WHERE geom IS NOT NULL
-  `);
-  const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-  if (![xmin, ymin, xmax, ymax].every((v) => Number.isFinite(v))) return null;
-  setCentroidLat((ymin + ymax) / 2);
-  return [xmin, ymin, xmax, ymax];
-}
-
 // The finest level needs no dissolve: its output is the original input,
 // not offered as a separate download.
 export async function runPackagePolygons(
@@ -153,7 +139,8 @@ export async function runPackagePolygons(
       await conn.query(`DROP TABLE IF EXISTS ${dissolveTable}`);
     }
 
-    const bounds = await computeBounds(conn, geomTable);
+    const bounds = await layerBounds(conn, geomTable);
+    if (bounds) setCentroidLat((bounds[1] + bounds[3]) / 2);
     const resultGeoJSON = await tableToGeoJSON(conn, geomTable, attrTable);
     const { rows, geojson } = await buildPolygonIssues(
       conn,

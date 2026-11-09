@@ -5,6 +5,7 @@
   import InputStep from "$lib/components/InputStep.svelte";
   import DropZone from "$lib/components/DropZone.svelte";
   import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
+  import { layerBounds } from "$lib/db/layerView";
   import { choiceParam, numberParam, syncParam, textParam } from "$lib/utils/syncParam.svelte";
   import { onMount, untrack } from "svelte";
   import ResultView from "./ResultView.svelte";
@@ -188,19 +189,10 @@
         loadedB = true;
       }
       if (loadedA && loadedB) {
-        const bboxResult = await withDb((_db, conn) =>
-          conn.query(`
-            SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-                   MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-            FROM (SELECT geom FROM cw_a_layer_01 UNION ALL SELECT geom FROM cw_b_layer_01)
-            WHERE geom IS NOT NULL
-          `),
+        const loadedBounds = await withDb((_db, conn) =>
+          layerBounds(conn, ["cw_a_layer_01", "cw_b_layer_01"]),
         );
-        const bboxRow = bboxResult.toArray()[0] as Record<string, number>;
-        const { xmin, ymin, xmax, ymax } = bboxRow;
-        if (isFinite(xmin) && isFinite(ymin) && isFinite(xmax) && isFinite(ymax)) {
-          bounds = [xmin, ymin, xmax, ymax];
-        }
+        if (loadedBounds) bounds = loadedBounds;
       }
     } catch (e) {
       loadError = e instanceof Error ? e.message : String(e);

@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { layerBounds } from "$lib/db/layerView";
 
 // Whole units, not intersection slivers, since classification is per cluster
 // not per pair. Tiles the area once: every B-side unit, plus A-side 'removed' units.
@@ -104,23 +105,5 @@ export async function buildOutlineGeoJSON(
 export async function computeBounds(
   conn: AsyncDuckDBConnection,
 ): Promise<[number, number, number, number] | null> {
-  try {
-    const r = await conn.query(`--sql
-      SELECT
-        MIN(ST_XMin(geom)) AS xmin,
-        MIN(ST_YMin(geom)) AS ymin,
-        MAX(ST_XMax(geom)) AS xmax,
-        MAX(ST_YMax(geom)) AS ymax
-      FROM cw_overlay_render
-      WHERE geom IS NOT NULL
-    `);
-    const row = r.toArray()[0] as Record<string, number>;
-    const { xmin, ymin, xmax, ymax } = row;
-    if (isFinite(xmin) && isFinite(ymin) && isFinite(xmax) && isFinite(ymax)) {
-      return [xmin, ymin, xmax, ymax];
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return layerBounds(conn, "cw_overlay_render").catch(() => null);
 }

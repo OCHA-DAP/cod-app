@@ -16,6 +16,7 @@ import { dissolveLevel } from "./dissolve";
 import { resolveSideLevels } from "./levels";
 import { buildChangelogTable, writeOutputs } from "./outputs";
 import { reparentLevel } from "./reparent";
+import { layerBounds } from "$lib/db/layerView";
 
 export type { CodeFormat } from "$lib/db/code";
 export { parseMinWidth, resolveCodeFormat } from "$lib/db/code";
@@ -56,21 +57,6 @@ export interface CodeUpdateResult {
   levelCount: number;
   changelog: ChangeRow[];
   levelViews: LevelView[];
-}
-
-async function computeBounds(
-  conn: AsyncDuckDBConnection,
-  table: string,
-): Promise<[number, number, number, number] | null> {
-  const r = await conn.query(`--sql
-    SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-           MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-    FROM ${table} WHERE geom IS NOT NULL
-  `);
-  const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-  return [xmin, ymin, xmax, ymax].every((v) => Number.isFinite(v))
-    ? [xmin, ymin, xmax, ymax]
-    : null;
 }
 
 async function buildInputTable(conn: AsyncDuckDBConnection, side: "a" | "b"): Promise<void> {
@@ -179,6 +165,6 @@ export async function runCodeUpdate(
   await buildChangelogTable(conn, changelog);
 
   const resultGeoJSON = await tableToGeoJSON(conn, "cu_b_layer_01", "cu_b_attr");
-  const bounds = await computeBounds(conn, "cu_b_layer_01");
+  const bounds = await layerBounds(conn, "cu_b_layer_01");
   return { resultGeoJSON, bounds, levelCount: levels.length, changelog, levelViews };
 }

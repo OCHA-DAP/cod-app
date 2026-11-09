@@ -10,6 +10,7 @@ export {
   DEFAULT_TARGET_SCHEMA,
   type TargetSchema,
 } from "$lib/tools/schema-map/pipeline/targetSchema";
+import { layerBounds } from "$lib/db/layerView";
 
 export const DEFAULT_DEPTH_COLUMN = "adm_lvl";
 
@@ -18,20 +19,6 @@ export interface SchemaFillResult {
   bounds: [number, number, number, number] | null;
   levels: number[];
   depthColumn: string;
-}
-
-async function computeBounds(
-  conn: AsyncDuckDBConnection,
-): Promise<[number, number, number, number] | null> {
-  const r = await conn.query(`--sql
-    SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-           MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-    FROM layer_01 WHERE geom IS NOT NULL
-  `);
-  const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-  return [xmin, ymin, xmax, ymax].every((v) => Number.isFinite(v))
-    ? [xmin, ymin, xmax, ymax]
-    : null;
 }
 
 // No topology gate: fill only touches attribute columns. A null schema
@@ -45,7 +32,7 @@ export async function runSchemaFill(
   await runFill(conn, "layer_attr", "sf_result_attr", { levels, schema, depthColumn });
 
   const resultGeoJSON = await tableToGeoJSON(conn, "layer_01", "sf_result_attr");
-  const bounds = await computeBounds(conn);
+  const bounds = await layerBounds(conn);
 
   return { resultGeoJSON, bounds, levels, depthColumn };
 }

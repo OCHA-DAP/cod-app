@@ -7,6 +7,7 @@ import { detectLevels } from "$lib/tools/schema-fill/pipeline/levels";
 import { detectLevelColumnsOrSingle } from "$lib/tools/schema-map/pipeline/levelColumns";
 import type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 import { buildBoundaries } from "./boundaries";
+import { layerBounds } from "$lib/db/layerView";
 
 export type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 export { DEFAULT_DEPTH_COLUMN } from "$lib/tools/schema-fill/pipeline/index";
@@ -50,17 +51,7 @@ export async function runPackageLines(
   await conn.query(`DROP TABLE IF EXISTS pl_combined`);
   await conn.query(`DROP TABLE IF EXISTS pl_lines`);
 
-  const r = await conn.query(`--sql
-    SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-           MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-    FROM pl_geom WHERE geom IS NOT NULL
-  `);
-  const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-  const bounds: [number, number, number, number] | null = [xmin, ymin, xmax, ymax].every((v) =>
-    Number.isFinite(v),
-  )
-    ? [xmin, ymin, xmax, ymax]
-    : null;
+  const bounds = await layerBounds(conn, "pl_geom");
   if (bounds) setCentroidLat((bounds[1] + bounds[3]) / 2);
 
   const resultGeoJSON = await tableToGeoJSON(conn, "pl_geom", "pl_attr");

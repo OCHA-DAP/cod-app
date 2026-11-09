@@ -1,6 +1,7 @@
 <script lang="ts">
   import ToolHeader from "$lib/components/ToolHeader.svelte";
   import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
+  import { layerBounds } from "$lib/db/layerView";
   import { loadFile } from "$lib/db/loader";
   import { getOriginalGeojson, PipelineError, runPipeline } from "./pipeline/index";
   import { onMount, untrack } from "svelte";
@@ -61,21 +62,11 @@
     try {
       currentStage = 1;
       stageLabel = "Loading file…";
-      const [origGeoJSON, bboxResult] = await withDb(async (db, conn) => {
+      const [origGeoJSON, loadedBounds] = await withDb(async (db, conn) => {
         await loadFile(db, conn, files);
-        const geojson = await getOriginalGeojson(conn);
-        const bbox = await conn.query(`
-          SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-                 MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-          FROM layer_01 WHERE geom IS NOT NULL
-        `);
-        return [geojson, bbox] as const;
+        return [await getOriginalGeojson(conn), await layerBounds(conn)] as const;
       });
-      const bboxRow = bboxResult.toArray()[0] as Record<string, number>;
-      const { xmin, ymin, xmax, ymax } = bboxRow;
-      if (isFinite(xmin) && isFinite(ymin) && isFinite(xmax) && isFinite(ymax)) {
-        resultBounds = [xmin, ymin, xmax, ymax];
-      }
+      if (loadedBounds) resultBounds = loadedBounds;
       originalGeoJSON = origGeoJSON;
 
       const result = await withDb((_db, conn) =>

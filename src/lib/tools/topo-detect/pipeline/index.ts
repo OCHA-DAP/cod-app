@@ -11,6 +11,7 @@ import {
   type IssueRow,
 } from "$lib/db/issues";
 import { setCentroidLat } from "$lib/db/units";
+import { layerBounds } from "$lib/db/layerView";
 
 export type { IssueKind, IssueRow } from "$lib/db/issues";
 
@@ -39,21 +40,9 @@ export interface DetectResult {
 export async function computeBounds(
   conn: AsyncDuckDBConnection,
 ): Promise<[number, number, number, number] | null> {
-  try {
-    const r = await conn.query(`--sql
-      SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-             MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-      FROM layer_01 WHERE geom IS NOT NULL
-    `);
-    const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-    if ([xmin, ymin, xmax, ymax].every((v) => Number.isFinite(v))) {
-      setCentroidLat((ymin + ymax) / 2);
-      return [xmin, ymin, xmax, ymax];
-    }
-  } catch {
-    // fall through to null
-  }
-  return null;
+  const bounds = await layerBounds(conn).catch(() => null);
+  if (bounds) setCentroidLat((bounds[1] + bounds[3]) / 2);
+  return bounds;
 }
 
 // Read-only scan of layer_01 for gap/overlap/micro-polygon/notch defects; detect never modifies

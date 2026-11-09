@@ -5,6 +5,7 @@
   import InputStep from "$lib/components/InputStep.svelte";
   import DropZone from "$lib/components/DropZone.svelte";
   import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
+  import { layerBounds } from "$lib/db/layerView";
   import { loadFile } from "$lib/db/loader";
   import { onMount, untrack } from "svelte";
   import IssuesTable from "./IssuesTable.svelte";
@@ -199,20 +200,12 @@
     currentStage = 1;
     stageLabel = "Loading file…";
     try {
-      const bboxResult = await withDb(async (db, conn) => {
+      const loadedBounds = await withDb(async (db, conn) => {
         await loadFile(db, conn, files);
         loaded = true;
-        return conn.query(`
-          SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-                 MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-          FROM layer_01 WHERE geom IS NOT NULL
-        `);
+        return layerBounds(conn);
       });
-      const bboxRow = bboxResult.toArray()[0] as Record<string, number>;
-      const { xmin, ymin, xmax, ymax } = bboxRow;
-      if (isFinite(xmin) && isFinite(ymin) && isFinite(xmax) && isFinite(ymax)) {
-        bounds = [xmin, ymin, xmax, ymax];
-      }
+      if (loadedBounds) bounds = loadedBounds;
     } catch (e) {
       loadError = e instanceof Error ? e.message : String(e);
       currentStage = 0;
