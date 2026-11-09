@@ -72,10 +72,8 @@ shares with `code-create`.
   and `tauSame` and leaves `linkByCode`, `linkByName`, `linkMode` and the
   identity-linking columns at their defaults. It MUST show each level's
   classification in `change`'s map and table, one level at a time,
-  without `renamed` and `relocated` filters, drawing `unchanged` units in
-  the base fill as in `change` but listing them in the table under an
-  `unchanged` filter that starts on, and making them hoverable and
-  clickable on the map, with each NEW unit's assigned
+  without `renamed` and `relocated` filters and with `unchanged` units
+  drawn and listed as in `change`, with each NEW unit's assigned
   code as its NEW code, suffixed `(overflow)` for an `overflow` outcome
   and `(new)` for a `new` outcome on an `unchanged` or `modified` unit.
 - The identity-linking code/name columns MUST be that level's own resolved
@@ -110,7 +108,7 @@ parent codes:
   under a new parent) and repeats any OLD code at the level, or an earlier
   rewrite in code order, MUST get a new code instead, with its OLD code as
   `predecessor_code` and reason `moved under a new parent where its code
-is already taken, new code assigned`.
+  is already taken, new code assigned`.
 - New numbers MUST start above every code the parent's direct children
   had in OLD at this level, retired codes included, and above every code
   retained this run. No OLD code at the level is ever given to a

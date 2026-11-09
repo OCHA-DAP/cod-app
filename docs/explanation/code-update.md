@@ -154,8 +154,7 @@ own attribute table), matching Python's own changelog schema exactly.
 level's classification at a time, so a level's map and table read exactly
 like a `change` run between that level's OLD and NEW units. The map colors
 units by relationship class and draws `unchanged` units in the base input
-fill. Unlike `change`, it lists `unchanged` units in the table and lets
-them be hovered and clicked, since a retained code is a result the user
-needs to see next to the new and retired ones. Each NEW unit's assigned
+fill, lists them in the table and makes them hoverable and clickable, so
+retained codes show next to the new and retired ones. Each NEW unit's assigned
 code stands in as its NEW code in the table, which is where the
 `code_outcome` result shows up.
