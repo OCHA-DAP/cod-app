@@ -5,6 +5,7 @@ import type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 import { assignCreateCodes, type SourceCodes } from "./assign";
 import { buildCodeIssues, type CodeIssueRow } from "./issues";
 import { resolveCodeLevels } from "./levels";
+import { layerBounds } from "$lib/db/layerView";
 
 export { parseMinWidth, resolveCodeFormat } from "$lib/db/code";
 export type { CodeFormat } from "$lib/db/code";
@@ -17,20 +18,6 @@ export interface CodeCreateResult {
   bounds: [number, number, number, number] | null;
   levelCount: number;
   issues: CodeIssueRow[];
-}
-
-async function computeBounds(
-  conn: AsyncDuckDBConnection,
-): Promise<[number, number, number, number] | null> {
-  const r = await conn.query(`--sql
-    SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-           MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-    FROM layer_01 WHERE geom IS NOT NULL
-  `);
-  const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-  return [xmin, ymin, xmax, ymax].every((v) => Number.isFinite(v))
-    ? [xmin, ymin, xmax, ymax]
-    : null;
 }
 
 // Codes are written into cc_attr, a fresh copy of layer_attr per run, so a
@@ -52,7 +39,7 @@ export async function runCodeCreate(
   const issues = await buildCodeIssues(conn, "cc_attr", levels, fmt, sourceCodes);
 
   const resultGeoJSON = await tableToGeoJSON(conn, "layer_01", "cc_attr");
-  const bounds = await computeBounds(conn);
+  const bounds = await layerBounds(conn);
   return {
     resultGeoJSON,
     bounds,

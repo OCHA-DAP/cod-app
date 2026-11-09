@@ -1,6 +1,6 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { changedGeoJSON, tableToGeoJSON } from "$lib/db/geojson";
-import { setCentroidLat } from "$lib/db/units";
+import { computeBounds } from "$lib/tools/topo-detect/pipeline/index";
 import { buildNotchRegions, readIssues } from "$lib/db/issues";
 import { buildClean, buildInput, buildNotched, countRows, inputHasViolations } from "./clean";
 import {
@@ -96,26 +96,6 @@ let cachedFailedKinds = new Set<IssueKind>();
 // buildClean skip-gate) is computed once in runFromLoaded and reused by every
 // reclean instead of re-running ST_CoverageInvalidEdges_Agg on every slider drag.
 let cachedHasViolations = true;
-
-async function computeBounds(
-  conn: AsyncDuckDBConnection,
-): Promise<[number, number, number, number] | null> {
-  try {
-    const r = await conn.query(`--sql
-      SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-             MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-      FROM layer_01 WHERE geom IS NOT NULL
-    `);
-    const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-    if ([xmin, ymin, xmax, ymax].every((v) => Number.isFinite(v))) {
-      setCentroidLat((ymin + ymax) / 2);
-      return [xmin, ymin, xmax, ymax];
-    }
-  } catch {
-    // fall through to null
-  }
-  return null;
-}
 
 // Refreshes the rows that describe tc_clean, and returns the fixed issue keys.
 async function syncOutputIssues(conn: AsyncDuckDBConnection): Promise<Set<string>> {

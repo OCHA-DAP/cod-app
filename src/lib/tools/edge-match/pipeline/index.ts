@@ -28,6 +28,7 @@ import {
   type GroupInfo,
   type GroupResult,
 } from "./groups";
+import { layerBounds } from "$lib/db/layerView";
 
 export type EdgeMatchPhase =
   | { phase: "loading" }
@@ -205,27 +206,6 @@ async function buildResultsAttrTable(conn: AsyncDuckDBConnection): Promise<void>
   `);
 }
 
-async function computeBounds(
-  conn: AsyncDuckDBConnection,
-  table = "ge_results",
-): Promise<[number, number, number, number] | null> {
-  try {
-    const r = await conn.query(`--sql
-      SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-             MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-      FROM ${table} WHERE geom IS NOT NULL
-    `);
-    const row = r.toArray()[0] as Record<string, number>;
-    const { xmin, ymin, xmax, ymax } = row;
-    if (isFinite(xmin) && isFinite(ymin) && isFinite(xmax) && isFinite(ymax)) {
-      return [xmin, ymin, xmax, ymax];
-    }
-  } catch {
-    // bounds stays null
-  }
-  return null;
-}
-
 export async function runEdgeMatch(
   db: AsyncDuckDB,
   conn: AsyncDuckDBConnection,
@@ -245,7 +225,7 @@ export async function runEdgeMatch(
     "SELECT ST_AsGeoJSON(geom) AS _geom, fid FROM overlay_layer_01 WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)",
   );
 
-  const inputBounds = await computeBounds(conn, "input_layer_01");
+  const inputBounds = await layerBounds(conn, "input_layer_01").catch(() => null);
   if (inputBounds) setCentroidLat((inputBounds[1] + inputBounds[3]) / 2);
 
   onProgress({ phase: "assigning" });
@@ -266,7 +246,7 @@ export async function runEdgeMatch(
     groups,
     inputGeojson,
     overlayOutlineGeojson,
-    bounds: await computeBounds(conn, "overlay_layer_01"),
+    bounds: await layerBounds(conn, "overlay_layer_01").catch(() => null),
   });
   // ge_groups only exists to build the groups list above — nothing later
   // reads it.
@@ -341,7 +321,7 @@ export async function runEdgeMatch(
   const attrTable = hasAttrTable ? "ge_results_attr" : null;
 
   const geojson = await tableToGeoJSON(conn, "ge_results", attrTable);
-  const bounds = await computeBounds(conn);
+  const bounds = await layerBounds(conn, "ge_results").catch(() => null);
 
   return {
     geojson,

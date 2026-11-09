@@ -1,11 +1,11 @@
 <script lang="ts">
   import ToolHeader from "$lib/components/ToolHeader.svelte";
-  import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
   import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { textParam, syncParam } from "$lib/utils/syncParam.svelte";
   import { serialRunner } from "$lib/utils/serialRunner";
   import { loadFile } from "$lib/db/loader";
   import { tableToGeoJSON } from "$lib/db/geojson";
+  import { layerBounds } from "$lib/db/layerView";
   import type { ExportSource } from "$lib/db/export";
   import { DEFAULT_DEPTH_COLUMN } from "$lib/tools/schema-fill/pipeline/index";
   import { runPackage, type PackageResult, type TargetSchema } from "./pipeline/index";
@@ -42,20 +42,6 @@
     initDuckDB();
   });
 
-  async function computeLoadedBounds(
-    conn: AsyncDuckDBConnection,
-  ): Promise<[number, number, number, number] | null> {
-    const r = await conn.query(`--sql
-      SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-             MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-      FROM layer_01 WHERE geom IS NOT NULL
-    `);
-    const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-    return [xmin, ymin, xmax, ymax].every((v) => Number.isFinite(v))
-      ? [xmin, ymin, xmax, ymax]
-      : null;
-  }
-
   $effect(() => {
     const f = files;
     const ready = duckdbState.ready;
@@ -79,7 +65,7 @@
       await withDb(async (db, conn) => {
         await loadFile(db, conn, files);
         originalGeoJSON = await tableToGeoJSON(conn, "layer_01", null);
-        loadedBounds = await computeLoadedBounds(conn);
+        loadedBounds = await layerBounds(conn);
       });
       loaded = true;
     } catch (e) {

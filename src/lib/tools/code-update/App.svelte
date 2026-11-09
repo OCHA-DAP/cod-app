@@ -1,7 +1,7 @@
 <script lang="ts">
   import ToolHeader from "$lib/components/ToolHeader.svelte";
-  import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
   import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
+  import { layerBounds } from "$lib/db/layerView";
   import {
     numberParam,
     textParam,
@@ -83,18 +83,6 @@
     initDuckDB();
   });
 
-  async function computeLoadedBounds(
-    conn: AsyncDuckDBConnection,
-  ): Promise<[number, number, number, number] | null> {
-    const r = await conn.query(`--sql
-      SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-             MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-      FROM (SELECT geom FROM cu_a_layer_01 UNION ALL SELECT geom FROM cu_b_layer_01)
-      WHERE geom IS NOT NULL
-    `);
-    const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-    return [xmin, ymin, xmax, ymax].every((v) => Number.isFinite(v)) ? [xmin, ymin, xmax, ymax] : null;
-  }
 
   function resetRun(): void {
     ran = false;
@@ -141,7 +129,7 @@
       await withDb((db, conn) => loadSide(db, conn, side, files));
       if (side === "a") loadedA = true;
       else loadedB = true;
-      if (loadedA && loadedB) loadedBounds = await withDb((_db, conn) => computeLoadedBounds(conn));
+      if (loadedA && loadedB) loadedBounds = await withDb((_db, conn) => layerBounds(conn, ["cu_a_layer_01", "cu_b_layer_01"]));
     } catch (e) {
       loadError = e instanceof Error ? e.message : String(e);
     } finally {

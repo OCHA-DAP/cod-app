@@ -9,6 +9,7 @@ import { stageLines } from "./lines";
 import { stageMerge } from "./merge";
 import { buildSegments, estimateCount, stagePoints } from "./points";
 import { AssignmentError, stageVoronoi } from "./voronoi";
+import { layerBounds } from "$lib/db/layerView";
 
 export type ProgressFn = (stage: number, label: string) => void;
 
@@ -253,25 +254,7 @@ export async function runPipeline(
   await runValidation(conn, "layer_05", "layer_01");
 
   // Bounds for map fit
-  let bounds: [number, number, number, number] | null = null;
-  try {
-    const bboxResult = await conn.query(`--sql
-      SELECT
-        MIN(ST_XMin(geom)) AS xmin,
-        MIN(ST_YMin(geom)) AS ymin,
-        MAX(ST_XMax(geom)) AS xmax,
-        MAX(ST_YMax(geom)) AS ymax
-      FROM layer_05
-      WHERE geom IS NOT NULL
-    `);
-    const row = bboxResult.toArray()[0] as Record<string, number>;
-    const { xmin, ymin, xmax, ymax } = row;
-    if (isFinite(xmin) && isFinite(ymin) && isFinite(xmax) && isFinite(ymax)) {
-      bounds = [xmin, ymin, xmax, ymax];
-    }
-  } catch {
-    // bounds stays null
-  }
+  const bounds = await layerBounds(conn, "layer_05").catch(() => null);
 
   const geojson = await tableToGeoJSON(conn, "layer_05", "layer_attr");
   const changed = await changedGeoJSON(conn, "layer_05", "layer_01");

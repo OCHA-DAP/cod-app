@@ -3,15 +3,16 @@ import { ROW_ORDER_COLUMN } from "./export";
 
 export type Bounds = [number, number, number, number];
 
-// Extent of a loaded layer's geometry table, or null when it has none.
+// Combined extent of one or more geometry tables, or null when they have none.
 export async function layerBounds(
   conn: AsyncDuckDBConnection,
-  table = "layer_01",
+  tables: string | string[] = "layer_01",
 ): Promise<Bounds | null> {
+  const from = [tables].flat().map((t) => `SELECT geom FROM ${t}`).join(" UNION ALL ");
   const r = await conn.query(`--sql
     SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
            MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-    FROM ${table} WHERE geom IS NOT NULL
+    FROM (${from}) WHERE geom IS NOT NULL
   `);
   const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
   const b: Bounds = [xmin, ymin, xmax, ymax];

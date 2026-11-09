@@ -12,6 +12,7 @@ import { detectColumns, type ColumnGuess } from "$lib/db/columns";
 import type { MatchColumnOptions } from "$lib/db/codeJoin";
 import { buildMosaicIssues, type MosaicIssueRow } from "./issues";
 import { loadLayers } from "./load";
+import { layerBounds } from "$lib/db/layerView";
 
 export type { MosaicIssueRow } from "./issues";
 
@@ -44,27 +45,6 @@ export interface MosaicResult {
   overlayColumns: ColumnGuess;
 }
 
-async function computeBounds(
-  conn: AsyncDuckDBConnection,
-  table: string,
-): Promise<[number, number, number, number] | null> {
-  try {
-    const r = await conn.query(`--sql
-      SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-             MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-      FROM ${table} WHERE geom IS NOT NULL
-    `);
-    const { xmin, ymin, xmax, ymax } = r.toArray()[0] as Record<string, number>;
-    if ([xmin, ymin, xmax, ymax].every((v) => Number.isFinite(v))) {
-      setCentroidLat((ymin + ymax) / 2);
-      return [xmin, ymin, xmax, ymax];
-    }
-  } catch {
-    // fall through to null
-  }
-  return null;
-}
-
 // Ported from topo-tools' mosaic: assign-one, then a clip to the winning overlay
 // polygon on shared border points, with no re-extension and no stitch.
 export async function runMosaic(
@@ -93,7 +73,8 @@ export async function runMosaic(
   }
   const inputGeoJSON = await tableToGeoJSON(conn, "input_layer_01", null);
   const overlayOutlineGeoJSON = await tableToGeoJSON(conn, "overlay_layer_01", null);
-  const bounds = await computeBounds(conn, "input_layer_01");
+  const bounds = await layerBounds(conn, "input_layer_01").catch(() => null);
+  if (bounds) setCentroidLat((bounds[1] + bounds[3]) / 2);
   const inputColumns = await detectColumns(conn, "input_layer_attr");
   const overlayColumns = await detectColumns(conn, "overlay_layer_attr");
 
