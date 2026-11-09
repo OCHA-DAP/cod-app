@@ -4,7 +4,7 @@
   import PrivacyNote from "$lib/components/PrivacyNote.svelte";
   import InputStep from "$lib/components/InputStep.svelte";
   import DropZone from "$lib/components/DropZone.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { loadFile } from "$lib/db/loader";
   import { onMount, untrack } from "svelte";
   import IssuesTable from "./IssuesTable.svelte";
@@ -64,11 +64,12 @@
     try {
       currentStage = 1;
       stageLabel = "Loading file…";
-      await loadFile(duckdbState.db!, duckdbState.conn!, files);
-
-      const result = await runDetect(duckdbState.conn!, (stage, label) => {
-        currentStage = stage;
-        stageLabel = label;
+      const result = await withDb(async (db, conn) => {
+        await loadFile(db, conn, files);
+        return runDetect(conn, (stage, label) => {
+          currentStage = stage;
+          stageLabel = label;
+        });
       });
 
       originalGeoJSON = result.originalGeoJSON;

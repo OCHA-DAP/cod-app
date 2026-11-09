@@ -4,7 +4,7 @@
   import PrivacyNote from "$lib/components/PrivacyNote.svelte";
   import InputStep from "$lib/components/InputStep.svelte";
   import DropZone from "$lib/components/DropZone.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { choiceParam, numberParam, syncParam, textParam } from "$lib/utils/syncParam.svelte";
   import { onMount, untrack } from "svelte";
   import ResultView from "./ResultView.svelte";
@@ -33,7 +33,7 @@
   let filesB = $state<File[]>([]);
   let loadedA = $state(false);
   let loadedB = $state(false);
-  let loadingSide = $state<"a" | "b" | null>(null);
+  let loading = $state({ a: false, b: false });
   let loadError = $state<string | null>(null);
   let ran = $state(false);
 
@@ -125,7 +125,7 @@
     const ready = duckdbState.ready;
     if (f.length === 0 || !ready) return;
     untrack(() => {
-      if (loadingSide === "a") return;
+      if (loading.a) return;
       colsA = null;
       loadedA = false;
       resetResults();
@@ -137,7 +137,7 @@
     const ready = duckdbState.ready;
     if (f.length === 0 || !ready) return;
     untrack(() => {
-      if (loadingSide === "b") return;
+      if (loading.b) return;
       colsB = null;
       loadedB = false;
       resetResults();
@@ -168,15 +168,14 @@
 
   async function loadSideThen(side: "a" | "b"): Promise<void> {
     loadError = null;
-    loadingSide = side;
+    loading[side] = true;
     try {
       const files = side === "a" ? filesA : filesB;
-      await loadSide(duckdbState.db!, duckdbState.conn!, side, files);
       const table = `cw_${side}_layer_attr`;
-      const cols = {
-        ...(await detectColumns(duckdbState.conn!, table)),
-        ...(await detectUnitColumns(duckdbState.conn!, table)),
-      };
+      const cols = await withDb(async (db, conn) => {
+        await loadSide(db, conn, side, files);
+        return { ...(await detectColumns(conn, table)), ...(await detectUnitColumns(conn, table)) };
+      });
       if (side === "a") {
         aCodeCol = pick(cols, aCodeCol, cols.code ?? null);
         aNameCol = pick(cols, aNameCol, cols.name);
@@ -189,12 +188,14 @@
         loadedB = true;
       }
       if (loadedA && loadedB) {
-        const bboxResult = await duckdbState.conn!.query(`
-          SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-                 MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-          FROM (SELECT geom FROM cw_a_layer_01 UNION ALL SELECT geom FROM cw_b_layer_01)
-          WHERE geom IS NOT NULL
-        `);
+        const bboxResult = await withDb((_db, conn) =>
+          conn.query(`
+            SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
+                   MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
+            FROM (SELECT geom FROM cw_a_layer_01 UNION ALL SELECT geom FROM cw_b_layer_01)
+            WHERE geom IS NOT NULL
+          `),
+        );
         const bboxRow = bboxResult.toArray()[0] as Record<string, number>;
         const { xmin, ymin, xmax, ymax } = bboxRow;
         if (isFinite(xmin) && isFinite(ymin) && isFinite(xmax) && isFinite(ymax)) {
@@ -204,7 +205,7 @@
     } catch (e) {
       loadError = e instanceof Error ? e.message : String(e);
     } finally {
-      loadingSide = null;
+      loading[side] = false;
     }
   }
 
@@ -220,8 +221,8 @@
     errorStage = 0;
     stageLabel = "Sources loaded";
     try {
-      const result = await runFromLoaded(
-        duckdbState.conn!,
+      const result = await withDb((_db, conn) => runFromLoaded(
+        conn,
         {
           tauMatch,
           tauSame,
@@ -237,7 +238,7 @@
           currentStage = stage;
           stageLabel = label;
         },
-      );
+      ));
       overlayGeoJSON = result.overlayGeoJSON;
       outlineAGeoJSON = result.outlineAGeoJSON;
       outlineBGeoJSON = result.outlineBGeoJSON;
@@ -268,21 +269,23 @@
   });
 
   async function handleApplyColumns(): Promise<void> {
-    if (!duckdbState.conn || !overlayGeoJSON) return;
+    if (!duckdbState.ready || !overlayGeoJSON) return;
     running = true;
     try {
-      await buildKeyed(duckdbState.conn, "a", aCodeCol ? [aCodeCol] : [], aNameCol);
-      await buildKeyed(duckdbState.conn, "b", bCodeCol ? [bCodeCol] : [], bNameCol);
-      const result = await reclassifyOnly(duckdbState.conn, {
-        tauMatch,
-        tauSame,
-        aCodeCol: aCodeCol ? [aCodeCol] : [],
-        aNameCol,
-        bCodeCol: bCodeCol ? [bCodeCol] : [],
-        bNameCol,
-        linkByCode,
-        linkByName,
-        linkMode,
+      const result = await withDb(async (_db, conn) => {
+        await buildKeyed(conn, "a", aCodeCol ? [aCodeCol] : [], aNameCol);
+        await buildKeyed(conn, "b", bCodeCol ? [bCodeCol] : [], bNameCol);
+        return reclassifyOnly(conn, {
+          tauMatch,
+          tauSame,
+          aCodeCol: aCodeCol ? [aCodeCol] : [],
+          aNameCol,
+          bCodeCol: bCodeCol ? [bCodeCol] : [],
+          bNameCol,
+          linkByCode,
+          linkByName,
+          linkMode,
+        });
       });
       overlayGeoJSON = result.overlayGeoJSON;
       outlineAGeoJSON = result.outlineAGeoJSON;
@@ -309,7 +312,7 @@
     reclassifying = true;
     reclassifyPending = false;
     try {
-      const result = await reclassifyOnly(duckdbState.conn!, {
+      const result = await withDb((_db, conn) => reclassifyOnly(conn, {
         tauMatch,
         tauSame,
         aCodeCol: aCodeCol ? [aCodeCol] : [],
@@ -319,7 +322,7 @@
         linkByCode,
         linkByName,
         linkMode,
-      });
+      }));
       overlayGeoJSON = result.overlayGeoJSON;
       outlineAGeoJSON = result.outlineAGeoJSON;
       outlineBGeoJSON = result.outlineBGeoJSON;
@@ -413,7 +416,7 @@
           <DropZone
             bind:files={filesA}
             urlParam="old"
-            disabled={running || loadingSide === "a"}
+            disabled={running || loading.a}
             helpText="Older version. Polygon layer in any supported format."
           />
         </div>
@@ -422,13 +425,13 @@
           <DropZone
             bind:files={filesB}
             urlParam="new"
-            disabled={running || loadingSide === "b"}
+            disabled={running || loading.b}
             helpText="Newer version. Same coverage area."
           />
         </div>
       </div>
-      {#if loadingSide === "a"}<p class="cw-status">Loading Version A…</p>{/if}
-      {#if loadingSide === "b"}<p class="cw-status">Loading Version B…</p>{/if}
+      {#if loading.a}<p class="cw-status">Loading Version A…</p>{/if}
+      {#if loading.b}<p class="cw-status">Loading Version B…</p>{/if}
       {#if loadError}<div class="cw-error">{loadError}</div>{/if}
     </InputStep>
 

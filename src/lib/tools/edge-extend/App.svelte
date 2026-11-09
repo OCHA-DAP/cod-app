@@ -1,6 +1,6 @@
 <script lang="ts">
   import ToolHeader from "$lib/components/ToolHeader.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { loadFile } from "$lib/db/loader";
   import { getOriginalGeojson, PipelineError, runPipeline } from "./pipeline/index";
   import { onMount, untrack } from "svelte";
@@ -38,13 +38,6 @@
   });
 
   $effect(() => {
-    if (duckdbState.ready) {
-      // @ts-expect-error temporary debug hook, removed after manual QA
-      window.__dbg = { conn: duckdbState.conn, db: duckdbState.db };
-    }
-  });
-
-  $effect(() => {
     const f = files;
     if (f.length > 0 && duckdbState.ready) {
       untrack(() => {
@@ -68,14 +61,16 @@
     try {
       currentStage = 1;
       stageLabel = "Loading file…";
-      await loadFile(duckdbState.db!, duckdbState.conn!, files);
-
-      const origGeoJSON = await getOriginalGeojson(duckdbState.conn!);
-      const bboxResult = await duckdbState.conn!.query(`
-        SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-               MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-        FROM layer_01 WHERE geom IS NOT NULL
-      `);
+      const [origGeoJSON, bboxResult] = await withDb(async (db, conn) => {
+        await loadFile(db, conn, files);
+        const geojson = await getOriginalGeojson(conn);
+        const bbox = await conn.query(`
+          SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
+                 MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
+          FROM layer_01 WHERE geom IS NOT NULL
+        `);
+        return [geojson, bbox] as const;
+      });
       const bboxRow = bboxResult.toArray()[0] as Record<string, number>;
       const { xmin, ymin, xmax, ymax } = bboxRow;
       if (isFinite(xmin) && isFinite(ymin) && isFinite(xmax) && isFinite(ymax)) {
@@ -83,10 +78,12 @@
       }
       originalGeoJSON = origGeoJSON;
 
-      const result = await runPipeline(duckdbState.conn!, (stage, label) => {
-        currentStage = stage;
-        stageLabel = label;
-      });
+      const result = await withDb((_db, conn) =>
+        runPipeline(conn, (stage, label) => {
+          currentStage = stage;
+          stageLabel = label;
+        }),
+      );
 
       resultGeoJSON = result.geojson;
       changedGeoJSON = result.changedGeoJSON;

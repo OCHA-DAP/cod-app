@@ -1,6 +1,7 @@
 <script lang="ts">
   import ToolHeader from "$lib/components/ToolHeader.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import {
     numberParam,
     textParam,
@@ -28,7 +29,7 @@
 
   let filesA = $state<File[]>([]);
   let filesB = $state<File[]>([]);
-  let loadingSide = $state<"a" | "b" | null>(null);
+  let loading = $state({ a: false, b: false });
   let loadedA = $state(false);
   let loadedB = $state(false);
   let loadError = $state<string | null>(null);
@@ -82,8 +83,9 @@
     initDuckDB();
   });
 
-  async function computeLoadedBounds(): Promise<[number, number, number, number] | null> {
-    const conn = duckdbState.conn!;
+  async function computeLoadedBounds(
+    conn: AsyncDuckDBConnection,
+  ): Promise<[number, number, number, number] | null> {
     const r = await conn.query(`--sql
       SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
              MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
@@ -112,7 +114,7 @@
     const ready = duckdbState.ready;
     if (f.length === 0 || !ready) return;
     untrack(() => {
-      if (loadingSide === "a") return;
+      if (loading.a) return;
       loadedA = false;
       resetRun();
       loadSideThen("a");
@@ -124,7 +126,7 @@
     const ready = duckdbState.ready;
     if (f.length === 0 || !ready) return;
     untrack(() => {
-      if (loadingSide === "b") return;
+      if (loading.b) return;
       loadedB = false;
       resetRun();
       loadSideThen("b");
@@ -133,17 +135,17 @@
 
   async function loadSideThen(side: "a" | "b"): Promise<void> {
     loadError = null;
-    loadingSide = side;
+    loading[side] = true;
     try {
       const files = side === "a" ? filesA : filesB;
-      await loadSide(duckdbState.db!, duckdbState.conn!, side, files);
+      await withDb((db, conn) => loadSide(db, conn, side, files));
       if (side === "a") loadedA = true;
       else loadedB = true;
-      if (loadedA && loadedB) loadedBounds = await computeLoadedBounds();
+      if (loadedA && loadedB) loadedBounds = await withDb((_db, conn) => computeLoadedBounds(conn));
     } catch (e) {
       loadError = e instanceof Error ? e.message : String(e);
     } finally {
-      loadingSide = null;
+      loading[side] = false;
     }
   }
 
@@ -161,22 +163,24 @@
     running = true;
 
     try {
-      const result = await runCodeUpdate(duckdbState.conn!, {
-        schemaA: schemaFrom(nameFieldA, codeFieldA),
-        schemaB: schemaFrom(nameFieldB, codeFieldB),
-        rootCode: rootCode.trim() === "" ? null : rootCode.trim(),
-        delimiter,
-        minWidth: minWidth.trim() === "" ? null : minWidth,
-        codeColumnA: null,
-        codeColumnB: null,
-        nameColumnA: null,
-        nameColumnB: null,
-        tauMatch,
-        tauSame,
-        linkByCode: false,
-        linkByName: false,
-        linkMode: "either",
-      });
+      const result = await withDb((_db, conn) =>
+        runCodeUpdate(conn, {
+          schemaA: schemaFrom(nameFieldA, codeFieldA),
+          schemaB: schemaFrom(nameFieldB, codeFieldB),
+          rootCode: rootCode.trim() === "" ? null : rootCode.trim(),
+          delimiter,
+          minWidth: minWidth.trim() === "" ? null : minWidth,
+          codeColumnA: null,
+          codeColumnB: null,
+          nameColumnA: null,
+          nameColumnB: null,
+          tauMatch,
+          tauSame,
+          linkByCode: false,
+          linkByName: false,
+          linkMode: "either",
+        }),
+      );
       resultGeoJSON = result.resultGeoJSON;
       resultBounds = result.bounds;
       levelCount = result.levelCount;
@@ -227,7 +231,7 @@
   const formatOverrideValid = $derived(
     (delimMode !== "char" || [...delimChar].length === 1) && minWidthError === null,
   );
-  const canRun = $derived(loadedA && loadedB && templatesValid && formatOverrideValid && !loadingSide);
+  const canRun = $derived(loadedA && loadedB && templatesValid && formatOverrideValid && !(loading.a || loading.b));
 
   // Reads every setting so any change reruns; the debounce absorbs slider drags and typing.
   $effect(() => {
@@ -288,7 +292,7 @@
           <DropZone
             bind:files={filesA}
             urlParam="old"
-            disabled={running || loadingSide === "a"}
+            disabled={running || loading.a}
             helpText="Polygon layer with an existing hierarchical code."
           />
         </div>
@@ -297,13 +301,13 @@
           <DropZone
             bind:files={filesB}
             urlParam="new"
-            disabled={running || loadingSide === "b"}
+            disabled={running || loading.b}
             helpText="Polygon layer to reconcile against OLD, same coverage area."
           />
         </div>
       </div>
-      {#if loadingSide === "a"}<p class="status">Loading OLD...</p>{/if}
-      {#if loadingSide === "b"}<p class="status">Loading NEW...</p>{/if}
+      {#if loading.a}<p class="status">Loading OLD...</p>{/if}
+      {#if loading.b}<p class="status">Loading NEW...</p>{/if}
       {#if loadError}<div class="error-panel">{loadError}</div>{/if}
     </InputStep>
 
@@ -442,7 +446,7 @@
     outlineBGeojson={levelView?.outlineBGeoJSON ?? null}
     {tableRows}
     bounds={levelView?.bounds ?? loadedBounds}
-    processing={loadingSide !== null || running}
+    processing={loading.a || loading.b || running}
     sideLabels={["OLD", "NEW"]}
     {classes}
     bind:showSide

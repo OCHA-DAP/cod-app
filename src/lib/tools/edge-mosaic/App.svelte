@@ -10,7 +10,7 @@
   import CodeJoinPicker from "$lib/components/CodeJoinPicker.svelte";
   import MapView from "$lib/components/MapView.svelte";
   import SideToggle from "$lib/components/SideToggle.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { onMount, untrack } from "svelte";
   import { PipelineError, runMosaic, type MosaicIssueRow } from "./pipeline/index";
   import type { ColumnGuess } from "$lib/db/columns";
@@ -123,9 +123,9 @@
     stageLabel = "";
 
     try {
-      const result = await runMosaic(
-        duckdbState.db!,
-        duckdbState.conn!,
+      const result = await withDb((db, conn) => runMosaic(
+        db,
+        conn,
         inputFiles,
         overlayFiles,
         originalFiles,
@@ -136,7 +136,7 @@
         { overlayMatchColumn: overlayMatchColumn ?? undefined, inputMatchColumn: inputMatchColumn ?? undefined },
         carryOverlayColumns,
         !skipClean,
-      );
+      ));
 
       resultGeoJSON = result.mosaicGeoJSON;
       changedGeoJSON = result.changedGeoJSON;

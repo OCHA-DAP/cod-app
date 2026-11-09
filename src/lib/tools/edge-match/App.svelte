@@ -1,6 +1,6 @@
 <script lang="ts">
   import ToolHeader from "$lib/components/ToolHeader.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { boolParam, choiceParam, syncParam } from "$lib/utils/syncParam.svelte";
   import { onMount, untrack } from "svelte";
   import DownloadMenu from "$lib/components/DownloadMenu.svelte";
@@ -85,13 +85,6 @@
   syncParam("skipClean", boolParam, () => skipClean, (v) => (skipClean = v));
   onMount(() => {
     initDuckDB();
-  });
-
-  $effect(() => {
-    if (duckdbState.ready) {
-      // @ts-expect-error temporary debug hook, removed after manual QA
-      window.__dbg = { conn: duckdbState.conn, db: duckdbState.db };
-    }
   });
 
   $effect(() => {
@@ -220,9 +213,9 @@
     phaseLabel = "";
 
     try {
-      const result = await runEdgeMatch(
-        duckdbState.db!,
-        duckdbState.conn!,
+      const result = await withDb((db, conn) => runEdgeMatch(
+        db,
+        conn,
         inputFiles,
         overlayFiles,
         onProgress,
@@ -230,7 +223,7 @@
         passthrough,
         matchMode,
         !skipClean,
-      );
+      ));
       resultGeoJSON = result.geojson;
       showSide = "b";
       overlayOutlineGeoJSON = result.overlayOutlineGeojson;

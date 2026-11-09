@@ -1,9 +1,8 @@
 import { beforeAll, describe, expect, test } from "vitest";
-import { initDuckDB } from "$lib/db/duckdb.svelte";
 import { listFormats, runExport, type ExportFormat } from "$lib/db/export";
 import { loadFile } from "$lib/db/loader";
 import tinyUrl from "./fixtures/clean/tiny.geojson?url";
-import { db } from "./helpers";
+import { db, ready } from "./helpers";
 
 const FEATURES = 6;
 
@@ -25,7 +24,7 @@ describe("export formats", () => {
   let formats: ExportFormat[] = [];
 
   beforeAll(async () => {
-    await initDuckDB();
+    await ready();
     const { db: instance, conn } = db();
     const blob = await (await fetch(tinyUrl)).blob();
     await loadFile(instance, conn, [new File([blob], "tiny.geojson")]);

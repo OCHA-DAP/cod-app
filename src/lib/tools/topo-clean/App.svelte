@@ -4,7 +4,7 @@
   import PrivacyNote from "$lib/components/PrivacyNote.svelte";
   import InputStep from "$lib/components/InputStep.svelte";
   import DropZone from "$lib/components/DropZone.svelte";
-  import { duckdbState, initDuckDB } from "$lib/db/duckdb.svelte";
+  import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { loadFile } from "$lib/db/loader";
   import { onMount, untrack } from "svelte";
   import IssuesTable from "./IssuesTable.svelte";
@@ -199,13 +199,15 @@
     currentStage = 1;
     stageLabel = "Loading file…";
     try {
-      await loadFile(duckdbState.db!, duckdbState.conn!, files);
-      loaded = true;
-      const bboxResult = await duckdbState.conn!.query(`
-        SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
-               MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
-        FROM layer_01 WHERE geom IS NOT NULL
-      `);
+      const bboxResult = await withDb(async (db, conn) => {
+        await loadFile(db, conn, files);
+        loaded = true;
+        return conn.query(`
+          SELECT MIN(ST_XMin(geom)) AS xmin, MIN(ST_YMin(geom)) AS ymin,
+                 MAX(ST_XMax(geom)) AS xmax, MAX(ST_YMax(geom)) AS ymax
+          FROM layer_01 WHERE geom IS NOT NULL
+        `);
+      });
       const bboxRow = bboxResult.toArray()[0] as Record<string, number>;
       const { xmin, ymin, xmax, ymax } = bboxRow;
       if (isFinite(xmin) && isFinite(ymin) && isFinite(xmax) && isFinite(ymax)) {
@@ -224,10 +226,12 @@
     running = true;
     errorStage = 0;
     try {
-      const result = await runFromLoaded(duckdbState.conn!, { mode, gapWidthM }, (stage, label) => {
-        currentStage = stage;
-        stageLabel = label;
-      });
+      const result = await withDb((_db, conn) =>
+        runFromLoaded(conn, { mode, gapWidthM }, (stage, label) => {
+          currentStage = stage;
+          stageLabel = label;
+        }),
+      );
       analyzed = true;
       originalGeoJSON = result.originalGeoJSON;
       cleanedGeoJSON = result.cleanedGeoJSON;
@@ -280,7 +284,7 @@
     recleanPending = false;
     const firstClean = cleanedGeoJSON == null;
     try {
-      const result = await recleanOnly(duckdbState.conn!, { mode, gapWidthM });
+      const result = await withDb((_db, conn) => recleanOnly(conn, { mode, gapWidthM }));
       cleanedGeoJSON = result.cleanedGeoJSON;
       modifiedGeoJSON = result.modifiedGeoJSON;
       collapsedCount = result.collapsedCount;

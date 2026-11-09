@@ -7,6 +7,7 @@ import {
   mergeMicroPolygons,
 } from "$lib/db/coverage";
 import { buildCoverageClean, hasAnyHole } from "$lib/db/coverageClean";
+import { withDb } from "$lib/db/duckdb.svelte";
 import { hasInvalidEdges } from "$lib/db/invalidEdges";
 import { hasNoiseFloorGap } from "$lib/db/coverage";
 import { closeNotches, detectNotches } from "$lib/db/notches";
@@ -827,5 +828,20 @@ describe("overlaps", () => {
       [2, "b", inner],
     ]);
     await expect(checkNoOverlaps(conn, "synth", { groupColumn: "grp" })).rejects.toThrow(/a \/ b/);
+  });
+});
+
+describe("withDb", () => {
+  test("overlapping invalid-edge checks each see their own table", async () => {
+    await geomTable("lock_clean", [
+      [1, "POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"],
+      [2, "POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))"],
+    ]);
+    await geomTable("lock_bad", [
+      [1, "POLYGON((0 0, 2 0, 2 1, 0 1, 0 0))"],
+      [2, "POLYGON((1 0, 3 0, 3 1, 1 1, 1 0))"],
+    ]);
+    const check = (t: string) => withDb((_db, c) => hasInvalidEdges(c, t));
+    expect(await Promise.all([check("lock_clean"), check("lock_bad")])).toEqual([false, true]);
   });
 });
