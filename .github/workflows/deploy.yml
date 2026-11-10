@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to Azure Static Web Apps
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
     - cron: "0 6 * * *" # daily status data refresh
 
 concurrency:
-  group: pages
+  group: deploy
   cancel-in-progress: false
 
 jobs:
@@ -42,11 +42,8 @@ jobs:
           ARCGIS_PASSWORD: ${{ secrets.ARCGIS_PASSWORD }}
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-      - uses: actions/configure-pages@v6
-        id: pages
       - run: npm run build
         env:
-          BASE_PATH: ${{ steps.pages.outputs.base_path }}
           PY_DOCS_DIR: topo-tools/docs/pages
           PUBLIC_DECISIONS_SHEET_URL: ${{ vars.PUBLIC_DECISIONS_SHEET_URL }}
       - name: Build git-free plugin archive
@@ -79,7 +76,7 @@ jobs:
                   description: $description,
                   source: {
                     source: "archive",
-                    url: "https://ocha-dap.github.io/cod-site/tools/topo-tools-plugin.zip",
+                    url: "https://cod.unocha.org/tools/topo-tools-plugin.zip",
                     sha256: $sha256
                   }
                 }
@@ -91,22 +88,12 @@ jobs:
         with:
           args: >-
             --offline --no-progress --root-dir ${{ github.workspace }}/dist
-            --remap 'file://${{ github.workspace }}/dist${{ steps.pages.outputs.base_path }} file://${{ github.workspace }}/dist'
             'dist/**/*.html'
           lycheeVersion: v0.24.2
-      - uses: actions/upload-pages-artifact@v5
+      - uses: Azure/static-web-apps-deploy@v1
         with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v5
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: dist
+          skip_app_build: true
+          skip_api_build: true

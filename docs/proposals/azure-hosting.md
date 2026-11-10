@@ -1,86 +1,87 @@
-# Request: Azure hosting for the COD website
+# Architecture options: serving the COD website's geodata from Azure
 
-This request is for an Azure Static Web App to host the site at
-`cod.unocha.org`, a private storage account for the open geodata it shows, and
-an Azure Front Door endpoint that serves that geodata to visitors, all in an
-OCHA Azure subscription. The endpoint goes on an existing OCHA Front Door
-profile if there is one, or on a new Standard profile if not.
+The COD website is a Static Web App: HTML, CSS and JavaScript that run in the
+visitor's browser, with no server of its own. Its maps and examples read open
+geodata (about 40 GB, planned at 100 GB) from an Azure storage account.
+Because the code runs in the browser, every geodata request starts on the
+visitor's machine, outside Azure. The two options below differ in how those
+requests reach the storage account. In both, anonymous access stays off and
+every read is authenticated.
 
-## What the app is
+## Option 1: Function app proxy, private storage
 
-The site covers Common Operational Datasets (CODs). It has guidance, standards,
-a status dashboard and tools for cleaning and checking the data. Everything
-runs in the user's browser: there is no server, database, user account or
-personal data, and files that users load into the tools stay on their machine.
+```mermaid
+flowchart LR
+    browser["Visitor's browser"]
+    swa["Static Web App (public)"]
+    subgraph vnet["OCHA internal network"]
+        func["Function app<br/>(VNet integration, managed identity)"]
+        pe["Private endpoint"]
+        storage[("Storage account<br/>public network access disabled")]
+        avd["Azure Virtual Desktop<br/>(maintainer uploads)"]
+    end
+    browser -- "site files" --> swa
+    browser -- "geodata requests at /api" --> swa
+    swa -- "linked API backend" --> func
+    func -- "reads as Storage Blob Data Reader" --> pe
+    pe --> storage
+    avd -- "uploads as Storage Blob Data Contributor" --> pe
+```
 
-Maps and examples read open geodata that anyone may view and download. Visitors
-get it through Front Door, so the storage account never allows anonymous access
-or account keys.
+- The browser asks the site's own address for each piece of geodata. The
+  Static Web App passes the request to a linked Function app, which reads the
+  storage account through its private endpoint and returns the data.
+- The storage account has no public network access. The Function app reads
+  with its managed identity, and maintainers upload from Azure Virtual Desktop.
+- Every map tile and data read runs the Function app, so all geodata passes
+  through it and through the Static Web App's bandwidth.
 
-## 1. Static Web App
+## Option 2: Short-lived read-only SAS, storage read directly
 
-| Item          | Request                                                                                                                    | Why                                                                                  |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Plan          | Standard                                                                                                                   | Comes with an SLA. The site (about 100 MB) fits well within the 500 MB limit.        |
-| Custom domain | `cod.unocha.org`, which currently redirects to the COD Global Information Dashboard page on Confluence, pointed to the app | A stable OCHA address                                                                |
-| Deployment    | The app's deployment token, stored as a GitHub secret                                                                      | The site publishes from GitHub automatically, so nobody needs an Azure role to do it |
-| Previews      | Preview environments (included in Standard)                                                                                | Changes can be checked on a preview link before they go live                         |
+```mermaid
+flowchart LR
+    browser["Visitor's browser"]
+    swa["Static Web App (public)"]
+    func["Function app<br/>(managed identity)"]
+    storage[("Storage account<br/>public network access enabled<br/>anonymous access off")]
+    laptop["Maintainer's computer<br/>(Entra sign-in)"]
+    browser -- "1. site files" --> swa
+    browser -- "2. token request at /api" --> swa
+    swa -- "linked API backend" --> func
+    func -- "user delegation key" --> storage
+    func -. "1-hour read-only SAS" .-> browser
+    browser -- "3. geodata reads with SAS" --> storage
+    laptop -- "uploads as Storage Blob Data Contributor" --> storage
+```
 
-## 2. Private storage account for geodata
+- The browser asks the site for a token once per visit. A linked Function app
+  signs a SAS with a user delegation key from its managed identity, then the
+  browser reads the storage account directly with it. This is the pattern HDX
+  uses with signed S3 links.
+- The token is read-only, scoped to the geodata container, can't list or
+  write, and expires after 1 hour. The browser asks for a new one when it
+  expires.
+- The storage account accepts connections from the internet, but rejects any
+  request without a valid token. CORS allows reads only from the site's
+  addresses.
+- Maintainers upload from their own computers, signed in with Entra ID.
 
-| Item             | Request                                                                                                                                       | Why                                                                                                                          |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Account          | A dedicated account in West Europe, Hot tier, LRS, holding only the site's geodata (about 40 GB today, planned at 100 GB to allow for growth) | Turning off account keys and adding CORS apply to the whole account, so other apps aren't affected                           |
-| Anonymous access | Off on the account and the container. Every read is authenticated through Entra ID                                                            | Meets the tenant policy against anonymous blob access                                                                        |
-| Account keys     | "Allow storage account key access" off                                                                                                        | Every upload is tied to a named Entra identity                                                                               |
-| CORS             | Allow GET and HEAD from any origin (`*`), including the `Range` header and exposing `Content-Range`, `Content-Length` and `ETag`              | Browsers read only the parts of large files they need, and the same cached response works on the live site and preview links |
-| Upload           | Storage Blob Data Contributor on that container only, for two named maintainers, PIM-eligible if the tenant uses PIM                          | Maintainers can add, replace and remove geodata but can't change settings                                                    |
+## Comparison
 
-## 3. Front Door
+|                                          | Option 1: proxy                                                                        | Option 2: SAS                                                           |
+| ---------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Storage network access                   | Disabled, private endpoint only                                                        | Enabled, every request needs a valid token                              |
+| Anonymous access                         | Off                                                                                    | Off                                                                     |
+| What a visitor can do                    | Read the geodata through the site                                                      | Read the geodata container for 1 hour with the token the site gives out |
+| Function app                             | VNet integration, carries all geodata                                                  | No VNet, runs once per visit, never carries data                        |
+| Uploads                                  | From Azure Virtual Desktop                                                             | From maintainers' computers                                             |
+| Map speed                                | Slower: each read goes through the Function app, with a short delay after idle periods | Same as reading storage directly                                        |
+| Code to maintain                         | A data proxy handling partial reads and caching headers                                | A short token function                                                  |
+| Yearly cost, about 1,000 visits a month  | About $230                                                                             | About $140                                                              |
+| Yearly cost, about 10,000 visits a month | $600 to $1,150                                                                         | $250 to $500                                                            |
 
-| Item        | Request                                                                                                                                                                                                              | Why                                                                                                                                          |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Profile     | An endpoint on `data.cod.unocha.org`, on an existing OCHA Standard or Premium profile if there is one, otherwise on a new Standard profile, with the storage account's blob endpoint as its origin (no Private Link) | Visitors' browsers load the geodata without signing in, while the storage stays private. An existing profile avoids the $420 yearly base fee |
-| Read access | A system-assigned managed identity for origin authentication, with Storage Blob Data Reader on that container only (granted before the identity is attached to the origin group)                                     | Front Door can only read that container                                                                                                      |
-| Caching     | On, with a cache duration of 1 hour                                                                                                                                                                                  | Repeat reads come from Front Door's cache, and replaced files show up within an hour                                                         |
-| Rate limit  | A WAF custom rule that limits requests per IP address                                                                                                                                                                | Slows scrapers and misconfigured bots                                                                                                        |
-
-The request does not include Owner or Contributor on the storage account, the
-Front Door profile or the resource group, account keys, or the right to give
-roles to others.
-
-## How data gets updated
-
-Maintainers upload new or changed geodata from their own machines with Azure's
-command-line tools, signed in with their own Azure accounts, so their upload
-credentials aren't stored anywhere.
-
-## Cost
-
-West Europe and Front Door Zone 1 (Europe and North America) list prices from
-the Azure Retail Prices API, November 2026:
-
-| Item                            | Price                                                                                              |
-| ------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Static Web App, Standard        | $108 a year, with 100 GB of bandwidth a month per subscription included, then $0.20 per GB         |
-| Front Door Standard             | $420 a year per profile, including WAF custom rules                                                |
-| Front Door custom domain        | $60 a year on the Azure price list if it applies to this domain, not included in the figures below |
-| Front Door data to visitors     | $0.083 per GB for the first 10 TB a month                                                          |
-| Front Door requests             | $0.009 per 10,000 requests                                                                         |
-| Storage                         | About $24 a year for 100 GB, at $0.0196 per GB a month                                             |
-| Data from storage to Front Door | Free                                                                                               |
-
-The fixed cost is about $550 a year with a new Front Door profile and about
-$130 with an existing one, and bandwidth and data transfer add to it as traffic
-grows. The scenarios assume about 15 MB of site bandwidth, 10 MB of geodata and
-200 geodata requests per visit, rounded up:
-
-| Scenario   | Traffic in a month                                                      | New profile, yearly                | Existing profile, yearly           |
-| ---------- | ----------------------------------------------------------------------- | ---------------------------------- | ---------------------------------- |
-| Average    | About 1,000 visits                                                      | $600                               | $180                               |
-| Busy       | About 10,000 visits (150 GB site, 100 GB geodata)                       | $840 to $1,080                     | $420 to $660                       |
-| Worst case | A misconfigured bot downloading all 40 GB of geodata every day (1.2 TB) | About $1,800 if it lasted all year | About $1,380 if it lasted all year |
-
-The busy range depends on whether other apps in the subscription already use
-the Static Web App's free 100 GB allowance. An Azure budget alert at $100 a
-month would catch unusual traffic early.
+Both options include a Standard Static Web App ($108 a year) and storage for
+100 GB (about $24 a year). Option 1 also includes the private endpoint ($88 a
+year, plus $0.01 per GB of data it carries). Costs use West Europe list prices
+from the Azure Retail Prices API, November 2026, and assume 15 MB of site
+files, 10 MB of geodata and 200 geodata requests per visit.
