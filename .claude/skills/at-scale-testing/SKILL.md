@@ -40,7 +40,7 @@ Headless Playwright (`playwright-cli`) has a lower memory ceiling than a real
 browser tab: a large file (100+ MB) that hard-crashes the headless tab on
 drop may load fine in a real browser. Treat local headless testing as capped
 at roughly 100-150 MB files; verify anything bigger in a real browser
-instead (e.g. the deployed GitHub Pages build).
+instead (e.g. the deployed site).
 
 See [`docs/explanation/performance.md`](../../../docs/explanation/performance.md#known-good-baselines-at-real-scale)
 for confirmed clean runs at real scale, and

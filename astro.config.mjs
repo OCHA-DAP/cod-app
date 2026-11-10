@@ -5,13 +5,8 @@ import rehypeAstroRelativeMarkdownLinks from "astro-rehype-relative-markdown-lin
 import { defineConfig } from "astro/config";
 import { fileURLToPath } from "node:url";
 
-// Empty for a custom domain; "/<repo>" for GitHub's default project-pages
-// subpath. Set by .github/workflows/deploy.yml via actions/configure-pages.
-const base = process.env.BASE_PATH ?? "";
-
 export default defineConfig({
-  site: "https://ocha-dap.github.io",
-  base,
+  site: "https://cod.unocha.org",
   integrations: [
     starlight({
       title: "Tools",
@@ -43,7 +38,7 @@ export default defineConfig({
       rehypePlugins: [
         [
           rehypeAstroRelativeMarkdownLinks,
-          { collectionBase: false, trailingSlash: "always", base },
+          { collectionBase: false, trailingSlash: "always" },
         ],
       ],
     }),
