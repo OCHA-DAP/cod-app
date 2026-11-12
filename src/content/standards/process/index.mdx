@@ -1,38 +1,20 @@
 ---
 title: Process
-summary: How a COD-AB dataset is produced, updated and published, from the twice-yearly review through to release on HDX.
+summary: How a COD-AB dataset is produced, updated and published, from the periodic review through to release on HDX.
 order: 2
-status: First draft reviewed by UN80 Data Quint
-date: July 2026
 ---
 
 import Term from "$lib/components/Term.astro";
 
-## Purpose & scope
+## Purpose
 
-This document defines the standard operating procedure for producing, updating, and publishing COD-AB (Common Operational Dataset, Administrative Boundaries) datasets. It covers the full workflow from request intake through publication and closeout.
+This standard operating procedure defines how COD-AB (Common Operational Dataset, Administrative Boundaries) datasets are produced, updated and published, from update request to closeout. All Data Quint members follow this one joint process, so the humanitarian sector works from commonly agreed, harmonized boundaries, with less duplication and consistent geocoding.
 
-## How the process works
+## Principles
 
-When there is an OCHA presence with IM capacity, OCHA coordinates in-country with partners to identify a candidate dataset for submission as a COD. Where there is not, coordination will occur at the <Term term="cod-ab-wg">COD-AB working group</Term> level to identify the agency with the strongest capacity that takes the lead in this process. The headquarters of the associated agency coordinates with that country office before that dataset is brought to the COD-AB working group for review.
-
-This process describes the normal update process after the baseline v1 dataset has been released from the consolidation of existing data. All agencies will send out the form to their offices for subsequent release after they assemble a full contact list of focal points. The focal point which reaches back becomes the agency to conduct the next update cycle. If they are unable to provide data / capacity after the review period expires, the working group attempts to find an alternative.
-
-The COD-AB process comprises of 5 main stages:
-
-<div class="flow">
-
-1. **Initialization** A survey is received, the workspace is set up to accept the request when data is ready.
-2. **CO Review** country office consults with the government to receive the correct dataset.
-3. **HQ Review** dataset shared with HQ has data cleaning and standards applied.
-4. **WG Review** rest of the working group review the submission against their own knowledge.
-5. **Publication** data is packaged and distributed across all channels, updates are communicated.
-
-</div>
-
-Roles:
-
-- Agency Country Focal Point \- submits the form and provides the data if available
-- COD-AB WG Member \- agency HQ focal point / representative or alternative
-- OCHA IMO
-- Data Provider \- Agency Country Focal Point who submits the selected data source nominated as a Candidate
+- **Two tracks.** Where OCHA has a presence, OCHA HQ and the <Term term="imwg">IMWG</Term> (coordinated by OCHA) run the update. Where it does not, the <Term term="cod-ab-wg">COD-AB Working Group</Term> (WG), defined in a separate TOR, agrees a Lead Agency from its member agencies, and that agency runs the update through its HQ and country team. In both tracks, the WG reviews the Candidate in Step 5.
+- **Update cycle.** The process applies after release of the baseline v1 dataset. Each Member Agency HQ keeps a full list of its country teams and sends them the form for each release. The agency whose country team responds conducts the next update. If it cannot provide data or capacity before the review period ends, the WG looks for an alternative.
+- **Emergency fast-track.** In an emergency, the WG can agree a fast-track at one of its meetings, and decides there which steps to simplify or skip. Each step then takes 1 day, though it can take longer depending on the situation.
+- **Shared mailboxes.** Each Member Agency HQ keeps a shared mailbox (for example cod@agency.org) for all COD-AB correspondence, so work continues when staff rotate.
+- **Admin 0 reference.** By default, every dataset is <Term term="edge-matching">edge-matched</Term> to a global admin level 0 reference agreed by the WG, so admin 0 and all subnational levels fit together worldwide. OCHA HQ proposes minor adjustments (for example more precise coastlines from several sources), and the WG approves them. Disputed territories and areas are stored as separate entities, following the agreed admin level 0 master list, and can be merged as needed at extraction.
+- **Tools.** No step depends on a specific tool. Each one can be done with the shared workspace, a ticketing system (Jira) and standard GIS software. Where optional tools exist, the review request email links to them.

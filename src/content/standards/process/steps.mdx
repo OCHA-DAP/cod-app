@@ -1,96 +1,209 @@
 ---
-title: Steps
-summary: The seven steps of an update, and how the work is monitored once it is live.
-order: 1
-variant: timeline
+title: Steps and roles
+summary: Who does what at each step of an update, where OCHA has a presence and where it does not.
+order: 0
+variant: wide
 ---
 
-import Term from "$lib/components/Term.astro";
+import ProcessDiagram from "$lib/standards/process/ProcessDiagram.astro";
+import ProcessDetail from "$lib/standards/process/ProcessDetail.astro";
 
-## Step 1: Periodic Review
+<ProcessDiagram />
 
-Twice a year, we will initiate the review process.
+<ProcessDetail cell="step-1-ocha-hq-with">
 
-For countries with OCHA presence \- OCHA will send an email requesting each CO-focal point to review the current version of admin boundaries. OCHA country team together with <Term term="imwg">IMWG</Term> will coordinate with all other agencies present in the country. No further action is required for COD-AB WG members.
+- Starts the review twice a year, or as often as the WG decides.
+- Sends review requests to the IMWG. The email links to the [COD-AB Request Form](../request/) and, where available, to optional tools.
+- Maintains the form. Anyone can open it without logging in, but it is shared only within the COD-AB group, the IMWGs and, by email, with Member Agency Country Teams.
 
-For countries with no OCHA presence \- each COD-AB WG member will send an email requesting each CO-focal point to review the current version of admin boundaries.
+</ProcessDetail>
 
-* Email will have an optional link to the HDX Boundary Explorer \- Country Profile page \- where boundaries for each country can be reviewed.
-* Email will also have a link to the [COD-AB Request Form](../request/)
-* Each CO focal point is asked to review the boundaries for their country and submit the COD-AB Form, indicating either Change or No-change case.
+<ProcessDetail cell="step-1-ocha-hq-without">
 
-## Step 2: Initialization
+- Starts the review twice a year, or as often as the WG decides.
+- Maintains the [COD-AB Request Form](../request/). Anyone can open it without logging in, but it is shared only within the COD-AB group, the IMWGs and, by email, with Member Agency Country Teams.
 
-This starts if and when a change has been identified. The change can be identified during the Step 1 as part of the periodic review or at any point in time for ad-hoc requests.
+</ProcessDetail>
 
-OCHA ISS will review all submissions and deconflict if multiple submissions are provided for the same country.
+<ProcessDetail cell="step-1-agency-hq-without">
 
-The process for triggering a new COD-AB always takes place by submitting a new update form, ensuring new requests can be correctly tracked. The same form is used for whether a partner HQ is conducting routine update checks for freshness, or the country office initiates the request due to events on the ground. For each HQ, all correspondence goes through their shared inbox, not individual mailboxes, ensuring continuity when staff rotate or deploy.
+- Sends review requests to its country teams. The email links to the [COD-AB Request Form](../request/) and, where available, to optional tools.
 
-**Guidance for source documentation:**
+</ProcessDetail>
 
-* **Government-sourced data.** Before any dataset is submitted, a structured fact-finding consultation establishes the authoritative baseline. The responsible party documents government responses and links official sources for: (1) administrative levels; (2) unit counts per level; (3) unit names; (4) government P-codes; (5) boundary geometries. Evidence is recorded on the work order. Gaps are noted but do not automatically block the process.
-* **Non-government data.** Applied when government sourcing failed, an emergency requires immediate use of an existing dataset, or no viable partner exists. Fact-finding is abbreviated or skipped and the reason documented.
+<ProcessDetail cell="step-1-imwg-with">
 
-For OCHA-country \- OCHA is leading
+- Reviews the current COD-AB on HDX.
+- Submits the [COD-AB Request Form](../request/) as **Change** or **No change**.
 
-For non-OCHA country \- COD-AB WG agrees on the leading agency. In case only one agency has provided the source data, it is recommended that this agency becomes the lead. If more agencies have provided data, the WG agrees on the leading agency.
+</ProcessDetail>
 
-COD-AB WG Member is responsible for running basic **validations** for geometry (e.g. checking for WGS84 CS), national codes and names (uniqueness, non-empty values, parent codes) for the dataset they provide, but it can also be delegated to the Agency Country Focal Point.
+<ProcessDetail cell="step-1-agency-country-without">
 
-If needed, COD-AB WG Member (or its Agency Country Focal Point) applies basic **data cleaning** (such as coordinate transformation, attribute table cleaning for code and name columns) to ensure that all data sources can be easily uploaded to the HDX-COD-AB Explorer for review.
+- Reviews the current COD-AB on HDX.
+- Submits the [COD-AB Request Form](../request/) as **Change** or **No change**.
 
-## Step 3: Country Office Review
+</ProcessDetail>
 
-The leading agency coordinates the review at the country level, including all relevant stakeholders. All stakeholders can open HDX Boundary Explorer to review all sources and compare with the current COD-AB version.
+<ProcessDetail cell="step-2-ocha-hq-with">
 
-In countries with an OCHA presence, IMWG endorsement is required before a dataset can be nominated as a Candidate to be sent for headquarters review.
+- Reconciles the submissions for each location.
+- Creates one ticket in the ticketing system (Jira) and one shared storage folder (SharePoint) per location, and notifies all Member Agency HQs, tagging the relevant representative and alternate.
+- If needed, splits the request to match the admin level 0 master list, with one root folder per state, territory or disputed territory.
+- Prepares sources, or delegates this to the IMWG:
+  - For government data, a fact-finding consultation establishes admin levels, units per level, unit names, government P-codes and boundary geometries, with official sources linked and evidence recorded on the work order. Gaps are noted but do not stop the process.
+  - For non-government data (when government sourcing failed, in an emergency, or when there is no viable partner), fact-finding is shortened or skipped and the reason recorded.
+  - Checks the geometry (for example WGS 84) and the codes and names (unique, non-empty, with parent codes), and cleans them so sources can be compared.
 
-At the end of this step one Source has to be nominated as a Candidate. The leading agency notifies OCHA about the nominated Candidate and the selection is recorded in the log.
+</ProcessDetail>
 
-Also possible that the decision is not to update.
+<ProcessDetail cell="step-2-ocha-hq-without">
 
-## Step 4: Headquarters Standardization
+- Reconciles the submissions for each location.
+- Creates one ticket in the ticketing system (Jira) and one shared storage folder (SharePoint) per location, and notifies all Member Agency HQs, tagging the relevant representative and alternate.
+- If needed, splits the request to match the admin level 0 master list, with one root folder per state, territory or disputed territory.
+- Asks the Member Agency HQ to upload geodata, supporting documents and the checklist to the shared storage.
 
-Whereas the previous step focused on identifying the correct source, during this step OCHA o the leading agency HQ applies the COD standards to the submitted Candidate dataset and runs validation checks.
+</ProcessDetail>
 
-The following steps are performed as part of the COD standardization and cleaning:
+<ProcessDetail cell="step-2-agency-hq-without">
 
-1. Fixing geometry and topology issues
-2. Applying the P-code Standard schema (field names, types, including language and date fields)
-3. Generating new P-codes
+Prepares sources, or delegates this to its country team:
 
-Two datasets will be created at this step: 1\) non-edge-matched geometry and 2\) <Term term="edge-matching">edge-matched</Term> version (aligned with the UN admin 0).
+- For government data, a fact-finding consultation establishes admin levels, units per level, unit names, government P-codes and boundary geometries, with official sources linked and evidence recorded on the work order. Gaps are noted but do not stop the process.
+- For non-government data (when government sourcing failed, in an emergency, or when there is no viable partner), fact-finding is shortened or skipped and the reason recorded.
+- Checks the geometry (for example WGS 84) and the codes and names (unique, non-empty, with parent codes), and cleans them so sources can be compared.
+- Uploads geodata, supporting documents and the checklist to the shared storage when OCHA HQ asks.
 
-The edge-matching will be done using the admin level 0 from the public FAO dataset, which is based on the UN Geospatial admin level 0\. However, some minor adjustments using other sources can be made to the reference admin 0 layer, e.g. to have more precise representation of coastlines.
+</ProcessDetail>
 
-Once cleaned, validation checks run across six areas: schema and geometry, topology, P-codes, national codes, naming, and language and date fields. All checks must pass before the dataset advances. Checks for transliteration, cross-layer naming consistency, and name validity against government documentation require human review and cannot be fully automated. Any issue returns the Candidate dataset to the country office review (Step 3).
+<ProcessDetail cell="step-2-wg-without">
 
-Candidate data is published to the HDX Boundary Explorer, so that the final boundaries can be reviewed.
+- Agrees which member agency leads the update. If only one agency provided data, that agency should lead.
 
-## Step 5: Final Review
+</ProcessDetail>
 
-At this stage, the Data Provider reviews the cleaned and standardized Candidate dataset prepared by the HQ of the lead agency, and accepts or sends back for further processing.
+<ProcessDetail cell="step-3-imwg-with">
 
-## Step 6: Final Data Package
+- Coordinates the review with other relevant stakeholders, comparing the sources with the current COD-AB.
+- Endorses and nominates one source as the Candidate, or decides not to update.
+- Informs OCHA HQ of the outcome.
 
-Once endorsed by the Data Provider, OCHA HQ generates the full data package:
+</ProcessDetail>
 
-1. adm0–adm4 polygons and boundary lines for non-edge-matched version
-2. adm0–adm4 polygons and, boundary lines for edge-matched version
-3. admin points, and
-4. admin capitals
+<ProcessDetail cell="step-3-lead-without">
 
-The Metadata Worksheet is completed and serves as the single source of truth, with ArcGIS Portal and HDX both pulling from it, and no separate metadata entry required for either system. Historical versions are preserved and one version is active at a time.
+- Coordinates the review, which the Member Agency Country Teams carry out with other relevant stakeholders.
+- Nominates one source as the Candidate, or decides not to update.
+- Informs OCHA HQ of the outcome.
 
-The Pre-Publication Checklist runs against the final package, covering supplemental layer generation, metadata completeness, governance sign-offs, and publication readiness. As part of this gate, the validation tool re-runs against the final package.
+</ProcessDetail>
 
-## Step 7: Publication
+<ProcessDetail cell="step-3-agency-country-without">
 
-OCHA ISS publishes the dataset to ArcGIS Portal: a new versioned layer is published, and prior versions are deprecated but remain accessible. The HDX pipeline picks up new data automatically; once the dataset is confirmed live on HDX, a publication notice is sent to the CO/RO or COD-AB WG Members from the shared COD inbox.
+- Carries out the review with other relevant stakeholders, comparing the sources with the current COD-AB.
 
-The work order remains open until both datasets updates are confirmed, then formally closed. Any error reported after closeout is handled as a new work order, not a re-opening of the closed one.
+</ProcessDetail>
 
-## Ongoing: Operations & Continuous Monitoring
+<ProcessDetail cell="step-3-ocha-hq">
 
-A live [**COD-AB Status Dashboard**](../../../status/) shows status per country, last update date, open issues, responsible persons, and dataset links, fed automatically from the work order tracking system. Automated notifications are sent at each status transition: work order opened, dataset under evaluation, in cleaning, ready for finalization, published to Portal, published to HDX, and completed. All status changes are visible to the full team without requiring email follow-up.
+- Records the outcome in the ticketing system.
+- If there is no update, closes the ticket.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-4-ocha-hq-with">
+
+Can delegate this work to the IMWG.
+
+- Fixes geometry and topology, edge-matches to the agreed admin level 0, applies the P-code standard schema (field names and types, including language and date fields) and generates new P-codes.
+- If the country asks, also keeps non-edge-matched versions as `_src` files.
+- Validates six areas: schema and geometry, topology, P-codes, national codes, naming, and language and date fields. All must pass.
+- Does the checks that cannot be automated: transliteration, naming across layers, and name validity against government documents.
+- On any issue, sends the Candidate back to Step 3.
+- Uploads the Candidate to `2_Candidate` in an open geospatial format (for example GeoPackage or GeoJSON), with the completed metadata template and quality checklist.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-4-lead-without">
+
+Can delegate this work to its country team.
+
+- Fixes geometry and topology, edge-matches to the agreed admin level 0, applies the P-code standard schema (field names and types, including language and date fields) and generates new P-codes.
+- If the country asks, also keeps non-edge-matched versions as `_src` files.
+- Validates six areas: schema and geometry, topology, P-codes, national codes, naming, and language and date fields. All must pass.
+- Does the checks that cannot be automated: transliteration, naming across layers, and name validity against government documents.
+- On any issue, sends the Candidate back to Step 3.
+- Uploads the Candidate to `2_Candidate` in an open geospatial format (for example GeoPackage or GeoJSON), with the completed metadata template and quality checklist.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-5-wg">
+
+- Reviews the standardized Candidate.
+- Can return it to Step 4 for rework.
+- Must accept it, as must the in-country reviewers, before Step 6.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-5-imwg-with">
+
+- Reviews the standardized Candidate.
+- Can return it to Step 4 for rework.
+- Must accept it, as must the WG, before Step 6.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-5-agency-country-without">
+
+- Reviews the standardized Candidate.
+- Can return it to Step 4 for rework.
+- Must accept it, as must the WG, before Step 6.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-6-ocha-hq">
+
+- Packages adm0 to adm4 polygons and boundary lines (and optionally the same for the non-edge-matched version), admin points and admin capitals.
+- Completes the Metadata Worksheet, the single source of truth that both ArcGIS Portal and HDX read from.
+- Imports the data and metadata into the SQL Enterprise Geodatabase, which keeps every version with one active at a time.
+- Runs the Pre-Publication Checklist (supplemental layers, metadata completeness, readiness), runs validation again, and gives the final sign-off.
+- Publishes: an authorized team member runs the publication script, which overwrites the main Portal layer, publishes a new versioned layer, and deprecates prior versions while keeping them available. HDX picks up the data automatically.
+- Once the data is live on HDX, sends a notice from OCHA's shared COD inbox to the country or regional office and to Member Agency HQs.
+- Closes the work order once both the ArcGIS Portal and HDX updates are live. Errors found later start a new work order.
+- Informs the UN Geospatial Section of the new version.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-6-partners">
+
+- The UN Geospatial Section (UNGIS) is informed of each new version, so that it can start the official endorsement process under UN procedures (UN-GGIM and SALB). That decision rests with UNGIS and is outside this process.
+- Other stakeholders hear of the update through various channels.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-ongoing-ocha-hq">
+
+- Keeps the ticket in the ticketing system as the status record for each update.
+- Where available, keeps a live [COD-AB status dashboard](../../../status/), fed from the work order system, showing for each location the status, last update, open issues, responsible people and dataset links.
+- Automated notifications go out at each status change (opened, under evaluation, in cleaning, ready for finalization, published to Portal, published to HDX, completed).
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-ongoing-imwg-with">
+
+- Watches administrative boundaries and submits a new update form when they change.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-ongoing-agency-hq">
+
+- Watches administrative boundaries and submits a new update form when they change.
+
+</ProcessDetail>
+
+<ProcessDetail cell="step-ongoing-agency-country-without">
+
+- Watches administrative boundaries and submits a new update form when they change.
+
+</ProcessDetail>

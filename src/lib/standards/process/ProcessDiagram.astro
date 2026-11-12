@@ -1,0 +1,537 @@
+---
+import {
+  CELLS,
+  GROUPS,
+  LANES,
+  RETURN_LOOPS,
+  STEPS,
+  TRACKS,
+  cellId,
+  type Cell,
+  type Lane,
+} from "./data";
+
+// Lead Agency work sits in the Member Agency HQ row, framed by the bracket.
+const rows = LANES.filter((l) => l.id !== "lead");
+const row = (lane: Lane) => rows.indexOf(lane) + 3;
+const col = (stepId: string) => STEPS.findIndex((s) => s.id === stepId) + 3;
+const trackAttr = (t: Cell["track"]) => (t === "both" ? undefined : t);
+
+const cellsIn = (lane: Lane, stepId: string) =>
+  CELLS.filter(
+    (c) =>
+      c.step === stepId && (c.lane === lane.id || (lane.id === "agency-hq" && c.lane === "lead")),
+  );
+
+const groupRows = GROUPS.map((g) => {
+  const lanes = rows.filter((l) => l.group === g.id);
+  return { ...g, start: row(lanes[0]), end: row(lanes[lanes.length - 1]) + 1 };
+});
+
+const hq = LANES.find((l) => l.id === "agency-hq")!;
+const country = LANES.find((l) => l.id === "agency-country")!;
+const leadSteps = [...new Set(CELLS.filter((c) => c.lane === "lead").map((c) => c.step))];
+const bracketCols = `${col(leadSteps[0])} / ${col(leadSteps[leadSteps.length - 1]) + 1}`;
+---
+
+<script is:inline>
+  {
+    const root = document.documentElement;
+    root.classList.add("process-js");
+    const saved = localStorage.getItem("process-track");
+    root.dataset.processTrack = saved === "without" ? "without" : "with";
+  }
+</script>
+
+<figure class="process-figure" aria-label="COD-AB process: steps and roles">
+  <fieldset class="track-toggle">
+    <legend>Show the process for a location</legend>
+    {TRACKS.map((t) => (
+      <label>
+        <input type="radio" name="process-track" value={t.id} checked={t.id === "with"} />
+        <span>{t.label}</span>
+      </label>
+    ))}
+  </fieldset>
+
+  <div class="scroller">
+    <div class="grid">
+      {RETURN_LOOPS.map((loop) => (
+        <div
+          class="loop"
+          style={`grid-row: 1; grid-column: ${col(loop.to)} / ${col(loop.from) + 1}`}
+        >
+          <span class="loop-arc" aria-hidden="true" />
+          <span class="loop-head" aria-hidden="true" />
+          <span class="loop-label">{loop.label}</span>
+        </div>
+      ))}
+
+      {STEPS.map((s) => (
+        <div
+          class:list={["step-head", { ongoing: !s.number }]}
+          style={`grid-row: 2; grid-column: ${col(s.id)}`}
+        >
+          <span class="kicker">{s.number ? `Step ${s.number}` : "Ongoing"}</span>
+          <span class="title">{s.title}</span>
+          {s.duration && (
+            <span class="kicker">
+              {s.duration}
+              {s.variable && "*"}
+            </span>
+          )}
+        </div>
+      ))}
+
+      {groupRows.map((g) => (
+        <div class="group-label" style={`grid-row: ${g.start} / ${g.end}; grid-column: 1`}>
+          <span>{g.label}</span>
+        </div>
+      ))}
+
+      {rows.map((lane) => (
+        <>
+          <div
+            class:list={["lane-label", `group-${lane.group}`]}
+            style={`grid-row: ${row(lane)}; grid-column: 2`}
+            data-track={lane.track}
+          >
+            <span class="lane-name">{lane.label}</span>
+            {lane.subtitle && <span class="lane-sub">{lane.subtitle}</span>}
+          </div>
+          {STEPS.map((s) => (
+            <div
+              class:list={["slot", `group-${lane.group}`]}
+              style={`grid-row: ${row(lane)}; grid-column: ${col(s.id)}`}
+              data-track={lane.track}
+            >
+              {cellsIn(lane, s.id).map((c) => (
+                <button
+                  type="button"
+                  class={`cell ${c.kind}`}
+                  data-open={cellId(c)}
+                  data-track={trackAttr(c.track)}
+                  aria-controls={cellId(c)}
+                  aria-expanded="false"
+                >
+                  {c.label}
+                  {c.delegableTo && <span class="delegate">Delegable to {c.delegableTo}</span>}
+                </button>
+              ))}
+            </div>
+          ))}
+        </>
+      ))}
+
+      <div
+        class="bracket"
+        style={`grid-row: ${row(hq)} / ${row(country) + 1}; grid-column: ${bracketCols}`}
+        data-track="without"
+      >
+        <span class="bracket-label">Lead Agency, agreed by the WG in Step 2</span>
+      </div>
+    </div>
+  </div>
+
+  <figcaption class="legend">
+    <span>
+      <i class="swatch lead" /> Leads
+    </span>
+    <span>
+      <i class="swatch support" /> Supports or contributes
+    </span>
+    <span>
+      <i class="swatch informed" /> Informed
+    </span>
+    <span>
+      <i class="swatch loop-swatch" /> Return loop
+    </span>
+    <span class="note">
+      * Depends on country consultations; complex cases can take much longer.
+    </span>
+  </figcaption>
+</figure>
+
+<p class="process-hint" id="process-hint">
+  <span aria-hidden="true">&uarr;</span> Select a box to see what that role does in that step.
+</p>
+
+<script>
+  const root = document.documentElement;
+  const details = [...document.querySelectorAll<HTMLElement>("[data-detail]")];
+  const cells = [...document.querySelectorAll<HTMLElement>(".process-figure .cell")];
+  const hint = document.getElementById("process-hint");
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function open(id: string | null, scroll = false) {
+    const target = details.find((d) => d.id === id);
+    if (hint) hint.hidden = !!target;
+    for (const d of details) d.classList.toggle("is-open", d === target);
+    for (const c of cells) {
+      const active = !!target && c.dataset.open === target.id;
+      c.classList.toggle("is-active", active);
+      c.setAttribute("aria-expanded", String(active));
+    }
+    if (target && scroll) {
+      target
+        .querySelector("h2")
+        ?.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+    }
+  }
+
+  function close() {
+    history.replaceState(null, "", location.pathname + location.search);
+    open(null);
+  }
+
+  for (const c of cells) {
+    c.addEventListener("click", () => {
+      if (c.classList.contains("is-active")) {
+        close();
+        return;
+      }
+      history.replaceState(null, "", `#${c.dataset.open}`);
+      open(c.dataset.open!, true);
+    });
+  }
+  for (const b of document.querySelectorAll("[data-close]")) b.addEventListener("click", close);
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && details.some((d) => d.classList.contains("is-open"))) close();
+  });
+
+  const fromHash = (scroll: boolean) => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    open(details.some((d) => d.id === id) ? id : null, scroll);
+  };
+  addEventListener("hashchange", () => fromHash(true));
+  fromHash(!!location.hash);
+
+  for (const input of document.querySelectorAll<HTMLInputElement>('input[name="process-track"]')) {
+    input.checked = input.value === root.dataset.processTrack;
+    input.addEventListener("change", () => {
+      root.dataset.processTrack = input.value;
+      localStorage.setItem("process-track", input.value);
+      const shown = details.find((d) => d.classList.contains("is-open"));
+      if (shown?.dataset.track && shown.dataset.track !== input.value) {
+        history.replaceState(null, "", location.pathname);
+        open(null);
+      }
+    });
+  }
+</script>
+
+<style is:global>
+  html[data-process-track="with"] [data-track="without"],
+  html[data-process-track="without"] [data-track="with"] {
+    display: none;
+  }
+</style>
+
+<style>
+  .process-figure {
+    margin: 0 0 2rem;
+  }
+  .track-toggle {
+    display: flex;
+    width: fit-content;
+    margin: 0 0 1rem;
+    padding: 0;
+    border: 1px solid var(--cd-grey--500);
+    border-radius: var(--brand-radius--sm);
+    overflow: hidden;
+  }
+  .track-toggle legend {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .track-toggle label {
+    cursor: pointer;
+  }
+  .track-toggle label + label span {
+    border-left: 1px solid var(--cd-grey--400);
+  }
+  .track-toggle input {
+    position: absolute;
+    opacity: 0;
+  }
+  .track-toggle span {
+    display: block;
+    height: 100%;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 20px;
+    color: var(--cd-grey--800);
+  }
+  .track-toggle input:not(:checked) + span:hover {
+    background: var(--cd-grey--300);
+  }
+  .track-toggle input:checked + span {
+    background: var(--brand-primary--text);
+    color: var(--cd-white);
+  }
+  .track-toggle input:focus-visible + span {
+    outline: 3px solid var(--brand-primary--light);
+    outline-offset: -3px;
+  }
+
+  .scroller {
+    overflow-x: auto;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1.75rem 9.5rem repeat(7, minmax(7.25rem, 1fr));
+    min-width: 63rem;
+    font-size: 0.75rem;
+    line-height: 16px;
+  }
+
+  .loop {
+    --inset: 12px;
+    position: relative;
+    height: 2.5rem;
+  }
+  .loop-arc {
+    position: absolute;
+    top: 1rem;
+    bottom: 8px;
+    left: calc(25% + var(--inset) - 1px);
+    right: calc(25% + var(--inset) - 1px);
+    border: 2px solid var(--brand-grey--text);
+    border-bottom: 0;
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+  .loop-head {
+    position: absolute;
+    bottom: 0;
+    left: calc(25% + var(--inset));
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top: 8px solid var(--brand-grey--text);
+    border-bottom: 0;
+  }
+  .loop-label {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 0.25rem;
+    background: var(--cd-white);
+    color: var(--cd-grey--800);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+  .step-head {
+    display: grid;
+    align-content: end;
+    margin: 0 0 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 2px solid var(--brand-primary--text);
+    color: var(--brand-grey--text);
+  }
+  .step-head.ongoing {
+    border-bottom-style: dashed;
+  }
+  .step-head .kicker:first-child {
+    color: var(--brand-primary--text);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .step-head .title {
+    color: var(--cd-grey--900);
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 20px;
+  }
+  .group-label {
+    display: grid;
+    place-items: center;
+    border-right: 2px solid var(--brand-grey--border);
+    background: var(--cd-white);
+    color: var(--brand-grey--text);
+    font-weight: 700;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+  .group-label span {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+  }
+
+  .lane-label,
+  .slot {
+    border-top: 1px solid var(--cd-blue--lightest);
+    background-color: var(--cd-white);
+  }
+  .group-wg,
+  .group-agencies {
+    background-color: var(--brand-grey);
+  }
+  .lane-label {
+    display: grid;
+    align-content: center;
+    padding: 0.5rem 0.75rem;
+    position: sticky;
+    left: 1.75rem;
+    z-index: 2;
+  }
+  .lane-name {
+    color: var(--cd-grey--900);
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 20px;
+  }
+  .lane-sub {
+    color: var(--brand-grey--text);
+  }
+  .slot {
+    display: grid;
+    gap: 0.25rem;
+    align-content: center;
+    min-height: 4.75rem;
+    padding: 0.5rem 0.25rem;
+    border-left: 1px solid var(--cd-blue--lightest);
+  }
+
+  .cell {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border: 1px solid var(--brand-primary--text);
+    border-radius: var(--brand-radius--sm);
+    font-weight: 500;
+    text-align: center;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+  .cell.lead {
+    background: var(--brand-primary--text);
+    color: var(--cd-white);
+  }
+  .cell.lead:hover {
+    background: var(--brand-primary--dark);
+  }
+  .cell.support {
+    background: var(--cd-white);
+    color: var(--brand-primary--text);
+  }
+  .cell.support:hover {
+    background: var(--brand-primary--lightest);
+  }
+  .cell.informed {
+    border: 1px dashed var(--brand-grey--text);
+    background: var(--cd-white);
+    color: var(--brand-grey--text);
+  }
+  .cell.informed:hover {
+    background: var(--brand-grey);
+  }
+  .cell.is-active,
+  .cell.is-active:hover {
+    border-color: var(--brand-primary--dark);
+    background: var(--brand-primary--dark);
+    color: var(--cd-white);
+  }
+  .cell.is-active,
+  .cell:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--brand-primary--light);
+  }
+  .delegate {
+    font-size: 0.75rem;
+    font-style: italic;
+    opacity: 0.85;
+  }
+  .bracket {
+    position: relative;
+    border: 2px dashed var(--brand-primary--text);
+    border-radius: var(--brand-radius);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .bracket-label {
+    position: absolute;
+    bottom: -0.75rem;
+    left: 0.5rem;
+    padding: 0 0.5rem;
+    border-radius: var(--brand-radius--pill);
+    background: var(--brand-primary--text);
+    color: var(--cd-white);
+    font-weight: 700;
+    pointer-events: auto;
+  }
+
+  @media (max-width: 700px) {
+    .grid {
+      grid-template-columns: 1.5rem 6.5rem repeat(7, minmax(7.25rem, 1fr));
+      min-width: 59rem;
+    }
+    .lane-label {
+      left: 1.5rem;
+    }
+    .lane-name {
+      font-size: 0.75rem;
+      line-height: 16px;
+    }
+  }
+
+  .process-hint {
+    max-width: 46rem;
+    margin: 0 0 2.5rem;
+    color: var(--brand-grey--text);
+  }
+  .process-hint[hidden],
+  :global(html:not(.process-js)) .process-hint {
+    display: none;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--cd-grey--800);
+  }
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .legend .note {
+    color: var(--brand-grey--text);
+  }
+  .swatch {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1rem;
+    border-radius: 3px;
+  }
+  .swatch.lead {
+    background: var(--brand-primary--text);
+  }
+  .swatch.support {
+    border: 1px solid var(--brand-primary--text);
+  }
+  .swatch.informed {
+    border: 1px dashed var(--brand-grey--text);
+  }
+  .swatch.loop-swatch {
+    height: 0.5rem;
+    border: 2px solid var(--brand-grey--text);
+    border-bottom: 0;
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+</style>

@@ -1,0 +1,96 @@
+---
+import { CELLS, cellId, laneById, stepById, stepName } from "./data";
+
+interface Props {
+  /** A cell id from `cellId`, e.g. `step-2-ocha-hq-with`. */
+  cell: string;
+}
+
+const cell = CELLS.find((c) => cellId(c) === Astro.props.cell);
+if (!cell) throw new Error(`Unknown process cell: ${Astro.props.cell}`);
+const id = cellId(cell);
+const track = cell.track === "both" ? undefined : cell.track;
+---
+
+<section
+  class="process-detail"
+  id={id}
+  data-detail
+  data-track={track}
+  aria-labelledby={`${id}-title`}
+>
+  <button type="button" class="close" data-close aria-label="Close">
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 3l10 10M13 3 3 13" fill="none" stroke="currentColor" stroke-width="2" />
+    </svg>
+  </button>
+  <p class="kicker">{stepName(stepById(cell.step))}</p>
+  <h2 id={`${id}-title`}>{laneById(cell.lane).label}</h2>
+  <slot />
+</section>
+
+<style is:global>
+  html.process-js [data-detail]:not(.is-open) {
+    display: none;
+  }
+</style>
+
+<style>
+  .process-detail {
+    margin: 0 0 2.5rem;
+    scroll-margin-top: 5rem;
+  }
+  :global(html.process-js) .process-detail {
+    position: relative;
+    padding: 1.5rem 1.5rem 0.5rem;
+    border-radius: var(--brand-radius);
+    background: var(--brand-grey);
+  }
+  :global(html.process-js) .process-detail::before {
+    content: "";
+    position: absolute;
+    top: -20px;
+    left: 1.5rem;
+    border: 10px solid transparent;
+    border-bottom-color: var(--brand-grey);
+  }
+  .kicker {
+    margin: 0 0 0.25rem;
+    color: var(--brand-grey--text);
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .process-detail h2 {
+    margin-top: 0;
+  }
+  .close {
+    display: none;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--brand-radius--sm);
+    background: none;
+    color: var(--cd-grey--800);
+    cursor: pointer;
+  }
+  :global(html.process-js) .close {
+    display: grid;
+  }
+  .close:hover {
+    background: var(--cd-grey--300);
+  }
+  .close:focus-visible {
+    outline: 3px solid var(--brand-primary--light);
+  }
+  .close svg {
+    width: 1rem;
+    height: 1rem;
+  }
+</style>

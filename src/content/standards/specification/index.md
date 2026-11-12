@@ -2,8 +2,6 @@
 title: Specification
 summary: "What a COD-AB dataset looks like: the P-code each administrative unit gets, and the fields each layer carries."
 order: 1
-status: First draft reviewed by UN80 Data Quint
-date: July 2026
 ---
 
 ## Purpose
