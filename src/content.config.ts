@@ -16,9 +16,7 @@ export const collections = {
       title: z.string(),
       summary: z.string(),
       order: z.number(),
-      status: z.string().optional(),
-      date: z.string().optional(),
-      variant: z.enum(["timeline"]).optional(),
+      variant: z.enum(["wide"]).optional(),
     }),
   }),
 };

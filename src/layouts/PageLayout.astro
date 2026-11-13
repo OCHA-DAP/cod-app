@@ -7,16 +7,14 @@ interface Props {
   title: string;
   summary: string;
   crumbs?: { label: string; href: string }[];
-  meta?: string[];
 }
 
-const { title, summary, crumbs = [], meta = [] } = Astro.props;
+const { title, summary, crumbs = [] } = Astro.props;
 const pageTitle = crumbs.length ? `${title} · ${crumbs.map((c) => c.label).join(" · ")}` : title;
 ---
 
 <Layout title={pageTitle} description={summary}>
   <div class="text-page">
-    <slot name="banner" />
     <header class="masthead grid-bg">
       <SiteHeader />
       <div class="wrap masthead-inner">
@@ -29,13 +27,6 @@ const pageTitle = crumbs.length ? `${title} · ${crumbs.map((c) => c.label).join
         )}
         <h1>{title}</h1>
         <p class="lede">{summary}</p>
-        {meta.length > 0 && (
-          <p class="meta">
-            {meta.map((m) => (
-              <span>{m}</span>
-            ))}
-          </p>
-        )}
       </div>
     </header>
 
@@ -100,20 +91,6 @@ const pageTitle = crumbs.length ? `${title} · ${crumbs.map((c) => c.label).join
     font-size: 1.2rem;
     line-height: 1.6;
     color: var(--cd-grey--800);
-  }
-  .meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin: 1.25rem 0 0;
-  }
-  .meta span {
-    padding: 0.2rem 0.7rem;
-    border-radius: var(--brand-radius--pill);
-    background: var(--brand-primary--lightest);
-    color: var(--brand-primary--dark);
-    font-size: 0.8rem;
-    font-weight: 600;
   }
   @media (max-width: 700px) {
     h1 {

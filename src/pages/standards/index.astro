@@ -3,20 +3,22 @@ import Arrow from "$lib/components/Arrow.svelte";
 import DocCards from "$lib/components/DocCards.astro";
 import { loadStandards } from "$lib/standards/docs";
 import { standardsBase } from "$lib/utils/paths";
-import StandardsLayout from "../../layouts/StandardsLayout.astro";
+import PageLayout from "../../layouts/PageLayout.astro";
 
 const docs = await loadStandards();
 const summary =
   "The shared rules behind COD-AB: what the data looks like, and how it is produced, reviewed and published.";
 ---
 
-<StandardsLayout title="COD-AB Standards" summary={summary}>
+<PageLayout title="COD-AB Standards" summary={summary}>
   <section class="wrap" aria-label="Request an update">
     <div class="request">
       <p>
         <b>Has a country's boundary data changed?</b> Tell us through the COD-AB Request Form.
       </p>
-      <a href={`${standardsBase}process/request/`}>Request an update <Arrow /></a>
+      <a href={`${standardsBase}process/request/`}>
+        Request an update <Arrow />
+      </a>
     </div>
   </section>
   <DocCards
@@ -36,7 +38,7 @@ const summary =
       },
     ]}
   />
-</StandardsLayout>
+</PageLayout>
 
 <style>
   .request {
