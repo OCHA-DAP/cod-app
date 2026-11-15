@@ -65,7 +65,7 @@ Check access:
 env -i HOME=$HOME PATH=$PATH bash -c 'set -a; source .env; set +a; aws s3 ls "$PORTOLAN_REMOTE/"'
 ```
 
-`run.py --push` runs `aws s3 sync` of `catalog/` to `PORTOLAN_REMOTE` with `AWS_CONFIG_FILE=aws.config` (per-part retries, classic transfer client), first everything except `versions.json`, then the `versions.json` files, skipping hidden paths. `scripts/catalog/source_publish.py` is vendored byte-identical (as `fieldmaps_publish.py`) in fieldmaps/subnational, fieldmaps/international and OCHA-DAP/adm0-app; change it in all four repos.
+`run.py --push` runs `aws s3 sync` of `catalog/` to `PORTOLAN_REMOTE` with `AWS_CONFIG_FILE=aws.config` (per-part retries, classic transfer client), first everything except `versions.json`, then the `versions.json` files, skipping hidden paths. fieldmaps/subnational, fieldmaps/international and OCHA-DAP/adm0-app hold the same file as `fieldmaps_publish.py`; change `scripts/catalog/source_publish.py` in all four repos.
 
 ## UI Verification
 
