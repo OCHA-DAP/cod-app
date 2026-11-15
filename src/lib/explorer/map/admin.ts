@@ -56,12 +56,8 @@ async function pickLevel(iso3: string, source: string, level: number): Promise<n
   return pickDeepestLevelWithData(stats, source);
 }
 
-// Resolves the default source when a country is first selected: the team's
-// pick from the decisions file if it has data — accepted or still
-// pending, since a pending pick is still the team's stated preference —
-// else the first ADMIN_SOURCES entry (in priority order) with data. Returns
-// null — meaning "leave selection as-is" — when the team explicitly decided
-// no source is suitable, or when nothing has any data for this country.
+// Default source on country select: the team's pick if it has data (accepted or pending), else the first
+// ADMIN_SOURCES entry with data; null (leave as is) when the team picked none or no source has data.
 function resolveDefaultSource(decision: Decision | null, stats: SourceStat[]): string | null {
   if (decision?.noSourceSuitable) return null;
 
