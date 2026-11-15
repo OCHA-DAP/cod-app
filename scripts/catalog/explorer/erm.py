@@ -46,21 +46,27 @@ def layers() -> list[tuple[str, int, str, str]]:
 
 
 def check(con, path: str, lvl: int) -> None:
-    """Exit unless path has one row per deepest pcode and one name per pcode at each level."""
+    """Exit unless path has one row per deepest pcode, and each pcode one set of the
+    name and parent columns the dissolve groups by."""
     rows, units = con.execute(
         f"SELECT count(*), count(DISTINCT adm{lvl}_pcode) FROM '{path}'"
     ).fetchall()[0]
     if rows != units:
         sys.exit(f"{path}: {rows} rows, {units} distinct adm{lvl}_pcode")
+    columns = {r[0] for r in con.execute(f"DESCRIBE FROM '{path}'").fetchall()}
     for k in range(1, lvl + 1):
+        keys = [f"adm{n}_{f}" for n in range(k, -1, -1) for f in NAMES]
+        group = ", ".join(c for c in keys if c in columns)
         split = con.execute(f"""
             SELECT count(*) FROM (
                 SELECT adm{k}_pcode FROM '{path}' GROUP BY 1
-                HAVING count(DISTINCT adm{k}_name) > 1
+                HAVING count(DISTINCT ({group})) > 1
             )
         """).fetchall()[0][0]
         if split:
-            sys.exit(f"{path}: {split} adm{k}_pcode values with several names")
+            sys.exit(
+                f"{path}: {split} adm{k}_pcode values with several names or parents"
+            )
 
 
 def quote(value: str | None) -> str:
