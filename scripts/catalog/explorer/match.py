@@ -9,7 +9,7 @@ from pathlib import Path
 import duckdb
 from common import (
     BOUNDARY_SOURCES,
-    DECISIONS_CSV,
+    DECISIONS,
     connect,
     junk_filter,
     path_of,
@@ -59,7 +59,7 @@ def read_decisions() -> list[tuple[str, str]]:
     rows = con.execute(
         f"""
         SELECT iso3, selected_source AS preferred_source
-        FROM read_csv('{DECISIONS_CSV}', header=true, all_varchar=true)
+        FROM {DECISIONS}
         WHERE selected_source <> 'none'
         """
     ).fetchall()

@@ -17,6 +17,14 @@ load_dotenv(".env")
 CATALOG = Path(os.environ.get("CATALOG", "catalog"))
 SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "erm", "basemap")
 DECISIONS_CSV = Path("src/lib/explorer/decisions.csv")
+# Normalized as in src/lib/explorer/decisions.ts.
+DECISIONS = f"""(
+    SELECT upper(trim(iso3)) AS iso3,
+        nullif(lower(trim(selected_source)), '') AS selected_source,
+        lower(trim(accepted)) = 'true' AS accepted, trim(rationale) AS rationale
+    FROM read_csv('{DECISIONS_CSV}', header=true, all_varchar=true)
+    WHERE nullif(trim(iso3), '') IS NOT NULL
+)"""
 COD_AB_BASE = "https://data.source.coop/hdx/cod-ab"
 COD_AB_CACHE = Path("tmp/catalog/cache/cod-ab")
 DUCKDB_TMP = Path("tmp/catalog/duckdb-tmp")
