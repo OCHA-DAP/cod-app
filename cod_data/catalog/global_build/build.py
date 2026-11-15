@@ -129,23 +129,39 @@ def _stage(
         original = work / f"{iso3.lower()}.parquet"
         _pad(con, coded, iso3, original)
         return [original]
+    # Unit to part by interior point; points off every part (coastal slivers) by overlap, else nearest.
+    con.execute(f"""
+        CREATE OR REPLACE TEMP TABLE unit_part AS
+        WITH u AS (
+            SELECT adm{lvl}_pcode AS pcode, geometry,
+                (ST_MaximumInscribedCircle(geometry, 1e-6)).center AS pt
+            FROM '{coded}'
+        ), hit AS (
+            SELECT u.pcode, any_value(p.{MATCH_KEY}) AS part
+            FROM u JOIN '{parents}' p ON ST_Within(u.pt, p.geometry) GROUP BY 1
+        )
+        SELECT * FROM hit
+        UNION ALL
+        SELECT u.pcode, coalesce(
+            arg_max(p.{MATCH_KEY}, ST_Area(ST_Intersection(u.geometry, p.geometry)))
+                FILTER (ST_Intersects(u.geometry, p.geometry)),
+            arg_min(p.{MATCH_KEY}, ST_Distance(u.geometry, p.geometry)))
+        FROM u, '{parents}' p WHERE u.pcode NOT IN (SELECT pcode FROM hit) GROUP BY 1
+    """)
+    stray = con.execute(
+        f"SELECT part, count(*) FROM unit_part WHERE NOT list_contains({PARTS[iso3]}, part) "
+        "GROUP BY 1"
+    ).fetchall()
+    if stray:
+        raise ValueError(f"{iso3}: units in parts outside {PARTS[iso3]}: {stray}")
     originals = []
     for part in PARTS[iso3]:
         original = work / f"{part.lower()}.parquet"
         inside = (
-            f"ST_Within((ST_MaximumInscribedCircle(geometry, 1e-6)).center, "
-            f"(SELECT geometry FROM '{parents}' WHERE {MATCH_KEY} = '{part}'))"
+            f"adm{lvl}_pcode IN (SELECT pcode FROM unit_part WHERE part = '{part}')"
         )
         _pad(con, coded, part, original, inside)
         originals.append(original)
-    total = con.execute(f"SELECT count(*) FROM '{coded}'").fetchall()[0][0]
-    split = sum(
-        con.execute(f"SELECT count(*) FROM '{o}'").fetchall()[0][0] for o in originals
-    )
-    if split != total:
-        raise ValueError(
-            f"{iso3}: {total - split} units outside the PARTS parts {PARTS[iso3]}"
-        )
     return originals
 
 
