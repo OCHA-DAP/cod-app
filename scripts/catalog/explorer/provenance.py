@@ -13,7 +13,7 @@ con = connect()
 con.execute(f"""
     CREATE TEMP TABLE wfp_country AS
         SELECT iso3,
-            array_to_string(list_distinct(list(source)), '; ') AS provider,
+            array_to_string(list_sort(list_distinct(list(source))), '; ') AS provider,
             max(lst_update) AS source_updated
         FROM read_parquet('{path_of("wfp_adm1")}')
         GROUP BY iso3;
@@ -40,13 +40,13 @@ con.execute(f"""
         FROM wfp_country
     UNION ALL
         SELECT 'unhcr' AS source, iso3,
-            array_to_string(list_distinct(list(source)), '; ') AS provider,
+            array_to_string(list_sort(list_distinct(list(source))), '; ') AS provider,
             max(src_date) AS source_updated
         FROM read_parquet('{path_of("unhcr_adm1")}')
         GROUP BY iso3
     UNION ALL
         SELECT 'erm' AS source, iso3,
-            array_to_string(list_distinct(list(src_name)), '; ') AS provider,
+            array_to_string(list_sort(list_distinct(list(src_name))), '; ') AS provider,
             max(src_date) AS source_updated
         FROM read_parquet('{path_of("erm_adm1")}')
         GROUP BY iso3;
