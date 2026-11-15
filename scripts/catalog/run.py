@@ -62,10 +62,7 @@ def collections(parent: Path) -> list[Path]:
 
 
 def download_date(collection: Path) -> str:
-    data = collection / f"{collection.name}.parquet"
-    if not data.exists():
-        data = data.with_suffix(".pmtiles")
-    mtime = data.stat().st_mtime
+    mtime = (collection / f"{collection.name}.parquet").stat().st_mtime
     return datetime.fromtimestamp(mtime, UTC).date().isoformat()
 
 
@@ -89,8 +86,10 @@ def add(collection: Path, datetime_: str) -> None:
 
 
 def add_all() -> None:
+    # portolan won't register the tiles-only base map, which the push uploads anyway.
     for collection in collections(CATALOG / "explorer"):
-        add(collection, download_date(collection))
+        if (collection / f"{collection.name}.parquet").exists():
+            add(collection, download_date(collection))
     from build_nld import YEARS
 
     for year in YEARS:
