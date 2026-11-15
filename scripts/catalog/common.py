@@ -144,7 +144,7 @@ def connect(db: Path | None = None) -> duckdb.DuckDBPyConnection:
     con = duckdb.connect(str(db) if db else ":memory:")
     con.execute(
         f"SET threads = {max(1, (os.cpu_count() or 2) // 2)}; "
-        f"SET preserve_insertion_order = false; SET temp_directory = '{DUCKDB_TMP}'; LOAD spatial"
+        f"SET preserve_insertion_order = false; SET temp_directory = '{DUCKDB_TMP}'; LOAD spatial; SET geometry_always_xy = true"
     )
     return con
 
