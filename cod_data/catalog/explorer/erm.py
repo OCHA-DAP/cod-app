@@ -73,27 +73,32 @@ def quote(value: str | None) -> str:
     return "NULL" if value is None else "'" + value.replace("'", "''") + "'"
 
 
-sources = layers()
-con = connect()
-for path, lvl, *_ in sources:
-    check(con, path, lvl)
-con.close()
+def main() -> None:
+    sources = layers()
+    con = connect()
+    for path, lvl, *_ in sources:
+        check(con, path, lvl)
+    con.close()
 
-for level in LEVELS:
-    parts = [
-        f"SELECT *, {quote(name)} AS src_name, {quote(date)}::DATE AS src_date "
-        f"FROM read_parquet('{path}')"
-        for path, lvl, name, date in sources
-        if lvl >= level
-    ]
-    keys = ", ".join(f"adm{n}_{f}" for n in range(level, -1, -1) for f in NAMES)
-    write_boundary(
-        f"""
-        SELECT iso3, {keys}, src_name, src_date,
-            ST_CoverageUnion_Agg(geometry) AS geometry
-        FROM ({" UNION ALL BY NAME ".join(parts)})
-        GROUP BY ALL
-        ORDER BY iso3, adm{level}_pcode
-        """,
-        f"erm_adm{level}",
-    )
+    for level in LEVELS:
+        parts = [
+            f"SELECT *, {quote(name)} AS src_name, {quote(date)}::DATE AS src_date "
+            f"FROM read_parquet('{path}')"
+            for path, lvl, name, date in sources
+            if lvl >= level
+        ]
+        keys = ", ".join(f"adm{n}_{f}" for n in range(level, -1, -1) for f in NAMES)
+        write_boundary(
+            f"""
+            SELECT iso3, {keys}, src_name, src_date,
+                ST_CoverageUnion_Agg(geometry) AS geometry
+            FROM ({" UNION ALL BY NAME ".join(parts)})
+            GROUP BY ALL
+            ORDER BY iso3, adm{level}_pcode
+            """,
+            f"erm_adm{level}",
+        )
+
+
+if __name__ == "__main__":
+    main()

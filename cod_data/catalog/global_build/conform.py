@@ -1,10 +1,12 @@
 """Map one source's layers for an iso3 to the staging schema: one row per deepest-level unit."""
 
 from dataclasses import dataclass
+from functools import cache
 
 import duckdb
 
-from cod_data.catalog.common import BOUNDARY_SOURCES, junk_filter
+from cod_data.catalog.common import BOUNDARY_SOURCES, connect, junk_filter
+from cod_data.catalog.explorer.erm import layers as erm_layers
 from cod_data.catalog.global_build.config import EXPLORER, FULL_COVER
 
 
@@ -19,7 +21,8 @@ class Columns:
     srcid: str
     alts: tuple[str, ...] = ()
     type: str = "NULL"
-    lang: bool = False
+    # SQL for lang..lang3, or None to read them from ERM's subnational layers.
+    langs: tuple[str, ...] | None = ("'en'", "NULL", "NULL", "NULL")
 
 
 _ADM = Columns(
@@ -32,8 +35,8 @@ _ADM = Columns(
 )
 # Alternate names without a declared language stay out (schema.md: name1 needs lang1).
 COLUMNS = {
-    "ocha": Columns(**{**_ADM.__dict__, "lang": True}),
-    "erm": _ADM,
+    "ocha": Columns(**{**_ADM.__dict__, "langs": ("lang", "lang1", "lang2", "lang3")}),
+    "erm": Columns(**{**_ADM.__dict__, "langs": None}),
     "wfp": Columns("iso3", "adm{n}_id", "adm{p}_id", "adm{n}_name", "source_id"),
     "unicef": Columns(
         "left(adm0_ucode, 3)",
@@ -55,6 +58,22 @@ COLUMNS = {
 SOURCE_LEVELS = {s.name: s.levels for s in BOUNDARY_SOURCES}
 
 
+@cache
+def erm_langs(iso3: str) -> tuple[str, ...]:
+    """lang..lang3 as SQL literals from iso3's ERM original layers (one set per iso3)."""
+    con = connect()
+    paths = [p for p, *_ in erm_layers()]
+    rows = con.execute(
+        "SELECT DISTINCT lang, lang1, lang2, lang3 "
+        f"FROM read_parquet({paths}, union_by_name = true) WHERE iso3 = ?",
+        [iso3],
+    ).fetchall()
+    con.close()
+    if len(rows) != 1:
+        raise ValueError(f"{iso3}: {len(rows)} ERM lang sets")
+    return tuple("NULL" if v is None else f"'{v}'" for v in rows[0])
+
+
 def layer(source: str, n: int) -> str:
     return f"read_parquet('{EXPLORER / source / f'{source}_adm{n}' / f'{source}_adm{n}.parquet'}')"
 
@@ -71,12 +90,10 @@ def units(source: str, n: int, iso3: str) -> str:
     where = f"{'AND' if junk else 'WHERE'} {c.iso3} = '{iso3}'"
     alts = [f"{_sql(a, n)}::VARCHAR AS name{i}" for i, a in enumerate(c.alts, 1)]
     alts += [f"NULL::VARCHAR AS name{i}" for i in range(len(c.alts) + 1, 4)]
-    lang = (
-        "lang, lang1, lang2, lang3"
-        if c.lang
-        else ", ".join(
-            f"NULL::VARCHAR AS {x}" for x in ("lang", "lang1", "lang2", "lang3")
-        )
+    langs = c.langs or erm_langs(iso3)
+    lang = ", ".join(
+        f"{v}::VARCHAR AS {x}"
+        for v, x in zip(langs, ("lang", "lang1", "lang2", "lang3"), strict=True)
     )
     parent = f"{_sql(c.parent, n)}::VARCHAR" if n > 1 else "NULL::VARCHAR"
     return f"""
