@@ -1,6 +1,7 @@
 """Per-source, per-level feature and vertex counts per location, from the boundary parquets.
 Run after every source download."""
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -53,14 +54,29 @@ def batches(con) -> list[list[str]]:
     return out + [batch] if batch else out
 
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument(
+    "--source",
+    action="append",
+    choices=[s.name for s in BOUNDARY_SOURCES],
+    help="Recompute only these sources (repeatable), keeping the other sources' rows.",
+)
+args = parser.parse_args()
+sources = [s for s in BOUNDARY_SOURCES if not args.source or s.name in args.source]
+
 STATS_DB.unlink(missing_ok=True)
 con = connect(STATS_DB)
 con.execute(
     "CREATE TABLE stats (source VARCHAR, level INTEGER, iso3 VARCHAR, feature_count BIGINT, "
     "total_vertices BIGINT, avg_vertices DOUBLE, edge_vertices BIGINT, internal_vertices BIGINT)"
 )
+if args.source and OUT.exists():
+    names = ", ".join(f"'{s.name}'" for s in sources)
+    con.execute(
+        f"INSERT INTO stats SELECT * FROM read_parquet('{OUT}') WHERE source NOT IN ({names})"
+    )
 created = False
-for src in BOUNDARY_SOURCES:
+for src in sources:
     for level in src.levels:
         file = path_of(f"{src.name}_adm{level}")
         if not file.exists():

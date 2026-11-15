@@ -1,16 +1,16 @@
-"""Per-country fit bbox for the map's zoom-to-country, from UN Geodata's adm0 layer.
+"""Per-country fit bbox for the map's zoom-to-country, from the base map's adm0 layer.
 The longitude span is the complement of the largest gap between vertices, so it crosses 180 when shorter."""
 
 import sys
 
-from common import connect, path_of
+from common import BASEMAP_BUILD, connect, path_of
 from shared.geoparquet import TABLE_OPTIONS
 
-IN = path_of("ungeodata_adm0")
+IN = BASEMAP_BUILD / "basemap_adm0.parquet"
 OUT = path_of("country_bbox")
 
 if not IN.exists():
-    sys.exit(f"{IN} not found, run ungeodata.py first.")
+    sys.exit(f"{IN} not found, run basemap.py first.")
 
 con = connect()
 # Latitudes come from the same vertex dump, so countries with several adm0 rows (GBR) stay one row.

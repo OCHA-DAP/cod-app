@@ -39,12 +39,12 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
     ...(positron.sources as maplibregl.StyleSpecification["sources"]),
     countries: {
       type: "vector",
-      url: pmtiles("ungeodata_adm0"),
-      promoteId: { ungeodata_adm0: "objectid" },
+      url: pmtiles("basemap_adm0"),
+      promoteId: { basemap_adm0: "objectid" },
     },
     "country-lines": {
       type: "vector",
-      url: pmtiles("ungeodata_lines"),
+      url: pmtiles("basemap_lines"),
     },
     ...admSources,
   },

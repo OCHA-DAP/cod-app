@@ -18,13 +18,6 @@ CC_BY = {
     "license_url": "https://creativecommons.org/licenses/by/4.0/",
 }
 PRODUCER_TERMS = {"license": "other", "license_url": "../../TERMS.md"}
-OUTLINES = {
-    "ungeodata_adm0": ("UN Geodata country outlines", "UN Geodata 1M country outlines"),
-    "ungeodata_lines": (
-        "UN Geodata boundary lines",
-        "UN Geodata 1M international boundary lines and coastlines",
-    ),
-}
 REFERENCE = {
     "m49": "UN M49 codes, names and regions for each country or area, from the UN Statistics Division.",
     "iso3166": "ISO 3166-2 subdivision counts per location, from Debian's iso-codes.",
@@ -67,11 +60,6 @@ REFERENCE_SOURCES = {
     "plan_status": ({**OCHA, "url": "https://hpc.tools/"}, "https://hpc.tools/"),
     "office_type": (OCHA, None),
 }
-UN_GEODATA = {
-    "name": "United Nations Geospatial",
-    "roles": ["producer", "licensor"],
-    "url": "https://www.un.org/geospatial/",
-}
 
 
 def template(name: str) -> str:
@@ -80,25 +68,16 @@ def template(name: str) -> str:
 
 def boundary(collection: Path) -> dict:
     name = collection.name
-    if name in OUTLINES:
-        title, what = OUTLINES[name]
-        provider, extra, source = UN_GEODATA, "", None
-    else:
-        partner = PARTNERS[collection.parent.name]
-        level = name.rsplit("adm", 1)[1]
-        title = what = f"{partner['label']} admin {level}"
-        url = {"url": partner["url"]} if partner["url"] else {}
-        provider = {
-            "name": partner["provider"],
-            "roles": ["producer", "licensor"],
-            **url,
-        }
-        source = partner.get("source_url")
-        source = source.get(level) if isinstance(source, dict) else source
-        extra = f", and label points at each unit's maximum inscribed circle in `{name}_labels.pmtiles`"
+    partner = PARTNERS[collection.parent.name]
+    level = name.rsplit("adm", 1)[1]
+    title = f"{partner['label']} admin {level}"
+    url = {"url": partner["url"]} if partner["url"] else {}
+    provider = {"name": partner["provider"], "roles": ["producer", "licensor"], **url}
+    source = partner.get("source_url")
+    source = source.get(level) if isinstance(source, dict) else source
     return {
         "title": title,
-        "description": f"{what} as GeoParquet, with polygon tiles{extra}.",
+        "description": f"{title} as GeoParquet, with polygon tiles, and label points at each unit's maximum inscribed circle in `{name}_labels.pmtiles`.",
         "providers": [provider, HOST],
         **({"source_url": source} if source else {}),
         "processing_notes": "Reprojected to OGC:CRS84, made valid and clipped to ±180° longitude, then tiled with tylertoo to zoom 11 with every feature kept at every zoom. Every layer carries a `hover_id` row index for the map.",
@@ -129,12 +108,15 @@ def main() -> None:
     )
     (explorer / "AGENTS.md").write_text(template("explorer"))
     (explorer / "TERMS.md").write_text(template("terms"))
-    for source in sorted(
-        p for p in explorer.iterdir() if p.is_dir() and p.name != "reference"
-    ):
-        label = (
-            PARTNERS[source.name]["label"] if source.name in PARTNERS else "UN Geodata"
-        )
+    write_yaml(
+        explorer / "basemap" / ".portolan" / "metadata.yaml",
+        {
+            "title": "Base map",
+            "description": "Country outlines (`basemap_adm0/basemap_adm0.pmtiles`) and boundary lines (`basemap_lines/basemap_lines.pmtiles`) for the Boundaries Explorer's base map.",
+        },
+    )
+    for source in sorted(p for p in explorer.iterdir() if p.name in PARTNERS):
+        label = PARTNERS[source.name]["label"]
         write_yaml(
             source / ".portolan" / "metadata.yaml",
             {

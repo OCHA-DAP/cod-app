@@ -1,5 +1,5 @@
 """Per-source provenance (data provider, last update) per location. Run after every source download.
-OCHA and FAO come from hand-maintained CSVs in data/provenance/; WFP and UNHCR from their own layers."""
+OCHA and FAO come from hand-maintained CSVs in data/provenance/; WFP, UNHCR and ERM from their own layers."""
 
 from pathlib import Path
 
@@ -43,6 +43,10 @@ con.execute(f"""
             array_to_string(list_distinct(list(source)), '; ') AS provider,
             max(src_date) AS source_updated
         FROM read_parquet('{path_of("unhcr_adm1")}')
+        GROUP BY iso3
+    UNION ALL
+        SELECT 'erm' AS source, iso3, any_value(src_name) AS provider, max(src_date) AS source_updated
+        FROM read_parquet('{path_of("erm_adm1")}')
         GROUP BY iso3;
 
     COPY provenance TO '{OUT}' {TABLE_OPTIONS};
