@@ -21,7 +21,7 @@ DECISIONS_CSV = Path("src/lib/explorer/decisions.csv")
 DECISIONS = f"""(
     SELECT upper(trim(iso3)) AS iso3,
         nullif(lower(trim(selected_source)), '') AS selected_source,
-        lower(trim(accepted)) = 'true' AS accepted, trim(rationale) AS rationale
+        coalesce(lower(trim(accepted)) = 'true', false) AS accepted, trim(rationale) AS rationale
     FROM read_csv('{DECISIONS_CSV}', header=true, all_varchar=true)
     WHERE nullif(trim(iso3), '') IS NOT NULL
 )"""
