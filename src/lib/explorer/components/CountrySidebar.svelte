@@ -4,7 +4,7 @@
   import { getCountries } from "$lib/explorer/parquet/countries";
   import { getAllOfficeTypes, type OfficeType } from "$lib/explorer/parquet/officeType";
   import { getAllPlanStatus, type PlanStatus } from "$lib/explorer/parquet/planStatus";
-  import { getDecisions, type Decision } from "$lib/explorer/sheet/decisions";
+  import { decisions, type Decision } from "$lib/explorer/decisions";
   import { ADMIN_SOURCES } from "$lib/explorer/sources";
   import ToolHeader from "$lib/components/ToolHeader.svelte";
   import { base } from "$lib/utils/paths";
@@ -29,10 +29,9 @@
   let skipNextCenter = false;
 
   onMount(async () => {
-    const [countries, plans, decisions, officeTypes] = await Promise.all([
+    const [countries, plans, officeTypes] = await Promise.all([
       getCountries(),
       getAllPlanStatus(),
-      getDecisions(),
       getAllOfficeTypes(),
     ]);
     rows = countries.map((c) => ({
@@ -68,7 +67,8 @@
   });
 
   function sourceLabel(id: string): string {
-    return ADMIN_SOURCES.find((s) => s.id === id)?.label ?? id;
+    const src = ADMIN_SOURCES.find((s) => s.id === id);
+    return src?.shortLabel ?? src?.label ?? id;
   }
 
   const OFFICE_TYPE_RANK: Record<OfficeType, number> = { CO: 0, RO: 1, HAT: 2 };

@@ -1,4 +1,8 @@
-export const DATA_BASE = "https://data.source.coop/hdx/cod-site";
+// The dev server serves a built local catalog/ at /catalog (astro.config.mjs).
+export const DATA_BASE =
+  import.meta.env.DEV && import.meta.env.LOCAL_CATALOG && globalThis.location
+    ? `${globalThis.location.origin}/catalog`
+    : "https://data.source.coop/hdx/cod-site";
 export const COD_AB_BASE = "https://data.source.coop/hdx/cod-ab";
 
 export function codAbUrl(path: string): string {

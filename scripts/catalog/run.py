@@ -6,7 +6,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-import fieldmaps_publish
+import source_publish
 from common import CATALOG, apply_titles, tile_parquet
 
 HERE = Path(__file__).parent
@@ -19,9 +19,10 @@ EXPLORER_STEPS = [
     "office_type.py",
     "wfp.py",
     "unhcr.py",
-    "ungeodata.py",
+    "basemap.py",
     "fao.py",
     "unicef.py",
+    "erm.py",
     "ocha.py",
     "provenance.py",
     "stats.py",
@@ -81,12 +82,14 @@ def tile_tools(*, force: bool) -> None:
 
 def add(collection: Path, datetime_: str) -> None:
     rel = collection.relative_to(CATALOG).as_posix()
-    fieldmaps_publish.add(CATALOG, rel, "--datetime", datetime_)
+    source_publish.add(CATALOG, rel, "--datetime", datetime_)
 
 
 def add_all() -> None:
+    # portolan won't register the tiles-only base map, which the push uploads anyway.
     for collection in collections(CATALOG / "explorer"):
-        add(collection, download_date(collection))
+        if (collection / f"{collection.name}.parquet").exists():
+            add(collection, download_date(collection))
     from build_nld import YEARS
 
     for year in YEARS:
@@ -137,10 +140,10 @@ def main() -> None:
 
     annotate_catalog(TOOLS.resolve(), CACHE)
     apply_titles(CATALOG)
-    fieldmaps_publish.run(CATALOG, "readme")
-    fieldmaps_publish.run(CATALOG, "check", "--fix", "--data-scope", "local")
+    source_publish.run(CATALOG, "readme")
+    source_publish.run(CATALOG, "check", "--fix", "--data-scope", "local")
     if args.push:
-        fieldmaps_publish.push(CATALOG)
+        source_publish.push(CATALOG)
 
 
 if __name__ == "__main__":

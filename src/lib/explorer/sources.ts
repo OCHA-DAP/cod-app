@@ -66,6 +66,15 @@ export const ADMIN_SOURCES = [
     junkNameField: "GAUL{level}_NAME",
     junkNameValues: ["Waterbody", "Undefined", "Administrative Unit Not Available"],
   },
+  {
+    id: "erm",
+    label: "EuroGeographics",
+    shortLabel: "ERM",
+    levels: [1, 2, 3, 4] as AdminLevel[],
+    nameField: "adm{level}_name",
+    codeField: "adm{level}_pcode",
+    countryCodeField: "iso3",
+  },
 ];
 
 export function getLevelsForSource(sourceId: string): AdminLevel[] {

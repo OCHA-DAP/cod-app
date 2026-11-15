@@ -1,7 +1,7 @@
 import { getBboxForIso3 } from "$lib/explorer/parquet/bbox";
 import { getMatchForCountry } from "$lib/explorer/parquet/sourceMatch";
 import { getStatsForCountry, type SourceStat } from "$lib/explorer/parquet/sourceStats";
-import { getDecisionForIso3, type Decision } from "$lib/explorer/sheet/decisions";
+import { getDecision, type Decision } from "$lib/explorer/decisions";
 import { ADMIN_SOURCES, adminTiles, getLevelsForSource } from "$lib/explorer/sources";
 import type { ViewState } from "$lib/explorer/urlState";
 import type * as maplibregl from "maplibre-gl";
@@ -56,12 +56,8 @@ async function pickLevel(iso3: string, source: string, level: number): Promise<n
   return pickDeepestLevelWithData(stats, source);
 }
 
-// Resolves the default source when a country is first selected: the team's
-// pick from the decisions sheet if it has data — accepted or still
-// pending, since a pending pick is still the team's stated preference —
-// else the first ADMIN_SOURCES entry (in priority order) with data. Returns
-// null — meaning "leave selection as-is" — when the team explicitly decided
-// no source is suitable, or when nothing has any data for this country.
+// Default source on country select: the team's pick if it has data (accepted or pending), else the first
+// ADMIN_SOURCES entry with data; null (leave as is) when the team picked none or no source has data.
 function resolveDefaultSource(decision: Decision | null, stats: SourceStat[]): string | null {
   if (decision?.noSourceSuitable) return null;
 
@@ -104,11 +100,11 @@ export async function selectCountry(
   selectedIso3.set(iso3);
   if (!iso3) return;
 
-  const [, stats, decision] = await Promise.all([
+  const [, stats] = await Promise.all([
     map ? fitCountryBounds(map, iso3) : Promise.resolve(),
     getStatsForCountry(iso3),
-    getDecisionForIso3(iso3),
   ]);
+  const decision = getDecision(iso3);
 
   const source = view.source ?? resolveDefaultSource(decision, stats);
   if (source !== null) {
@@ -263,10 +259,8 @@ export async function applyMismatchHighlight(map: maplibregl.Map, iso3: string):
   const layerId = `${activeSource}-adm${activeLevel}-mismatch`;
   if (!src) return;
 
-  const [decision, matches] = await Promise.all([
-    getDecisionForIso3(iso3),
-    getMatchForCountry(iso3),
-  ]);
+  const decision = getDecision(iso3);
+  const matches = await getMatchForCountry(iso3);
 
   // Bail if a newer selectSource/selectSourceLevel call landed while awaiting.
   if (get(selectedSource) !== activeSource || get(selectedAdmin) !== activeLevel) return;

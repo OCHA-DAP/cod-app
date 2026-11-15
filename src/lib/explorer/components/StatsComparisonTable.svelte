@@ -9,7 +9,7 @@
   import { getMatchForCountry, type SourceMatch } from "$lib/explorer/parquet/sourceMatch";
   import { getProvenanceForCountry, type SourceProvenance } from "$lib/explorer/parquet/sourceProvenance";
   import { getStatsForCountry, type SourceStat } from "$lib/explorer/parquet/sourceStats";
-  import { getDecisionForIso3, type Decision } from "$lib/explorer/sheet/decisions";
+  import { getDecision } from "$lib/explorer/decisions";
   import { ADMIN_SOURCES } from "$lib/explorer/sources";
   import { get } from "svelte/store";
 
@@ -20,7 +20,7 @@
   let { iso3 }: Props = $props();
   let stats: SourceStat[] = $state([]);
   let loading = $state(true);
-  let decision: Decision | null = $state(null);
+  const decision = $derived(getDecision(iso3));
   let provenance: SourceProvenance[] = $state([]);
   let iso3166: Iso3166 | null = $state(null);
   let mapboxBoundaries: MapboxBoundaries | null = $state(null);
@@ -81,19 +81,6 @@
       if (cancelled) return;
       stats = s;
       loading = false;
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  });
-
-  $effect(() => {
-    const current = iso3;
-    let cancelled = false;
-    getDecisionForIso3(current).then((d) => {
-      if (cancelled) return;
-      decision = d;
     });
 
     return () => {

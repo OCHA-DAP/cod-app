@@ -1,7 +1,7 @@
 <script lang="ts">
   import { downloadBlob } from "$lib/utils/download";
   import { sourceComparisonCsv } from "$lib/explorer/parquet/comparisonCsv";
-  import { getDecisionForIso3, type Decision } from "$lib/explorer/sheet/decisions";
+  import { getDecision } from "$lib/explorer/decisions";
   import LabelsToggle from "./LabelsToggle.svelte";
   import StatsComparisonTable from "./StatsComparisonTable.svelte";
 
@@ -10,7 +10,7 @@
   }
 
   let { iso3 }: Props = $props();
-  let decision: Decision | null = $state(null);
+  const decision = $derived(iso3 ? getDecision(iso3) : null);
   let downloading = $state(false);
 
   async function downloadComparison() {
@@ -22,23 +22,6 @@
     }
   }
 
-  $effect(() => {
-    const current = iso3;
-    if (!current) {
-      decision = null;
-      return;
-    }
-
-    let cancelled = false;
-    getDecisionForIso3(current).then((d) => {
-      if (cancelled) return;
-      decision = d;
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  });
 </script>
 
 <div class="stats-panel">

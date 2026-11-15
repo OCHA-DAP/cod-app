@@ -1,5 +1,5 @@
 // Minimal RFC4180 CSV parser: handles quoted fields, embedded commas/newlines,
-// and doubled-quote ("") escaping. Free-text rationale from the decisions sheet
+// and doubled-quote ("") escaping. Free-text rationale in the decisions file
 // can contain all of these, so a naive split(",") would corrupt rows.
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];

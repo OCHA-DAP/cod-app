@@ -15,10 +15,20 @@ from shared.geoparquet import TABLE_OPTIONS
 
 load_dotenv(".env")
 CATALOG = Path(os.environ.get("CATALOG", "catalog"))
-SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "ungeodata")
+SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "erm", "basemap")
+DECISIONS_CSV = Path("src/lib/explorer/decisions.csv")
+# Normalized as in src/lib/explorer/decisions.ts.
+DECISIONS = f"""(
+    SELECT upper(trim(iso3)) AS iso3,
+        nullif(lower(trim(selected_source)), '') AS selected_source,
+        coalesce(lower(trim(accepted)) = 'true', false) AS accepted, trim(rationale) AS rationale
+    FROM read_csv('{DECISIONS_CSV}', header=true, all_varchar=true)
+    WHERE nullif(trim(iso3), '') IS NOT NULL
+)"""
 COD_AB_BASE = "https://data.source.coop/hdx/cod-ab"
 COD_AB_CACHE = Path("tmp/catalog/cache/cod-ab")
 DUCKDB_TMP = Path("tmp/catalog/duckdb-tmp")
+BASEMAP_BUILD = Path("tmp/catalog/basemap")
 TILE_MAX_ZOOM = 11
 CONTACT = {"name": "HDX Data Systems Team", "email": "hdx@un.org"}
 HOST = {
@@ -60,6 +70,12 @@ PARTNERS = {
         "url": "https://storage.googleapis.com/fao-maps-catalog-data/boundaries/",
         "source_url": "https://data.apps.fao.org/catalog/dataset/global-administrative-unit-layers-gaul-2025",
     },
+    "erm": {
+        "label": "EuroGeographics",
+        "provider": "EuroGeographics (EuroRegionalMap)",
+        "url": "https://www.mapsforeurope.org/",
+        "source_url": "https://www.mapsforeurope.org/datasets/euro-regional-map",
+    },
 }
 
 
@@ -97,6 +113,7 @@ BOUNDARY_SOURCES = [
         "GAUL{level}_NAME",
         ["Waterbody", "Undefined", "Administrative Unit Not Available"],
     ),
+    BoundarySource("erm", "iso3", [1, 2, 3, 4]),
 ]
 
 
@@ -122,10 +139,11 @@ def path_of(name: str, ext: str = "parquet") -> Path:
 
 
 def connect(db: Path | None = None) -> duckdb.DuckDBPyConnection:
-    """A DuckDB connection on DuckDB's default memory and threads that spills to DUCKDB_TMP."""
+    """A DuckDB connection on half the cores and default memory that spills to DUCKDB_TMP."""
     DUCKDB_TMP.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(db) if db else ":memory:")
     con.execute(
+        f"SET threads = {max(1, (os.cpu_count() or 2) // 2)}; "
         f"SET preserve_insertion_order = false; SET temp_directory = '{DUCKDB_TMP}'; LOAD spatial"
     )
     return con
@@ -191,10 +209,6 @@ def public_url(*parts: str) -> str:
     """The HTTPS URL of a catalog path, from PORTOLAN_REMOTE (s3://<account>/<product>)."""
     product = os.environ["PORTOLAN_REMOTE"].removeprefix("s3://").strip("/")
     return "/".join(["https://data.source.coop", product, *parts])
-
-
-def read_sheet_url() -> str | None:
-    return os.environ.get("PUBLIC_DECISIONS_SHEET_URL") or None
 
 
 def write_yaml(path: Path, data: dict) -> None:

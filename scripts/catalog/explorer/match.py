@@ -1,4 +1,4 @@
-"""Per-country polygon match rate (IoU vs. the decisions sheet's preferred source).
+"""Per-country polygon match rate (IoU vs. the decisions file's preferred source).
 Requires the source boundary parquet files to exist (run the source download scripts first)."""
 
 import argparse
@@ -9,10 +9,10 @@ from pathlib import Path
 import duckdb
 from common import (
     BOUNDARY_SOURCES,
+    DECISIONS,
     connect,
     junk_filter,
     path_of,
-    read_sheet_url,
 )
 from shared.geoparquet import TABLE_OPTIONS
 
@@ -54,15 +54,13 @@ MATCH_QUERY = """
 """
 
 
-def fetch_decisions(sheet_url: str) -> list[tuple[str, str]]:
+def read_decisions() -> list[tuple[str, str]]:
     con = connect()
-    con.execute("LOAD httpfs")
     rows = con.execute(
         f"""
-        SELECT upper(trim(iso3)) AS iso3, lower(trim(selected_source)) AS preferred_source
-        FROM read_csv('{sheet_url}', header=true)
-        WHERE selected_source IS NOT NULL
-          AND lower(trim(selected_source)) NOT IN ('', 'null')
+        SELECT iso3, selected_source AS preferred_source
+        FROM {DECISIONS}
+        WHERE selected_source <> 'none'
         """
     ).fetchall()
     con.close()
@@ -186,15 +184,7 @@ def main() -> None:
     parser.add_argument("--iso3", nargs="+", help="Only these locations")
     args = parser.parse_args()
 
-    sheet_url = read_sheet_url()
-    if not sheet_url:
-        print(
-            "PUBLIC_DECISIONS_SHEET_URL not set in .env, skipping match-rate computation.",
-            file=sys.stderr,
-        )
-        return
-
-    decisions = fetch_decisions(sheet_url)
+    decisions = read_decisions()
     if args.iso3:
         wanted = {i.upper() for i in args.iso3}
         decisions = [d for d in decisions if d[0] in wanted]

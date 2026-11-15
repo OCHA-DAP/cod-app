@@ -4,8 +4,8 @@ Data behind the CODs site. Each collection holds a GeoParquet or Parquet file, a
 
 ## Layout
 
-- `explorer/{{source}}/{{source}}_adm{{n}}/`: admin boundaries from each partner source (`wfp`, `unicef`, `unhcr`, `fao`), with polygon tiles and `{{source}}_adm{{n}}_labels.pmtiles` label points. OCHA boundaries are COD-AB's own global layers at https://source.coop/hdx/cod-ab. See [explorer/AGENTS.md](explorer/AGENTS.md).
-- `explorer/ungeodata/`: UN Geodata country outlines and boundary lines for the explorer's base map.
+- `explorer/{{source}}/{{source}}_adm{{n}}/`: admin boundaries from each partner source (`wfp`, `unicef`, `unhcr`, `fao`, `erm`), with polygon tiles and `{{source}}_adm{{n}}_labels.pmtiles` label points. OCHA boundaries are COD-AB's own global layers at https://source.coop/hdx/cod-ab. See [explorer/AGENTS.md](explorer/AGENTS.md).
+- `explorer/basemap/`: country outlines and boundary lines for the explorer's base map.
 - `explorer/reference/{{table}}/`: per-location reference tables.
 - `tools/`: sample inputs for the tools. See [tools/AGENTS.md](tools/AGENTS.md).
 
