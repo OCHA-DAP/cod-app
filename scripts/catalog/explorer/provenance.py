@@ -45,7 +45,9 @@ con.execute(f"""
         FROM read_parquet('{path_of("unhcr_adm1")}')
         GROUP BY iso3
     UNION ALL
-        SELECT 'erm' AS source, iso3, any_value(src_name) AS provider, max(src_date) AS source_updated
+        SELECT 'erm' AS source, iso3,
+            array_to_string(list_distinct(list(src_name)), '; ') AS provider,
+            max(src_date) AS source_updated
         FROM read_parquet('{path_of("erm_adm1")}')
         GROUP BY iso3;
 
