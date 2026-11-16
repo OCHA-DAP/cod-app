@@ -9,7 +9,7 @@ export function codAbUrl(path: string): string {
   return `${COD_AB_BASE}/${path}`;
 }
 
-// Mirrors item_dir in scripts/catalog/common.py: explorer/<source>/<layer>/ holds each boundary layer.
+// Mirrors item_dir in cod_data/catalog/common.py: explorer/<source>/<layer>/ holds each boundary layer.
 export function explorerTilesUrl(layer: string, file = `${layer}.pmtiles`): string {
   return `${DATA_BASE}/explorer/${layer.split("_")[0]}/${layer}/${file}`;
 }
