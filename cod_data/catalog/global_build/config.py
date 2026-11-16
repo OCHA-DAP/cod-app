@@ -34,4 +34,6 @@ ADM0_LAYERS = {
 PARTS_LAYER = "fieldmaps/fieldmaps_polygons/fieldmaps_polygons.parquet"
 # topo_clean maximum_gap_width (degrees) per iso3, for sources' needle gaps above the default fill.
 GAP_WIDTH = {"BRA": "1e-7"}
+# iso3s whose source fills name1 at every level but leaves name blank below adm1.
+PRIMARY_NAME1 = {"CMR"}
 PARTS = {"AUS": ["AUS_1"], "JAM": ["JAM_1"], "MUS": ["MUS_1"], "ZAF": ["ZAF_1"]}

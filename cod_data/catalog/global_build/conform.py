@@ -7,7 +7,7 @@ import duckdb
 
 from cod_data.catalog.common import BOUNDARY_SOURCES, connect, junk_filter
 from cod_data.catalog.explorer.erm import layers as erm_layers
-from cod_data.catalog.global_build.config import EXPLORER, FULL_COVER
+from cod_data.catalog.global_build.config import EXPLORER, FULL_COVER, PRIMARY_NAME1
 
 
 @dataclass(frozen=True)
@@ -98,9 +98,13 @@ def units(source: str, n: int, iso3: str) -> str:
         if junk
         else f"WHERE {c.iso3} = '{iso3}'"
     )
-    alts = [f"{_sql(a, n)}::VARCHAR AS name{i}" for i, a in enumerate(c.alts, 1)]
-    alts += [f"NULL::VARCHAR AS name{i}" for i in range(len(c.alts) + 1, 4)]
-    langs = c.langs or erm_langs(iso3)
+    name, alt_cols = c.name, list(c.alts)
+    langs = list(c.langs or erm_langs(iso3))
+    if iso3 in PRIMARY_NAME1:
+        name, alt_cols[0] = alt_cols[0], name
+        langs[0], langs[1] = langs[1], langs[0]
+    alts = [f"{_sql(a, n)}::VARCHAR AS name{i}" for i, a in enumerate(alt_cols, 1)]
+    alts += [f"NULL::VARCHAR AS name{i}" for i in range(len(alt_cols) + 1, 4)]
     lang = ", ".join(
         f"{v}::VARCHAR AS {x}"
         for v, x in zip(langs, ("lang", "lang1", "lang2", "lang3"), strict=True)
@@ -113,7 +117,7 @@ def units(source: str, n: int, iso3: str) -> str:
         parent = f"concat_ws('/', {', '.join(path[:-1])})" if n > 1 else parent
     return f"""
         SELECT {uid} AS id, {parent} AS parent,
-            nullif(trim({_sql(c.name, n)}::VARCHAR), '') AS name, {", ".join(alts)},
+            nullif(trim({_sql(name, n)}::VARCHAR), '') AS name, {", ".join(alts)},
             {f"NOT ({junk})" if junk else "false"} AS filler,
             nullif(trim({_sql(c.srcid, n)}::VARCHAR), '') AS srcid,
             nullif(trim({_sql(c.type, n)}::VARCHAR), '') AS type, {lang}, geometry
