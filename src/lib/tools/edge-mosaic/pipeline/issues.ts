@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { GEOMETRY_TYPE } from "$lib/db/constants";
 import { assignOneDropIssuesSql } from "$lib/db/assignOne";
 import {
   CODE_FALLBACK_REASON,
@@ -45,11 +46,25 @@ export async function buildMosaicIssues(
   conn: AsyncDuckDBConnection,
   assignment: AssignmentOutcomeInfo = {},
 ): Promise<MosaicIssuesResult> {
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE ms_gaps AS
-    ${uncoveredOverlayIssuesSql("cl_clip", "overlay_layer_01", "cl_clip_cover")}
-  `);
-  await conn.query("DROP TABLE IF EXISTS cl_clip_cover");
+  try {
+    await conn.query(`--sql
+      CREATE OR REPLACE TABLE ms_gaps AS
+      ${uncoveredOverlayIssuesSql("cl_clip", "overlay_layer_01", "cl_clip_cover")}
+    `);
+  } catch (e) {
+    console.warn("gap issues failed:", e);
+    await conn.query(`--sql
+      CREATE OR REPLACE TABLE ms_gaps AS
+      SELECT NULL::VARCHAR AS key, NULL::VARCHAR AS kind, NULL::DOUBLE AS area_m2,
+             NULL::DOUBLE AS max_width_m, NULL::DOUBLE AS thinness_ratio, NULL::BOOLEAN AS fixed,
+             NULL::BIGINT AS unit_a, NULL::BIGINT AS unit_b, NULL::BIGINT AS overlay_fid,
+             NULL::VARCHAR AS reason, NULL::${GEOMETRY_TYPE} AS geom, NULL::DOUBLE AS xmin,
+             NULL::DOUBLE AS ymin, NULL::DOUBLE AS xmax, NULL::DOUBLE AS ymax
+      WHERE FALSE
+    `);
+  } finally {
+    await conn.query("DROP TABLE IF EXISTS cl_clip_cover");
+  }
 
   await conn.query(`--sql
     CREATE OR REPLACE TABLE ms_unassigned AS

@@ -71,7 +71,7 @@ an optional code-based assignment override is available (see below).
 whose whole group's extension failed), `ge_clip_empty` (input polygons
 clipped to nothing), `ge_detached` (clip-detached pieces), `ge_micro`
 (merged micro-polygons), `ge_invalid` (row pairs whose edges don't match)
-and the overlay area no result row covers (`gap`) are combined into one
+and pieces of overlay area no result row covers (`gap`) are combined into one
 `ge_issues` table, each row tagged with a `kind` (`unassigned`,
 `dropped_group`, `clip-empty`, `detached-part`, `micro-polygon`,
 `invalid-edge` or `gap`) and,
