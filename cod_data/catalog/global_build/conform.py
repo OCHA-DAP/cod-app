@@ -25,6 +25,8 @@ class Columns:
     langs: tuple[str, ...] | None = ("'en'", "NULL", "NULL", "NULL")
     # Key units by their id path from level 1 (rows carry every parent's id).
     chain: bool = False
+    # Name for one of several filler units at a level (WFP UMI's islands sit in adm0_name).
+    part: str = "NULL"
 
 
 _ADM = Columns(
@@ -40,7 +42,13 @@ COLUMNS = {
     "ocha": Columns(**{**_ADM.__dict__, "langs": ("lang", "lang1", "lang2", "lang3")}),
     "erm": Columns(**{**_ADM.__dict__, "langs": None}),
     "wfp": Columns(
-        "iso3", "adm{n}_id", "adm{p}_id", "adm{n}_name", "source_id", chain=True
+        "iso3",
+        "adm{n}_id",
+        "adm{p}_id",
+        "adm{n}_name",
+        "source_id",
+        chain=True,
+        part="adm0_name",
     ),
     "unicef": Columns(
         "left(adm0_ucode, 3)",
@@ -118,7 +126,7 @@ def units(source: str, n: int, iso3: str) -> str:
     return f"""
         SELECT {uid} AS id, {parent} AS parent,
             nullif(trim({_sql(name, n)}::VARCHAR), '') AS name, {", ".join(alts)},
-            {f"NOT ({junk})" if junk else "false"} AS filler,
+            {f"NOT ({junk})" if junk else "false"} AS filler, {c.part}::VARCHAR AS part,
             nullif(trim({_sql(c.srcid, n)}::VARCHAR), '') AS srcid,
             nullif(trim({_sql(c.type, n)}::VARCHAR), '') AS type, {lang}, geometry
         FROM {layer(source, n)} {where}
@@ -180,6 +188,7 @@ def stage_sql(
         )
         ctes.append(
             f"u{n} AS (SELECT id, {attrs}, count(DISTINCT parent) AS parents, "
+            "CASE WHEN count(*) OVER () > 1 THEN nullif(trim(any_value(part)), '') END AS part, "
             f"{geom} AS geometry FROM ({units(source, n, iso3)}) GROUP BY id)"
         )
     joins = " ".join(
@@ -189,7 +198,7 @@ def stage_sql(
     cols = [f"{adm0} AS adm0_name"]
     for n in range(1, lvl + 1):
         cols += [
-            f"CASE WHEN u{n}.filler THEN {adm0} ELSE u{n}.name END AS adm{n}_name",
+            f"CASE WHEN u{n}.filler THEN coalesce(u{n}.part, {adm0}) ELSE u{n}.name END AS adm{n}_name",
             *(f"u{n}.name{i} AS adm{n}_name{i}" for i in (1, 2, 3)),
             f"{_key(f'u{n}')} AS adm{n}_pcode",
             f"u{n}.srcid AS adm{n}_srcid",
