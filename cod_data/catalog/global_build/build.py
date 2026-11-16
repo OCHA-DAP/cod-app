@@ -27,6 +27,7 @@ from cod_data.catalog.global_build.adm0 import write_parents
 from cod_data.catalog.global_build.config import (
     ADM0_LAYERS,
     BUILD,
+    COD_AB_CATALOG,
     CODE_FIELD,
     MATCH_KEY,
     MAX_LVL,
@@ -131,6 +132,54 @@ def _extend(con: duckdb.DuckDBPyConnection, original: Path, work: Path) -> Path:
     return out
 
 
+def _cod_ab_extended(
+    con: duckdb.DuckDBPyConnection,
+    iso3: str,
+    originals: list[Path],
+    lvl: int,
+    work: Path,
+) -> list[Path]:
+    """Each original with the cod-ab catalog's extended geometry, joined 1:1 by OCHA P-code."""
+    key = iso3.lower()
+    src = (
+        COD_AB_CATALOG
+        / "extended"
+        / key
+        / "latest"
+        / f"{key}_admin{lvl}"
+        / f"{key}_admin{lvl}.parquet"
+    )
+    rows, codes = con.execute(
+        f"SELECT count(*), count(DISTINCT adm{lvl}_pcode) FROM '{src}'"
+    ).fetchall()[0]
+    if rows != codes:
+        raise ValueError(f"{iso3}: {src} has {rows} rows for {codes} P-codes")
+    outs, matched = [], 0
+    for o in originals:
+        out = work / f"{o.stem}_extended.parquet"
+        write_geoparquet(
+            con,
+            f"""
+            SELECT o.* REPLACE (e.geometry AS geometry)
+            FROM '{o}' o JOIN '{src}' e ON o.adm{lvl}_srcid = e.adm{lvl}_pcode
+        """,
+            out,
+        )
+        want, got = (
+            con.execute(f"SELECT count(*) FROM '{p}'").fetchall()[0][0]
+            for p in (o, out)
+        )
+        if want != got:
+            raise ValueError(f"{iso3}: {want - got} units missing from {src}")
+        matched += got
+        outs.append(_clean(con, out, work))
+    if matched != rows:
+        raise ValueError(
+            f"{iso3}: {rows - matched} units in {src} not in the OCHA layer"
+        )
+    return outs
+
+
 def _stage(
     con: duckdb.DuckDBPyConnection, iso3: str, source: str, parents: Path, work: Path
 ) -> list[Path]:
@@ -227,7 +276,11 @@ def job(
             for o in _stage(con, iso3, source, parents, work)
         ]
         lvl = con.execute(f"SELECT max(src_lvl) FROM '{originals[0]}'").fetchall()[0][0]
-        inputs = [_extend(con, o, work) for o in originals]
+        inputs = (
+            _cod_ab_extended(con, iso3, originals, lvl, work)
+            if source == "ocha"
+            else [_extend(con, o, work) for o in originals]
+        )
         edge_mosaic(
             input_paths=inputs,
             overlay_path=parents,

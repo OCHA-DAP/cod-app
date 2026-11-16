@@ -6,6 +6,10 @@ from pathlib import Path
 BUILD = Path("tmp/global")
 EXPLORER = Path(os.environ.get("CATALOG", "catalog")) / "explorer"
 ADM0_CATALOG = Path(os.environ.get("ADM0_CATALOG", "../adm0-app/catalog"))
+# Read-only: OCHA picks take their extended geometry from its extended/ tier.
+COD_AB_CATALOG = Path(
+    os.environ.get("COD_AB_CATALOG", "../hdx-scraper-cod-ab-global/portolan")
+)
 MAX_LVL = 4
 WORKERS = 2
 THREADS = max(1, (os.cpu_count() or 4) // (2 * WORKERS))
