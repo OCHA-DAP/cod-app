@@ -66,8 +66,52 @@ def _pad(
     write_geoparquet(con, f"SELECT {', '.join(cols)} FROM '{src}' WHERE {where}", out)
 
 
+def _punch(con: duckdb.DuckDBPyConnection, path: Path, work: Path) -> Path:
+    """path with each unit that fully covers another (a missing hole) cut around it."""
+    con.execute(f"""
+        CREATE OR REPLACE TEMP TABLE punch AS
+        WITH t AS (SELECT file_row_number AS rid, geometry
+                   FROM read_parquet('{path}', file_row_number = true))
+        SELECT a.rid, ST_Union_Agg(b.geometry) AS holes
+        FROM t a JOIN t b ON a.rid <> b.rid AND ST_Covers(a.geometry, b.geometry)
+        GROUP BY 1
+    """)
+    if not con.execute("SELECT count(*) FROM punch").fetchall()[0][0]:
+        return path
+    out = work / f"{path.stem}_punched.parquet"
+    write_geoparquet(
+        con,
+        f"""
+        SELECT t.* EXCLUDE (rid, file_row_number) REPLACE (
+            coalesce(ST_Difference(t.geometry, p.holes), t.geometry) AS geometry)
+        FROM (SELECT file_row_number AS rid, *
+              FROM read_parquet('{path}', file_row_number = true)) t
+        LEFT JOIN punch p USING (rid)
+    """,
+        out,
+    )
+    return out
+
+
+def _clean(con: duckdb.DuckDBPyConnection, path: Path, work: Path) -> Path:
+    """path, or its topo_clean output when topo_detect finds defects."""
+    issues = work / f"{path.stem}_detect.parquet"
+    topo_detect(path, issues, threads=THREADS, tmp_dir=work)
+    if not con.execute(f"SELECT count(*) FROM '{issues}'").fetchall()[0][0]:
+        return path
+    clean = work / f"{path.stem}_clean.parquet"
+    topo_clean(
+        path,
+        clean,
+        work / f"{path.stem}_clean_issues.parquet",
+        threads=THREADS,
+        tmp_dir=work,
+    )
+    return clean
+
+
 def _extend(con: duckdb.DuckDBPyConnection, original: Path, work: Path) -> Path:
-    """Extend original past its coastline, topo_clean it on defects; cached by content."""
+    """Extend original past its coastline, cleaned on defects; cached by content."""
     digest = hashlib.sha256(original.read_bytes()).hexdigest()[:16]
     out = EXTENDED / f"{original.stem}-{digest}.parquet"
     if out.exists():
@@ -75,19 +119,7 @@ def _extend(con: duckdb.DuckDBPyConnection, original: Path, work: Path) -> Path:
     EXTENDED.mkdir(parents=True, exist_ok=True)
     extended = work / f"{original.stem}_extended.parquet"
     edge_extend(original, extended, threads=THREADS, tmp_dir=work)
-    issues = work / f"{original.stem}_detect.parquet"
-    topo_detect(extended, issues, threads=THREADS, tmp_dir=work)
-    if con.execute(f"SELECT count(*) FROM '{issues}'").fetchall()[0][0]:
-        clean = work / f"{original.stem}_clean.parquet"
-        topo_clean(
-            extended,
-            clean,
-            work / f"{original.stem}_clean_issues.parquet",
-            threads=THREADS,
-            tmp_dir=work,
-        )
-        extended = clean
-    shutil.move(extended, out)
+    shutil.move(_clean(con, extended, work), out)
     return out
 
 
@@ -181,7 +213,11 @@ def job(
     filled = work / "filled.parquet"
     lvl = 0
     if source:
-        originals = _stage(con, iso3, source, parents, work)
+        # Partner sources can overlap or leave gaps, which edge_extend rejects.
+        originals = [
+            _clean(con, _punch(con, o, work), work)
+            for o in _stage(con, iso3, source, parents, work)
+        ]
         lvl = con.execute(f"SELECT max(src_lvl) FROM '{originals[0]}'").fetchall()[0][0]
         inputs = [_extend(con, o, work) for o in originals]
         edge_mosaic(
@@ -347,14 +383,24 @@ def main() -> None:
             ): i
             for i in iso3s
         }
+        failed = {}
         for done, fut in enumerate(as_completed(jobs), 1):
-            iso3, secs, lvl = fut.result()
+            try:
+                iso3, secs, lvl = fut.result()
+            except Exception as e:  # noqa: BLE001 (one bad source must not stop the rest)
+                iso3 = jobs[fut]
+                failed[iso3] = f"{type(e).__name__}: {e}"
+                print(f"{iso3} FAILED, ADM0 fill: {failed[iso3]} ({done}/{len(jobs)})")
+                job(iso3, None, parents, out)
+                continue
             print(
                 f"{iso3} ({picks.get(iso3)}, adm{lvl}) {secs:.0f}s ({done}/{len(jobs)})",
                 flush=True,
             )
     for line in merge(out, iso3s):
         print(line)
+    for iso3, error in failed.items():
+        print(f"ADM0 fill after a failed {picks.get(iso3)} build: {iso3} {error}")
 
 
 if __name__ == "__main__":
