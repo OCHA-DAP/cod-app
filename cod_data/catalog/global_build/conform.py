@@ -195,18 +195,26 @@ def stage_sql(
         f"LEFT JOIN u{n} ON u{n + 1}.parent = u{n}.id" for n in range(lvl - 1, 0, -1)
     )
     adm0 = f"'{adm0_name.replace(chr(39), chr(39) * 2)}'"
+    # One lang{i} per row, nearest the leaf; a level's name{i} stays only if its own tag matches.
+    langs = {
+        i: f"coalesce({', '.join(f'u{k}.lang{i}' for k in range(lvl, 0, -1))})"
+        for i in (1, 2, 3)
+    }
     cols = [f"{adm0} AS adm0_name"]
     for n in range(1, lvl + 1):
         cols += [
             f"CASE WHEN u{n}.filler THEN coalesce(u{n}.part, {adm0}) ELSE u{n}.name END AS adm{n}_name",
-            *(f"u{n}.name{i} AS adm{n}_name{i}" for i in (1, 2, 3)),
+            *(
+                f"CASE WHEN u{n}.lang{i} = {langs[i]} THEN u{n}.name{i} END AS adm{n}_name{i}"
+                for i in (1, 2, 3)
+            ),
             f"{_key(f'u{n}')} AS adm{n}_pcode",
             f"u{n}.srcid AS adm{n}_srcid",
             f"u{n}.type AS adm{n}_type",
             f"u{n}.id AS _id{n}",
             f"u{n}.parents AS _parents{n}",
         ]
-    cols += [f"u{lvl}.{x}" for x in ("lang", "lang1", "lang2", "lang3")]
+    cols += [f"u{lvl}.lang", *(f"{langs[i]} AS lang{i}" for i in (1, 2, 3))]
     return f"""
         WITH {", ".join(ctes)}
         SELECT {", ".join(cols)}, {lvl} AS src_lvl, u{lvl}.geometry

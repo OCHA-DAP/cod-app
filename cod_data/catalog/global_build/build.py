@@ -362,14 +362,20 @@ def polygons_sql(work: Path, n: int, valid_from: str) -> str:
         for c in ("pcode", "name", "name1", "name2", "name3", "type", "srcid")
     ]
     # Fill parts of one iso3 (AUS's islands) share a code, so they merge into one row.
-    # Fill rows carry the ADM0 layer's English names.
+    # Fill rows carry the ADM0 layer's English names; lang{i} only where this layer has a name{i}.
+    langs = [
+        f"CASE WHEN coalesce({', '.join(f'adm{k}_name{i}' for k in range(1, n + 1))}) "
+        f"IS NOT NULL THEN lang{i} END AS lang{i}"
+        for i in (1, 2, 3)
+    ]
     return f"""
         SELECT * EXCLUDE (src_lvl, geometry), {AREA} AS area_sqkm,
             least(coalesce(src_lvl::INT, 0), {n}) AS level, geometry
         FROM (
             SELECT {", ".join(cols)}, 1 AS version, NULL::DATE AS updated,
                 DATE '{valid_from}' AS valid_from, NULL::DATE AS valid_to,
-                coalesce(lang, 'en') AS lang, {", ".join(LANG[1:])}, src_lvl, ST_Union_Agg(geometry) AS geometry
+                CASE WHEN src_lvl IS NULL THEN 'en' ELSE lang END AS lang, {", ".join(langs)},
+                src_lvl, ST_Union_Agg(geometry) AS geometry
             FROM read_parquet('{work}/admin{n}.parquet') GROUP BY ALL
         )
     """
@@ -382,8 +388,14 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
         "duplicate or null pcode": f"SELECT count(*) - count(DISTINCT adm{n}_pcode) + count(*) FILTER (adm{n}_pcode IS NULL) FROM {t}",
         "pcode format": f"SELECT count(*) FROM {t} WHERE NOT regexp_full_match(adm{n}_pcode, '[A-Z]{{3}}(\\.\\d{{3,}})*')",
         "pcode not under parent": " + ".join(
-            f"(SELECT count(*) FROM {t} WHERE NOT starts_with(adm{k}_pcode, adm{k - 1}_pcode))"
+            f"(SELECT count(*) FROM {t} WHERE NOT coalesce(starts_with(adm{k}_pcode, adm{k - 1}_pcode || '.')"
+            f" OR (level < {k} AND adm{k}_pcode = adm{k - 1}_pcode), false))"
             for k in range(1, n + 1)
+        ),
+        "name{i} and lang{i} disagree": " + ".join(
+            f"(SELECT count(*) FROM {t} WHERE (lang{i} IS NULL) = "
+            f"(coalesce({', '.join(f'adm{k}_name{i}' for k in range(1, n + 1))}) IS NOT NULL))"
+            for i in (1, 2, 3)
         ),
     }
     errors = {
