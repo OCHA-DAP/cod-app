@@ -6,6 +6,7 @@ Run from the repo root: uv run -m cod_data.catalog.global_build.build --adm0 gau
 import argparse
 import hashlib
 import shutil
+import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import date
@@ -428,9 +429,10 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
 def merge(out: Path, iso3s: list[str]) -> list[str]:
     valid_from = date.today().isoformat()
     con = connect()
-    report = []
+    report, staged = [], []
     for n in range(1, MAX_LVL + 1):
-        dest = out / f"adm{n}_polygons.parquet"
+        dest = out / f".adm{n}_polygons.parquet"
+        staged.append(dest)
         union = " UNION ALL BY NAME ".join(
             f"({polygons_sql(out / 'iso3' / i.lower(), n, valid_from)})" for i in iso3s
         )
@@ -438,12 +440,16 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
         report += check(con, dest, n)
     for geom in ("points", "lines"):
         files = [str(out / "iso3" / i.lower() / f"{geom}.parquet") for i in iso3s]
+        staged.append(out / f".{geom}.parquet")
         write_geoparquet(
             con,
             f"SELECT * FROM read_parquet({files}, union_by_name = true)",
-            out / f"{geom}.parquet",
+            staged[-1],
         )
     con.close()
+    # Replace the layers only once every one has passed check().
+    for path in staged:
+        path.replace(out / path.name.removeprefix("."))
     return report
 
 
@@ -460,7 +466,7 @@ def main() -> None:
     picks = dict(
         con.execute(f"SELECT iso3, selected_source FROM {DECISIONS}").fetchall()
     )
-    iso3s = [
+    iso3s = all_iso3s = [
         r[0]
         for r in con.execute(
             f"SELECT DISTINCT adm0_pcode FROM '{parents}' ORDER BY 1"
@@ -482,7 +488,7 @@ def main() -> None:
             ): i
             for i in iso3s
         }
-        failed = {}
+        failed, fallbacks = {}, {}
         for done, fut in enumerate(as_completed(jobs), 1):
             try:
                 iso3, secs, lvl = fut.result()
@@ -490,16 +496,29 @@ def main() -> None:
                 iso3 = jobs[fut]
                 failed[iso3] = f"{type(e).__name__}: {e}"
                 print(f"{iso3} FAILED, ADM0 fill: {failed[iso3]} ({done}/{len(jobs)})")
-                job(iso3, None, parents, out)
+                fallbacks[pool.submit(job, iso3, None, parents, out)] = iso3
                 continue
             print(
                 f"{iso3} ({picks.get(iso3)}, adm{lvl}) {secs:.0f}s ({done}/{len(jobs)})",
                 flush=True,
             )
-    for line in merge(out, iso3s):
+        for fut in as_completed(fallbacks):
+            try:
+                fut.result()
+            except Exception as e:  # noqa: BLE001 (report every location before exiting)
+                failed[fallbacks[fut]] += (
+                    f"; ADM0 fill also failed: {type(e).__name__}: {e}"
+                )
+    built = [
+        i for i in all_iso3s if (out / "iso3" / i.lower() / "admin1.parquet").exists()
+    ]
+    print("not built yet, left out of the merge:", sorted(set(all_iso3s) - set(built)))
+    for line in merge(out, built):
         print(line)
     for iso3, error in failed.items():
         print(f"ADM0 fill after a failed {picks.get(iso3)} build: {iso3} {error}")
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
