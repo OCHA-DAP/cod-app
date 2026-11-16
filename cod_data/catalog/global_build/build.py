@@ -488,35 +488,36 @@ def main() -> None:
             ): i
             for i in iso3s
         }
-        failed, fallbacks = {}, {}
+        failed = {}
         for done, fut in enumerate(as_completed(jobs), 1):
             try:
                 iso3, secs, lvl = fut.result()
             except Exception as e:  # noqa: BLE001 (one bad source must not stop the rest)
                 iso3 = jobs[fut]
                 failed[iso3] = f"{type(e).__name__}: {e}"
-                print(f"{iso3} FAILED, ADM0 fill: {failed[iso3]} ({done}/{len(jobs)})")
-                fallbacks[pool.submit(job, iso3, None, parents, out)] = iso3
+                print(f"{iso3} FAILED ({done}/{len(jobs)}): {failed[iso3]}")
                 continue
             print(
                 f"{iso3} ({picks.get(iso3)}, adm{lvl}) {secs:.0f}s ({done}/{len(jobs)})",
                 flush=True,
             )
-        for fut in as_completed(fallbacks):
-            try:
-                fut.result()
-            except Exception as e:  # noqa: BLE001 (report every location before exiting)
-                failed[fallbacks[fut]] += (
-                    f"; ADM0 fill also failed: {type(e).__name__}: {e}"
-                )
+    # In this process, so a crashed worker that broke the pool still gets its fill.
+    for iso3 in failed:
+        try:
+            job(iso3, None, parents, out)
+        except Exception as e:  # noqa: BLE001 (report every location before exiting)
+            failed[iso3] += f"; ADM0 fill also failed: {type(e).__name__}: {e}"
+    for iso3, error in failed.items():
+        print(f"ADM0 fill after a failed {picks.get(iso3)} build: {iso3} {error}")
+    files = ("admin1.parquet", "points.parquet", "lines.parquet")
     built = [
-        i for i in all_iso3s if (out / "iso3" / i.lower() / "admin1.parquet").exists()
+        i
+        for i in all_iso3s
+        if all((out / "iso3" / i.lower() / f).exists() for f in files)
     ]
     print("not built yet, left out of the merge:", sorted(set(all_iso3s) - set(built)))
     for line in merge(out, built):
         print(line)
-    for iso3, error in failed.items():
-        print(f"ADM0 fill after a failed {picks.get(iso3)} build: {iso3} {error}")
     if failed:
         sys.exit(1)
 
