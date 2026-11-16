@@ -7,7 +7,12 @@ import duckdb
 
 from cod_data.catalog.common import BOUNDARY_SOURCES, connect, junk_filter
 from cod_data.catalog.explorer.erm import layers as erm_layers
-from cod_data.catalog.global_build.config import EXPLORER, FULL_COVER, PRIMARY_NAME1
+from cod_data.catalog.global_build.config import (
+    DEPTH,
+    EXPLORER,
+    FULL_COVER,
+    PRIMARY_NAME1,
+)
 
 
 @dataclass(frozen=True)
@@ -135,6 +140,8 @@ def units(source: str, n: int, iso3: str) -> str:
 
 def depth(con: duckdb.DuckDBPyConnection, source: str, iso3: str) -> int:
     """Deepest level with more units than the one above and FULL_COVER of level 1's area."""
+    if iso3 in DEPTH:
+        return DEPTH[iso3]
     stats = {
         n: con.execute(
             f"SELECT count(DISTINCT id), coalesce(sum(ST_Area(geometry)), 0) FROM ({units(source, n, iso3)})"
