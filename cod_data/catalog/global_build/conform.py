@@ -23,6 +23,8 @@ class Columns:
     type: str = "NULL"
     # SQL for lang..lang3, or None to read them from ERM's subnational layers.
     langs: tuple[str, ...] | None = ("'en'", "NULL", "NULL", "NULL")
+    # Key units by their id path from level 1 (rows carry every parent's id).
+    chain: bool = False
 
 
 _ADM = Columns(
@@ -37,7 +39,9 @@ _ADM = Columns(
 COLUMNS = {
     "ocha": Columns(**{**_ADM.__dict__, "langs": ("lang", "lang1", "lang2", "lang3")}),
     "erm": Columns(**{**_ADM.__dict__, "langs": None}),
-    "wfp": Columns("iso3", "adm{n}_id", "adm{p}_id", "adm{n}_name", "source_id"),
+    "wfp": Columns(
+        "iso3", "adm{n}_id", "adm{p}_id", "adm{n}_name", "source_id", chain=True
+    ),
     "unicef": Columns(
         "left(adm0_ucode, 3)",
         "ucode",
@@ -96,8 +100,13 @@ def units(source: str, n: int, iso3: str) -> str:
         for v, x in zip(langs, ("lang", "lang1", "lang2", "lang3"), strict=True)
     )
     parent = f"{_sql(c.parent, n)}::VARCHAR" if n > 1 else "NULL::VARCHAR"
+    uid = f"{_sql(c.id, n)}::VARCHAR"
+    if c.chain:
+        path = [f"{_sql(c.id, k)}::VARCHAR" for k in range(1, n + 1)]
+        uid = f"concat_ws('/', {', '.join(path)})"
+        parent = f"concat_ws('/', {', '.join(path[:-1])})" if n > 1 else parent
     return f"""
-        SELECT {_sql(c.id, n)}::VARCHAR AS id, {parent} AS parent,
+        SELECT {uid} AS id, {parent} AS parent,
             nullif(trim({_sql(c.name, n)}::VARCHAR), '') AS name, {", ".join(alts)},
             nullif(trim({_sql(c.srcid, n)}::VARCHAR), '') AS srcid,
             nullif(trim({_sql(c.type, n)}::VARCHAR), '') AS type, {lang}, geometry
