@@ -399,7 +399,7 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
     lang = con.execute(f"SELECT count(*) FROM {t} WHERE lang IS NULL").fetchall()[0][0]
     names = con.execute(
         f"SELECT count(*) FROM {t} WHERE "
-        + " OR ".join(f"adm{k}_name IS NULL" for k in range(n + 1))
+        + " OR ".join(f"(adm{k}_name IS NULL AND level >= {k})" for k in range(n + 1))
     ).fetchall()[0][0]
     return [
         (
