@@ -70,10 +70,15 @@ def _punch(con: duckdb.DuckDBPyConnection, path: Path, work: Path) -> Path:
     """path with each unit that fully covers another (a missing hole) cut around it."""
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE punch AS
-        WITH t AS (SELECT file_row_number AS rid, geometry
-                   FROM read_parquet('{path}', file_row_number = true))
+        WITH t AS (
+            SELECT file_row_number AS rid, geometry, ST_XMin(geometry) AS x0,
+                ST_YMin(geometry) AS y0, ST_XMax(geometry) AS x1, ST_YMax(geometry) AS y1
+            FROM read_parquet('{path}', file_row_number = true)
+        )
         SELECT a.rid, ST_Union_Agg(b.geometry) AS holes
-        FROM t a JOIN t b ON a.rid <> b.rid AND ST_Covers(a.geometry, b.geometry)
+        FROM t a JOIN t b
+          ON a.rid <> b.rid AND b.x0 >= a.x0 AND b.x1 <= a.x1
+         AND b.y0 >= a.y0 AND b.y1 <= a.y1 AND ST_Covers(a.geometry, b.geometry)
         GROUP BY 1
     """)
     if not con.execute("SELECT count(*) FROM punch").fetchall()[0][0]:
