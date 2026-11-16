@@ -95,7 +95,7 @@ DEMO["edge"] = {
 }
 DEMO["topo"] = {
     "title": "Gemeenten 2025 with digitization errors",
-    "description": "The 343 gemeenten from the CBS Wijk- en Buurtkaart 2025, each with its water, in OGC:CRS84 with `adm2_code` and `adm2_name`, simplified to 100 m. Five border vertices are moved 15 to 30 m, giving two overlaps and three gaps. Running topo-detect reports those five issues. Running topo-clean with the thin maximum gap width fixes all five. See [AGENTS.md](AGENTS.md).",
+    "description": "The 343 gemeenten from the CBS Wijk- en Buurtkaart 2025, each with its water, in OGC:CRS84 with `adm2_code` and `adm2_name`, simplified to 100 m. Five border vertices are moved 15 to 30 m, giving two overlaps and three gaps. Running topo-detect reports those five issues. Running topo-clean fixes all five. See [AGENTS.md](AGENTS.md).",
     "keywords": [
         "administrative boundaries",
         "Netherlands",

@@ -394,11 +394,10 @@ def check_topo(path: Path, cache: Path) -> None:
         path,
         out,
         out.with_stem(out.stem + "_issues"),
-        maximum_gap_width="thin",
         tmp_dir=cache / "tmp",
     )
     if cleaned := issue_counts(out, cache):
-        msg = f"topo-clean --maximum-gap-width thin left {cleaned}"
+        msg = f"topo-clean left {cleaned}"
         raise SystemExit(msg)
 
 

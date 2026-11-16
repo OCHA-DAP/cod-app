@@ -578,7 +578,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.2.4" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "tenacity", specifier = ">=9.2.1" },
-    { name = "topo-tools", specifier = ">=0.23.0" },
+    { name = "topo-tools", specifier = ">=0.24.0" },
     { name = "tylertoo", specifier = ">=0.8.0" },
 ]
 
@@ -3325,16 +3325,16 @@ wheels = [
 
 [[package]]
 name = "topo-tools"
-version = "0.23.0"
+version = "0.24.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "duckdb" },
     { name = "psutil" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/98/74/198fa8bfcab28e02ca6bbd69c16b80cbf343d3b7a67ef98d2a57db67a338/topo_tools-0.23.0.tar.gz", hash = "sha256:f6fc91b1742375872be8d2a0a1479255d2311179442e34f22a13faf6d9fc71bc", size = 8833709, upload-time = "2026-11-15T19:34:03.892Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/50/c3aee8f433607d1ef037c7ca9e43dbbafa27722a461beefd496f8ef61152/topo_tools-0.24.0.tar.gz", hash = "sha256:9998956d7a60fdd34c72d567a261c7e3f23cd29f27a5fc2292d5207a98a62a49", size = 8954913, upload-time = "2026-11-16T19:17:09.554Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/83/bf/4c1849aa5525008b378cbf009c283646eb064a29fca83c368077dff080c5/topo_tools-0.23.0-py3-none-any.whl", hash = "sha256:1a7caffdd753c9acc9987524b2b8b585c711c0874038c7cab274d003113506c2", size = 252613, upload-time = "2026-11-15T19:34:02.325Z" },
+    { url = "https://files.pythonhosted.org/packages/ec/09/9790058159da7b1487026caf72cdcb1449138ba2271ef6adae8b16bd2357/topo_tools-0.24.0-py3-none-any.whl", hash = "sha256:49669dd4171894d2313a62ee5d06b597165fd44e19bff811b15499a97189204c", size = 255175, upload-time = "2026-11-16T19:17:07.731Z" },
 ]
 
 [[package]]
