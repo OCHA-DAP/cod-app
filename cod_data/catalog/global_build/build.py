@@ -81,6 +81,7 @@ def _punch(con: duckdb.DuckDBPyConnection, path: Path, work: Path) -> Path:
         FROM t a JOIN t b
           ON a.rid <> b.rid AND b.x0 >= a.x0 AND b.x1 <= a.x1
          AND b.y0 >= a.y0 AND b.y1 <= a.y1 AND ST_Covers(a.geometry, b.geometry)
+         AND NOT ST_Covers(b.geometry, a.geometry)
         GROUP BY 1
     """)
     if not con.execute("SELECT count(*) FROM punch").fetchall()[0][0]:
