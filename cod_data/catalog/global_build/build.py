@@ -243,11 +243,17 @@ def polygons_sql(work: Path, n: int, valid_from: str) -> str:
         for k in range(n + 1)
         for c in ("pcode", "name", "name1", "name2", "name3", "type", "srcid")
     ]
+    # Fill parts of one iso3 (AUS's islands) share a code, so they merge into one row.
+    # Fill rows carry the ADM0 layer's English names.
     return f"""
-        SELECT {", ".join(cols)}, 1 AS version, NULL::DATE AS updated,
-            DATE '{valid_from}' AS valid_from, NULL::DATE AS valid_to, {", ".join(LANG)},
-            {AREA} AS area_sqkm, least(coalesce(src_lvl::INT, 0), {n}) AS level, geometry
-        FROM read_parquet('{work}/admin{n}.parquet')
+        SELECT * EXCLUDE (src_lvl, geometry), {AREA} AS area_sqkm,
+            least(coalesce(src_lvl::INT, 0), {n}) AS level, geometry
+        FROM (
+            SELECT {", ".join(cols)}, 1 AS version, NULL::DATE AS updated,
+                DATE '{valid_from}' AS valid_from, NULL::DATE AS valid_to,
+                coalesce(lang, 'en') AS lang, {", ".join(LANG[1:])}, src_lvl, ST_Union_Agg(geometry) AS geometry
+            FROM read_parquet('{work}/admin{n}.parquet') GROUP BY ALL
+        )
     """
 
 

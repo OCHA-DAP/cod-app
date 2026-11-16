@@ -62,12 +62,14 @@ def write_parents(con: duckdb.DuckDBPyConnection, layer: str, out: Path) -> None
     write_geoparquet(
         con,
         f"""
-        SELECT iso3 AS {MATCH_KEY}, iso3 AS adm0_pcode, arg_max(name, area) AS adm0_name,
+        WITH names AS (SELECT iso3, arg_max(name, area) AS name FROM adm0 GROUP BY 1)
+        SELECT iso3 AS {MATCH_KEY}, iso3 AS adm0_pcode, any_value(n.name) AS adm0_name,
             ST_Union_Agg(geometry) AS geometry
-        FROM adm0 WHERE NOT list_contains({split}, iso3) GROUP BY iso3
+        FROM adm0 JOIN names n USING (iso3) WHERE NOT list_contains({split}, iso3)
+        GROUP BY iso3
         UNION ALL
-        SELECT part, iso3, arg_max(name, ST_Area(geometry)), ST_Union_Agg(geometry)
-        FROM piece_parts GROUP BY part, iso3
+        SELECT part, iso3, any_value(n.name), ST_Union_Agg(geometry)
+        FROM piece_parts JOIN names n USING (iso3) GROUP BY part, iso3
         ORDER BY 1
     """,
         out,
