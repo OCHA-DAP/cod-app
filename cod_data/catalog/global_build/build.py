@@ -138,6 +138,12 @@ def _extend(con: duckdb.DuckDBPyConnection, original: Path, work: Path) -> Path:
     return out
 
 
+def _cod_ab_path(iso3: str, lvl: int) -> Path:
+    key = iso3.lower()
+    name = f"{key}_admin{lvl}"
+    return COD_AB_CATALOG / "extended" / key / "latest" / name / f"{name}.parquet"
+
+
 def _cod_ab_extended(
     con: duckdb.DuckDBPyConnection,
     iso3: str,
@@ -146,15 +152,7 @@ def _cod_ab_extended(
     work: Path,
 ) -> list[Path]:
     """Each original with the cod-ab catalog's extended geometry, joined 1:1 by OCHA P-code."""
-    key = iso3.lower()
-    src = (
-        COD_AB_CATALOG
-        / "extended"
-        / key
-        / "latest"
-        / f"{key}_admin{lvl}"
-        / f"{key}_admin{lvl}.parquet"
-    )
+    src = _cod_ab_path(iso3, lvl)
     rows, codes = con.execute(
         f"SELECT count(*), count(DISTINCT adm{lvl}_pcode) FROM '{src}'"
     ).fetchall()[0]
@@ -191,6 +189,9 @@ def _stage(
 ) -> list[Path]:
     """Write the pick's coded original per match key; return the originals."""
     lvl = depth(con, source, iso3)
+    if source == "ocha":
+        # The cod-ab catalog extends only the levels clean enough to use.
+        lvl = max(n for n in range(1, lvl + 1) if _cod_ab_path(iso3, n).exists())
     name = con.execute(
         f"SELECT arg_max(adm0_name, ST_Area(geometry)) FROM '{parents}'"
     ).fetchall()[0][0]
@@ -376,8 +377,6 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
             f"(SELECT count(*) FROM {t} WHERE NOT starts_with(adm{k}_pcode, adm{k - 1}_pcode))"
             for k in range(1, n + 1)
         ),
-        "null name": f"SELECT count(*) FROM {t} WHERE "
-        + " OR ".join(f"adm{k}_name IS NULL" for k in range(n + 1)),
     }
     errors = {
         k: con.execute(q if q.startswith("SELECT") else f"SELECT {q}").fetchall()[0][0]
@@ -394,8 +393,15 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
         else 0
     )
     lang = con.execute(f"SELECT count(*) FROM {t} WHERE lang IS NULL").fetchall()[0][0]
+    names = con.execute(
+        f"SELECT count(*) FROM {t} WHERE "
+        + " OR ".join(f"adm{k}_name IS NULL" for k in range(n + 1))
+    ).fetchall()[0][0]
     return [
-        f"adm{n}: {srcid} rows with an srcid over 20 characters, {lang} rows without lang"
+        (
+            f"adm{n}: {srcid} rows with an srcid over 20 characters, "
+            f"{lang} rows without lang, {names} rows with a null name"
+        )
     ]
 
 
