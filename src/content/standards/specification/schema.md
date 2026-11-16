@@ -4,7 +4,7 @@ summary: The fields every polygon layer carries, with their types. Each layer re
 order: 4
 ---
 
-Each polygon layer at level L carries all of the following fields. Fields whose names contain *{N}* repeat for every level from 0 through L, making each layer self-contained: upper-level units can be derived by dissolving on the embedded parent fields without reference to any other layer. All other fields are constant across all rows within a layer.
+Each polygon layer at level L carries all of the following fields. Fields whose names contain *{N}* repeat for every level from 0 through L, making each layer self-contained: upper-level units can be derived by dissolving on the embedded parent fields without reference to any other layer. *version*, *updated*, *valid\_from* and *valid\_to* are constant across all rows within a layer.
 
 | Field | Type | Description |
 | :---- | :---- | :---- |
@@ -22,7 +22,7 @@ Each polygon layer at level L carries all of the following fields. Fields whose 
 | *lang* | String | BCP 47 language code for *adm{N}\_name*. Must identify a romanized script. |
 | *lang1*–*lang3* | String | BCP 47 language code for *adm{N}\_name1*–*name3*. Null if the corresponding name column is unused. |
 | *area\_sqkm* | Float | Polygon area in square kilometers, computed in an equal-area projection. WGS84 area is not used. |
-| *level* | Integer | Administrative level of this layer. |
+| *level* | Integer | Administrative level of the unit. A location with no units at a layer's level repeats its deepest unit in that layer, which keeps its own *level* (e.g., *1* in the admin 2 layer). |
 | *latest* | Boolean / *Integer* | Virtual field: true where *valid\_to* is null. |
 
 Language codes MUST be valid BCP 47 tags. For each language, look up its entry in the IANA Language Subtag Registry (Type: language). If that entry defines a 2-letter Subtag (ISO 639-1), it MUST be used. A 3-letter Subtag (ISO 639-2/639-3) MUST NOT be used unless no 2-letter Subtag exists for that language.
