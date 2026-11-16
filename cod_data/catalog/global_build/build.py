@@ -93,11 +93,14 @@ def _punch(con: duckdb.DuckDBPyConnection, path: Path, work: Path) -> Path:
     return out
 
 
-def _clean(con: duckdb.DuckDBPyConnection, path: Path, work: Path) -> Path:
-    """path, or its topo_clean output when topo_detect finds defects."""
+def _clean(
+    con: duckdb.DuckDBPyConnection, path: Path, work: Path, kinds: str = "true"
+) -> Path:
+    """path, or its topo_clean output when topo_detect finds defects matching kinds."""
     issues = work / f"{path.stem}_detect.parquet"
     topo_detect(path, issues, threads=THREADS, tmp_dir=work)
-    if not con.execute(f"SELECT count(*) FROM '{issues}'").fetchall()[0][0]:
+    found = f"SELECT count(*) FROM '{issues}' WHERE {kinds}"
+    if not con.execute(found).fetchall()[0][0]:
         return path
     clean = work / f"{path.stem}_clean.parquet"
     topo_clean(
@@ -215,7 +218,7 @@ def job(
     if source:
         # Partner sources can overlap or leave gaps, which edge_extend rejects.
         originals = [
-            _clean(con, _punch(con, o, work), work)
+            _clean(con, _punch(con, o, work), work, "kind IN ('overlap', 'gap')")
             for o in _stage(con, iso3, source, parents, work)
         ]
         lvl = con.execute(f"SELECT max(src_lvl) FROM '{originals[0]}'").fetchall()[0][0]
