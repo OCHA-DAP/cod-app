@@ -9,6 +9,7 @@ import shutil
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import date
+from importlib.metadata import version
 from pathlib import Path
 
 import duckdb
@@ -127,8 +128,10 @@ def _clean(
 
 
 def _extend(con: duckdb.DuckDBPyConnection, original: Path, work: Path) -> Path:
-    """Extend original past its coastline, cleaned on defects; cached by content."""
-    digest = hashlib.sha256(original.read_bytes()).hexdigest()[:16]
+    """Extend original past its coastline, cleaned on defects; cached by content and topo-tools version."""
+    digest = hashlib.sha256(
+        original.read_bytes() + version("topo-tools").encode()
+    ).hexdigest()[:16]
     out = EXTENDED / f"{original.stem}-{digest}.parquet"
     if out.exists():
         return out
