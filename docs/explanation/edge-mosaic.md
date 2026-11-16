@@ -37,8 +37,9 @@ shared with Edge Matcher. Ported from topo-tools' `edge-mosaic` (its ADR
    clean skipped, only the micro-polygon merge runs.
 5. **Assemble issues** (`pipeline/issues.ts`): `clip-empty`, `unassigned`,
    `detached-part`, `micro-polygon`, `invalid-edge` (edges that still don't
-   match after the clean), `gap` (holes inside the winning overlay polygon,
-   only with the clean) and any `code-mismatch`/`code-fallback` rows, in
+   match after the clean), `gap` (winning overlay polygon area no output row
+   covers, in both clean modes, see
+   [`0056`](../adr/0056-edge-gap-rows-report-uncovered-overlay-area.md)) and any `code-mismatch`/`code-fallback` rows, in
    one report.
 
 ## Why assign-one
@@ -84,7 +85,7 @@ file falls back to the vote when no code matches. See `docs/adr/0029` and
 The clean is one `ST_CoverageClean` over every clipped row, the most
 memory-hungry step for a large layer. The "Skip the final clean" option
 leaves it out, so seams stay in the output and are listed as `invalid-edge`
-issues, and no gap rows are reported.
+issues.
 
 ## Reported, not raised
 

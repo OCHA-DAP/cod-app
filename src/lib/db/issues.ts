@@ -1,5 +1,6 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { GEOMETRY_TYPE, NOTCH_SPACING, SNAP_TOLERANCE } from "./constants";
+import { bboxColumnsSql } from "./bbox";
+import { GEOMETRY_TYPE, NOTCH_SPACING, SNAP_TOLERANCE, UNCOVERED_AREA_RATIO } from "./constants";
 import { buildGapTable, buildOverlapTable, emptyRegions, isMicroSql } from "./coverage";
 import { isOutOfMemory } from "./errors";
 import { detectNotches } from "./notches";
@@ -243,6 +244,47 @@ function notchRegionsSql(regionsTable: string, gapTable: string, overlapTable: s
             AND greatest(o.fa, o.fb) = greatest(t.unit_a, t.unit_b)
             AND ST_Intersects(t.geom, o.geom)
         )`;
+}
+
+// Gap rows: overlay area no row of table covers, per overlay fid whose clipped area falls short.
+export function uncoveredOverlayIssuesSql(
+  table: string,
+  overlayTable: string,
+  coverTable: string,
+  minWidth = SNAP_TOLERANCE,
+): string {
+  const areaFactor = degSqToM2(1).toExponential();
+  const widthFactor = degToM(1).toExponential();
+  return `--sql
+    WITH short AS (
+      SELECT o.fid, o.geom, ${bboxColumnsSql("o.geom")}
+      FROM ${overlayTable} o
+      JOIN (SELECT overlay_fid, sum(area) AS area FROM ${coverTable} GROUP BY 1) c
+        ON c.overlay_fid = o.fid
+      WHERE c.area < ST_Area(o.geom) * (1 - ${UNCOVERED_AREA_RATIO})
+    ),
+    r AS (
+      SELECT geom, ${bboxColumnsSql("geom")} FROM ${table}
+      WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+    ),
+    gaps AS (
+      SELECT fid, UNNEST(ST_Dump(ST_Difference(
+        any_value(s.geom), ST_Union_Agg(ST_Intersection(r.geom, s.geom))
+      ))).geom AS geom
+      FROM short s
+      JOIN r ON r.xmax >= s.xmin AND r.xmin <= s.xmax AND r.ymax >= s.ymin AND r.ymin <= s.ymax
+      GROUP BY fid
+    )
+    SELECT 'gap-' || fid || '-' || row_number() OVER (PARTITION BY fid ORDER BY hash(geom)) AS key,
+           'gap' AS kind,
+           ST_Area(geom) * ${areaFactor} AS area_m2,
+           (ST_MaximumInscribedCircle(geom)).radius * 2 * ${widthFactor} AS max_width_m,
+           4 * pi() * ST_Area(geom) / POWER(ST_Perimeter(geom), 2) AS thinness_ratio,
+           FALSE AS fixed, NULL::BIGINT AS unit_a, NULL::BIGINT AS unit_b, fid AS overlay_fid,
+           'overlay area no output row covers' AS reason, geom,
+           ST_XMin(geom) AS xmin, ST_YMin(geom) AS ymin, ST_XMax(geom) AS xmax, ST_YMax(geom) AS ymax
+    FROM gaps
+    WHERE ST_Dimension(geom) = 2 AND (ST_MaximumInscribedCircle(geom)).radius * 2 > ${minWidth}`;
 }
 
 // Replaces issuesTable's rows keyed keyPrefix* with regionsTable's micro rows.

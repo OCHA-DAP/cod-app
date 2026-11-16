@@ -104,7 +104,7 @@ test("a code overrides spatial and reports the mismatch", async () => {
     { columns: { matchColumn: "pcode" } },
   );
   expect(await scalar<number>("SELECT ST_Area(geometry) FROM '_export.parquet'")).toBeCloseTo(0.5, 6);
-  expect(r.issues.map((i) => i.kind)).toEqual(["code-mismatch"]);
+  expect(r.issues.map((i) => i.kind).sort()).toEqual(["code-mismatch", "gap"]);
 });
 
 test("falls back to spatial when the code is unmatched", async () => {
@@ -113,7 +113,7 @@ test("falls back to spatial when the code is unmatched", async () => {
     [[1, OVERLAY[0][1], "P1"]],
     { columns: { matchColumn: "pcode" } },
   );
-  expect(r.issues.map((i) => i.kind)).toEqual(["code-fallback"]);
+  expect(r.issues.map((i) => i.kind).sort()).toEqual(["code-fallback", "gap"]);
 });
 
 test("merge columns populate the output", async () => {
@@ -126,6 +126,25 @@ test("raises on an overlapping overlay", async () => {
   await expect(
     mosaic(INPUT, [OVERLAY[0], [2, "POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"]]),
   ).rejects.toThrow(/pair\(s\) overlap/);
+});
+
+test.each([true, false])("reports overlay area no input covers (clean %s)", async (clean) => {
+  const r = await mosaic(
+    [
+      [1, "POLYGON((-1 -1, 1.5 -1, 1.5 4, -1 4, -1 -1))"],
+      [2, "POLYGON((1.5 -1, 4.5 -1, 4.5 4, 1.5 4, 1.5 -1))"],
+    ],
+    [
+      [1, "MULTIPOLYGON(((0 0, 3 0, 3 3, 0 3, 0 0)), ((5 0, 6 0, 6 1, 5 0)))"],
+      [2, "POLYGON((3 0, 4 0, 4 3, 3 3, 3 0))"],
+    ],
+    { clean },
+  );
+  const gaps = r.issues.filter((i) => i.kind === "gap");
+  expect(gaps.map((i) => [i.overlayFid, i.reason])).toEqual([
+    [1, "overlay area no output row covers"],
+  ]);
+  expect(gaps[0].areaM2! / (111319.49 ** 2)).toBeCloseTo(0.5, 1);
 });
 
 const CLEAN_SQUARE: Row = [1, "POLYGON((0 0, 3 0, 3 3, 0 3, 0 0))"];

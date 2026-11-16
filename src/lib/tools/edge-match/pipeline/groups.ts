@@ -194,6 +194,7 @@ export async function clipGroups(conn: AsyncDuckDBConnection): Promise<void> {
     `CREATE OR REPLACE TABLE ge_clip_empty (unit_a BIGINT, overlay_fid BIGINT, geom ${GEOMETRY_TYPE})`,
   );
   await emptyDetachedIssues(conn, "ge_detached");
+  await conn.query("CREATE OR REPLACE TABLE ge_clip_cover (overlay_fid BIGINT, area DOUBLE)");
   // The orphan passthrough group has no overlay boundary, so it stays unclipped.
   await conn.query(`--sql
     INSERT INTO ge_results SELECT fid, geom FROM ge_extended WHERE overlay_fid = ${PASSTHROUGH_OVERLAY_FID}

@@ -87,6 +87,17 @@ test("inputs clean the input but load the overlay raw", async () => {
   expect(await hasNoiseFloorGap(conn, "overlay_layer_01")).toBe(true);
 });
 
+test.each([true, false])("reports overlay area no input covers (clean %s)", async (clean) => {
+  const r = await match(
+    synthetic([[1, "POLYGON((0 0, 3 0, 3 3, 0 3, 0 0))"]], "input.parquet"),
+    synthetic([[1, "MULTIPOLYGON(((0 0, 3 0, 3 3, 0 3, 0 0)), ((9 0, 10 0, 10 1, 9 0)))"]], "overlay.parquet"),
+    { clean },
+  );
+  expect(
+    r.issues.filter((i) => i.kind === "gap").map((i) => [i.overlay_fid, i.reason]),
+  ).toEqual([[1, "overlay area no output row covers"]]);
+});
+
 test("match column is mutually exclusive with the pair", async () => {
   await expect(
     match(inputs(), undefined, { columns: { matchColumn: "pcode", overlayMatchColumn: "pcode" } }),
@@ -126,8 +137,10 @@ test("drops the unassigned input", async () => {
 
 test("the issues record the unassigned input", async () => {
   const r = await match(inputs(), undefined, { mode: "many" });
-  expect(r.issues).toEqual([{ kind: "unassigned", unit_a: 4, overlay_fid: null, reason: null }]);
-  expect(await scalar("SELECT geom IS NOT NULL FROM ge_issues")).toBe(true);
+  expect(r.issues.filter((i) => i.kind !== "gap")).toEqual([
+    { kind: "unassigned", unit_a: 4, overlay_fid: null, reason: null },
+  ]);
+  expect(await scalar("SELECT bool_and(geom IS NOT NULL) FROM ge_issues")).toBe(true);
 });
 
 test("the default issues record clip-empty inputs", async () => {
@@ -182,7 +195,7 @@ test("without passthrough an orphan is still dropped", async () => {
     mode: "many",
   });
   expect(r.ids).toEqual([1, 2, 3]);
-  expect(r.issues.map((i) => i.kind)).toEqual(["unassigned"]);
+  expect(r.issues.map((i) => i.kind).sort()).toEqual(["gap", "unassigned"]);
 });
 
 // Two overlays share a slanted border; the inputs cross it at different heights.

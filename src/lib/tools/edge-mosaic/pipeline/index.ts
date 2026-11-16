@@ -135,10 +135,10 @@ export async function runMosaic(
   }
 
   onProgress(5, "Assembling issues report");
-  const { rows, geojson } = await buildMosaicIssues(conn, assign.overlayFid, {
+  const { rows, geojson } = await buildMosaicIssues(conn, {
     assignmentMethod: assign.assignmentMethod,
     spatialAgrees: assign.spatialAgrees,
-  }, clean);
+  });
   const gapCount = rows.filter((r) => r.kind === "gap").length;
 
   return {

@@ -22,6 +22,7 @@ export async function clipEngine(
   const x = (sql: string) => conn.query(sql);
   await x(`CREATE OR REPLACE TABLE ${tableOut} (fid BIGINT, geom ${GEOMETRY_TYPE})`);
   await x(`CREATE OR REPLACE TABLE ${tableOut}_dropped (fid BIGINT, overlay_fid BIGINT, geom ${GEOMETRY_TYPE})`);
+  await x(`CREATE OR REPLACE TABLE ${tableOut}_cover (overlay_fid BIGINT, area DOUBLE)`);
   const fids = (await x(`SELECT DISTINCT overlay_fid FROM ${tableIn} ORDER BY 1`))
     .toArray()
     .map((r) => Number((r as { overlay_fid: bigint | number }).overlay_fid));
@@ -66,6 +67,11 @@ export async function clipEngine(
     await x(`--sql
       INSERT INTO ${tableOut}
       SELECT fid, geom FROM cl_result WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom) ORDER BY fid
+    `);
+    await x(`--sql
+      INSERT INTO ${tableOut}_cover
+      SELECT ${g}, coalesce(sum(ST_Area(geom)), 0) FROM cl_result
+      WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
     `);
     await x(`--sql
       INSERT INTO ${tableOut}_dropped

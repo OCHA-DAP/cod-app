@@ -95,10 +95,10 @@ with other tools.
   clipped to empty against its overlay polygon (`kind='clip-empty'`, with
   that pre-clip geometry), every merged or kept clip-detached piece
   (`kind='detached-part'`), every merged micro-polygon
-  (`kind='micro-polygon'`), every `invalid-edge` pair, and, when the clean
-  ran, a `gap` row for every interior hole in the final result wider than
-  `SNAP_TOLERANCE` whose interior point falls inside an overlay polygon the
-  result was clipped to, each tagged with which kind it is, available
+  (`kind='micro-polygon'`), every `invalid-edge` pair, and a `gap` row, with
+  its `overlay_fid`, for every piece of an overlay polygon the result was
+  clipped to that no result row covers and wider than `SNAP_TOLERANCE`, in
+  both clean modes, each tagged with which kind it is, available
   independently of the main result export. A residual gap MUST NOT fail the
   run.
 - `edge-match` MUST report, per group, whether it succeeded or failed, and MUST

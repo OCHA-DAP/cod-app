@@ -71,7 +71,7 @@ an optional code-based assignment override is available (see below).
 whose whole group's extension failed), `ge_clip_empty` (input polygons
 clipped to nothing), `ge_detached` (clip-detached pieces), `ge_micro`
 (merged micro-polygons), `ge_invalid` (row pairs whose edges don't match)
-and the remaining gaps inside the clip targets are combined into one
+and the overlay area no result row covers (`gap`) are combined into one
 `ge_issues` table, each row tagged with a `kind` (`unassigned`,
 `dropped_group`, `clip-empty`, `detached-part`, `micro-polygon`,
 `invalid-edge` or `gap`) and,
@@ -115,6 +115,6 @@ borders cross the overlay boundary at different points, the clipped rows on
 either side sample that boundary with different vertices. The final clean
 snaps them into one shared edge. The "Skip the final clean" option leaves
 that pass out for layers too large to clean in browser memory, and the seams
-are then listed as `invalid-edge` issues instead, with no gap rows. A
+are then listed as `invalid-edge` issues instead. A
 clean that leaves a seam behind is reported the same way rather than
 failing the run; see [`0054`](../adr/0054-edge-clips-are-plain-with-a-final-coverage-clean.md).

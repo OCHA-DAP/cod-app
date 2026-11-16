@@ -8,7 +8,7 @@ import {
 } from "$lib/db/coverage";
 import { buildCoverageClean, hasAnyHole } from "$lib/db/coverageClean";
 import { withDb } from "$lib/db/duckdb.svelte";
-import { hasInvalidEdges } from "$lib/db/invalidEdges";
+import { hasInvalidEdges, invalidEdgeIssues } from "$lib/db/invalidEdges";
 import { hasNoiseFloorGap } from "$lib/db/coverage";
 import { closeNotches, detectNotches } from "$lib/db/notches";
 import { ready, rows, run, scalar, table } from "./helpers";
@@ -843,5 +843,39 @@ describe("withDb", () => {
     ]);
     const check = (t: string) => withDb((_db, c) => hasInvalidEdges(c, t));
     expect(await Promise.all([check("lock_clean"), check("lock_bad")])).toEqual([false, true]);
+  });
+});
+
+describe("invalid edges", () => {
+  const d = (SNAP_TOLERANCE / 2).toFixed(12);
+
+  test("a sliver between two units is not an invalid edge", async () => {
+    await geomTable("units", [
+      [1, `POLYGON((0 ${d}, 1 ${d}, 1 1, 0 1, 0 ${d}))`],
+      [2, `POLYGON((0 0, 1 0, 1 ${d}, 0 ${d}, 0 0))`],
+      [3, "POLYGON((0 -1, 1 -1, 1 0, 0 0, 0 -1))"],
+    ]);
+    expect(await hasInvalidEdges(conn, "units")).toBe(false);
+    expect(await invalidEdgeIssues(conn, "units", "issues")).toBe(0);
+  });
+
+  test("an overlap beside a matched unit is an invalid edge", async () => {
+    await geomTable("units", [
+      [1, "POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"],
+      [2, `POLYGON((0 -1, 1 -1, 1 ${d}, 0 ${d}, 0 -1))`],
+      [3, "POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))"],
+    ]);
+    expect(await hasInvalidEdges(conn, "units")).toBe(true);
+    expect(await invalidEdgeIssues(conn, "units", "issues")).toBe(2);
+    const r = await rows<{ unit_a: number; unit_b: number; len: number }>(
+      "SELECT unit_a, unit_b, ST_Length(geom) AS len FROM issues ORDER BY 1, 2",
+    );
+    expect(r.map((x) => [x.unit_a, x.unit_b])).toEqual([
+      [1, 2],
+      [2, 3],
+    ]);
+    // Each row holds only its own pair's edges: 1's edge shared with 3 is left out.
+    expect(r[0].len).toBeCloseTo(5, 6);
+    expect(r[1].len).toBeCloseTo(3, 6);
   });
 });

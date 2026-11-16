@@ -51,9 +51,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   identified by its own fid (kind `unassigned` when no overlay polygon won,
   `clip-empty` when its clip came out empty), every merged or kept
   clip-detached piece (`detached-part`), every merged or dropped
-  micro-polygon (`micro-polygon`), every `invalid-edge` pair, every gap
-  wider than `SNAP_TOLERANCE` whose interior point falls inside the winning
-  overlay polygon (`gap`, only when the clean ran), and any
+  micro-polygon (`micro-polygon`), every `invalid-edge` pair, every piece of
+  the winning overlay polygon that no output row covers and wider than
+  `SNAP_TOLERANCE` (`gap`, with its `overlay_fid`, in both clean modes), and any
   `code-mismatch`/`code-fallback` rows from a code-based assignment
   override (see `docs/reference/shared.md`).
 - `edge-mosaic` MUST report the count of remaining gaps and invalid-edge

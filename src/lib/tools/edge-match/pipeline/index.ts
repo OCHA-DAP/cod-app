@@ -1,12 +1,7 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import {
-  buildGapTable,
-  checkNoOverlaps,
-  dropGapsOutsideTargets,
-  mergeMicroPolygons,
-} from "$lib/db/coverage";
+import { checkNoOverlaps, mergeMicroPolygons } from "$lib/db/coverage";
 import { coverageCleanRows } from "$lib/db/coverageClean";
-import { gapIssuesSql } from "$lib/db/issues";
+import { uncoveredOverlayIssuesSql } from "$lib/db/issues";
 import { invalidEdgeIssues } from "$lib/db/invalidEdges";
 import { queryToGeoJSON, tableToGeoJSON } from "$lib/db/geojson";
 import { detectColumns, type ColumnGuess } from "$lib/db/columns";
@@ -161,27 +156,18 @@ async function appendIssues(conn: AsyncDuckDBConnection, table: string): Promise
   return Number((n.toArray()[0] as { n: bigint | number }).n);
 }
 
-// Appends gaps in `coverageSql`'s rows whose interior point lies in a clip target.
-async function appendGapIssues(conn: AsyncDuckDBConnection, coverageSql: string): Promise<number> {
+// Appends gap rows for overlay area no result row covers.
+async function appendGapIssues(conn: AsyncDuckDBConnection): Promise<number> {
   try {
-    await conn.query(`CREATE OR REPLACE TABLE ge_coverage AS ${coverageSql}`);
-    await buildGapTable(conn, "ge_gap_regions", "ge_coverage");
-    await dropGapsOutsideTargets(
-      conn,
-      "ge_gap_regions",
-      `SELECT geom FROM overlay_layer_01 WHERE fid IN (
-         SELECT overlay_fid FROM ge_assignment WHERE overlay_fid <> ${PASSTHROUGH_OVERLAY_FID})`,
-    );
     await conn.query(`--sql
       INSERT INTO ge_issues BY NAME
-      SELECT key, kind, reason, area_m2, max_width_m, thinness_ratio, fixed, geom
-      FROM (${gapIssuesSql("ge_gap_regions")})
+      SELECT key, kind, overlay_fid, reason, area_m2, max_width_m, thinness_ratio, fixed, geom
+      FROM (${uncoveredOverlayIssuesSql("ge_results", "overlay_layer_01", "ge_clip_cover")})
     `);
     const r = await conn.query("SELECT COUNT(*) AS n FROM ge_issues WHERE kind = 'gap'");
     return Number((r.toArray()[0] as { n: bigint | number }).n);
   } finally {
-    await conn.query("DROP TABLE IF EXISTS ge_gap_regions");
-    await conn.query("DROP TABLE IF EXISTS ge_coverage");
+    await conn.query("DROP TABLE IF EXISTS ge_clip_cover");
   }
 }
 
@@ -283,12 +269,10 @@ export async function runEdgeMatch(
   const microCount = await appendIssues(conn, "ge_micro");
   const invalidEdgeCount = await appendIssues(conn, "ge_invalid");
   let gapCount = 0;
-  if (clean) {
-    try {
-      gapCount = await appendGapIssues(conn, `SELECT fid, geom FROM ge_results WHERE ${coverageWhere}`);
-    } catch (e) {
-      console.warn("gap issues failed:", e);
-    }
+  try {
+    gapCount = await appendGapIssues(conn);
+  } catch (e) {
+    console.warn("gap issues failed:", e);
   }
   const assignedOverlayLabel =
     groups.find((g) => g.overlayFid === assignment.overlayFid)?.label ?? null;

@@ -10,6 +10,8 @@ export const NODING_FALLBACK_GRID = 1e-11;
 // pieces of at most SUBDIVIDE_MAX_VERTICES before per-row joins.
 export const SUBDIVIDE_MIN_VERTICES = 5000;
 export const SUBDIVIDE_MAX_VERTICES = 1350;
+// An overlay whose clipped rows fall short of its area by more than this share is checked for gaps.
+export const UNCOVERED_AREA_RATIO = 1e-9;
 // Input vertices one batch of clip input/tile (or invalid-edge part) pairs may carry.
 export const CLIP_PAIR_VERTEX_BUDGET = 20_000_000;
 // Boundary plus neighbour-union vertices one batch of Edge Extender's lines difference may carry.
