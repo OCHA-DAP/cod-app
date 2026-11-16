@@ -135,13 +135,12 @@ def _stage(
     con: duckdb.DuckDBPyConnection, iso3: str, source: str, parents: Path, work: Path
 ) -> list[Path]:
     """Write the pick's coded original per match key; return the originals."""
-    top, lvl = depth(con, source, iso3)
+    lvl = depth(con, source, iso3)
     name = con.execute(
         f"SELECT arg_max(adm0_name, ST_Area(geometry)) FROM '{parents}'"
     ).fetchall()[0][0]
     raw = work / "raw.parquet"
-    write_geoparquet(con, stage_sql(source, iso3, top, lvl, name), raw)
-    lvl = lvl - top + 1
+    write_geoparquet(con, stage_sql(source, iso3, lvl, name), raw)
     checks = " OR ".join(
         f"_id{n} IS NULL OR _parents{n} > 1" for n in range(1, lvl + 1)
     )
