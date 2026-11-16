@@ -1,6 +1,7 @@
 import { beforeAll, expect, test } from "vitest";
+import { buildOverlapRegions } from "$lib/db/issues";
 import { scanTopology } from "$lib/tools/topo-detect/pipeline";
-import { exportColumns, ready, rows, table } from "./helpers";
+import { exportColumns, ready, rows, run, table } from "./helpers";
 
 // fid 1-4 is a compact-hole donut, fid 5-6 a partial overlap, fid 7-8 a full-containment overlap.
 const SYNTHETIC: [number, string][] = [
@@ -80,6 +81,21 @@ test("no defects", async () => {
   ]);
   expect(await kinds()).toEqual([]);
 });
+
+test("out of memory raises", async () => {
+  await run(`--sql
+    CREATE OR REPLACE TABLE layer_01 AS
+    SELECT i AS fid, ST_Buffer(ST_Point(i % 300, i // 300), 0.6, 16) AS geom FROM range(90000) r(i)
+  `);
+  await run("SET memory_limit = '4MB'");
+  try {
+    await expect(buildOverlapRegions(conn, "oom_regions", "layer_01")).rejects.toThrow(
+      /^Out of Memory Error/,
+    );
+  } finally {
+    await run("RESET memory_limit");
+  }
+}, 120_000);
 
 test.todo("gap detection failure falls back to empty (needs a stage override hook)");
 test.todo("overlap detection failure falls back to empty (needs a stage override hook)");

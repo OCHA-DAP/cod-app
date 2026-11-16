@@ -116,7 +116,7 @@ name instead of repeating them.
   non-enclosed inlet between two polygons MUST NOT be reported as a gap.
 - When the exact union throws, the gap check MUST retry the union on
   `ST_ReducePrecision(geom, 1e-11)` and MUST drop every resulting hole whose
-  `ST_PointOnSurface` intersects an input polygon. A retry that still throws
+  inscribed-circle center intersects an input polygon. A retry that still throws
   MUST propagate to the caller.
 - The shared overlap check (`buildOverlapTable`) MUST intersect every pair
   whose interiors overlap or where one contains the other, through

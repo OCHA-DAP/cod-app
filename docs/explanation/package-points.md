@@ -28,7 +28,9 @@ topo-tools' `package-points`.
    `package-polygons/pipeline/dissolveCore.ts`'s `runDissolveCore`, checks
    the dissolved row count against the input's own distinct group-by
    tuple count, computes `(ST_MaximumInscribedCircle(geom)).center` per
-   row, stamps the depth column, and verifies every point is
+   row, stamps the depth column (an input column of that name, such as
+   Schema Fill's real-depth stamp, is left out of the input first), and
+   verifies every point is
    `ST_Covers`-ed by its own source polygon.
 4. **Generalizable-columns gate** - processing runs coarsest-to-finest,
    as in topo-tools; `generalizable` seeds from the coarsest real

@@ -55,7 +55,7 @@ export async function dropGapsOutsideTargets(
   await conn.query(`--sql
     DELETE FROM ${regionsTable} WHERE n NOT IN (
       WITH probes AS (
-        SELECT n, ST_PointOnSurface(geom) AS p FROM ${regionsTable}
+        SELECT n, (ST_MaximumInscribedCircle(geom)).center AS p FROM ${regionsTable}
       ),
       pb AS (SELECT n, p, ${bboxColumnsSql("p")} FROM probes),
       t AS (SELECT geom, ${bboxColumnsSql("geom")} FROM (${targetsSql}))
@@ -94,7 +94,7 @@ export async function buildGapTable(
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${targetTable} AS
       WITH pts AS (
-        SELECT n, geom, ST_PointOnSurface(geom) AS p FROM ${holes}
+        SELECT n, geom, (ST_MaximumInscribedCircle(geom)).center AS p FROM ${holes}
       ),
       probes AS (
         SELECT n, p, ST_X(p) AS xmin, ST_X(p) AS xmax, ST_Y(p) AS ymin, ST_Y(p) AS ymax
@@ -158,7 +158,10 @@ export function isMicroSql(geom: string, width: number = SNAP_TOLERANCE): string
 export async function checkNoOverlaps(
   conn: AsyncDuckDBConnection,
   table: string,
-  { groupColumn = "fid", minWidth = SNAP_TOLERANCE }: { groupColumn?: string; minWidth?: number } = {},
+  {
+    groupColumn = "fid",
+    minWidth = SNAP_TOLERANCE,
+  }: { groupColumn?: string; minWidth?: number } = {},
 ): Promise<void> {
   const tmp = `${table}_tmp1`;
   await conn.query(`--sql
@@ -490,7 +493,7 @@ export async function mergeDetachedParts(
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${pts} AS
       SELECT pid, fid, pt, ST_X(pt) AS px, ST_Y(pt) AS py
-      FROM (SELECT pid, fid, ST_PointOnSurface(geom) AS pt FROM ${parts} WHERE multi)
+      FROM (SELECT pid, fid, (ST_MaximumInscribedCircle(geom)).center AS pt FROM ${parts} WHERE multi)
     `);
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${q} AS
@@ -705,7 +708,7 @@ async function loadOwnedOriginal(
     ),
     pos AS (
       SELECT oid, pt, ST_X(pt) AS px, ST_Y(pt) AS py
-      FROM (SELECT oid, ST_PointOnSurface(geom) AS pt FROM near)
+      FROM (SELECT oid, (ST_MaximumInscribedCircle(geom)).center AS pt FROM near)
     ),
     owner AS (
       SELECT f.oid, q.fid FROM pos f JOIN ${pre} q

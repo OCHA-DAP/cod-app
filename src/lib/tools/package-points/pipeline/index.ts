@@ -113,8 +113,12 @@ export async function runPackagePoints(
   const hasDepthColumn = (attrCols.toArray() as Array<{ column_name: string }>).some(
     (r) => r.column_name === depthColumn,
   );
+  // Each point is stamped with the level it labels, so an input depth column is replaced.
+  const attrSource = hasDepthColumn ? "pkpt_layer_attr" : "layer_attr";
   if (hasDepthColumn) {
-    throw new Error(`depthColumn "${depthColumn}" already exists on layer_attr`);
+    await conn.query(`--sql
+      CREATE OR REPLACE VIEW pkpt_layer_attr AS SELECT * EXCLUDE ("${depthColumn}") FROM layer_attr
+    `);
   }
 
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pkpt_micro");
@@ -123,10 +127,10 @@ export async function runPackagePoints(
   await conn.query(`--sql
     CREATE OR REPLACE TABLE pkpt_input AS
     SELECT a.fid, a.geom, b.* EXCLUDE (fid)
-    FROM layer_01 a LEFT JOIN layer_attr b ON a.fid = b.fid
+    FROM layer_01 a LEFT JOIN ${attrSource} b ON a.fid = b.fid
   `);
 
-  const { plans, rootInjected } = await resolvePointLevelPlans(conn, "layer_attr", schema);
+  const { plans, rootInjected } = await resolvePointLevelPlans(conn, attrSource, schema);
   if (plans.length === 0) {
     throw new Error("no admin hierarchy level detected");
   }
@@ -148,6 +152,7 @@ export async function runPackagePoints(
     generalizable = result.generalizable;
   }
   await conn.query(`DROP TABLE IF EXISTS pkpt_input`);
+  await conn.query("DROP VIEW IF EXISTS pkpt_layer_attr");
 
   const unionSql = outputs
     .map(

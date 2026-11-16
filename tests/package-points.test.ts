@@ -112,8 +112,15 @@ test("custom depth column", async () => {
   expect(columns).not.toContain("adm_lvl");
 });
 
-test("a depth column collision raises", async () => {
-  await expect(points(`SELECT *, 2 AS adm_lvl FROM (${BASE})`)).rejects.toThrow(/adm_lvl/);
+test("an existing depth column is replaced", async () => {
+  await points(`SELECT *, 9 AS adm_lvl FROM (${BASE})`);
+  expect(await out("code, adm_lvl::INT AS adm_lvl", "ORDER BY code")).toEqual([
+    { code: "A1", adm_lvl: 2 },
+    { code: "A2", adm_lvl: 2 },
+    { code: "B1", adm_lvl: 2 },
+    { code: "P1", adm_lvl: 1 },
+    { code: "P2", adm_lvl: 1 },
+  ]);
 });
 
 test.todo("each step runs standalone (no TS counterpart)");

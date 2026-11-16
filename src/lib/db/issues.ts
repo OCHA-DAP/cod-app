@@ -1,6 +1,7 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { GEOMETRY_TYPE, NOTCH_SPACING, SNAP_TOLERANCE } from "./constants";
 import { buildGapTable, buildOverlapTable, emptyRegions, isMicroSql } from "./coverage";
+import { isOutOfMemory } from "./errors";
 import { detectNotches } from "./notches";
 import { degSqToM2, degToM } from "./units";
 
@@ -45,6 +46,7 @@ export async function buildGapRegions(
     await buildGapTable(conn, targetTable, sourceTable);
     return true;
   } catch (e) {
+    if (isOutOfMemory(e)) throw e;
     console.warn("gap-region detection failed; skipping gaps:", e);
     await emptyRegions(conn, targetTable);
     return false;
@@ -71,6 +73,7 @@ export async function buildOverlapRegions(
     await buildOverlapTable(conn, targetTable, sourceTable);
     return true;
   } catch (e) {
+    if (isOutOfMemory(e)) throw e;
     console.warn("overlap detection failed; skipping overlaps:", e);
     await emptyRegions(conn, targetTable, ", NULL::BIGINT AS fa, NULL::BIGINT AS fb");
     return false;
@@ -95,6 +98,7 @@ export async function buildMicroRegions(
     `);
     return true;
   } catch (e) {
+    if (isOutOfMemory(e)) throw e;
     console.warn("micro-polygon detection failed; skipping micro-polygons:", e);
     await emptyRegions(
       conn,
@@ -116,6 +120,7 @@ export async function buildNotchRegions(
     await detectNotches(conn, sourceTable, targetTable);
     return true;
   } catch (e) {
+    if (isOutOfMemory(e)) throw e;
     console.warn("notch detection failed; skipping notches:", e);
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${targetTable} AS
@@ -228,15 +233,15 @@ function notchRegionsSql(regionsTable: string, gapTable: string, overlapTable: s
              ST_XMin(geom), ST_YMin(geom), ST_XMax(geom), ST_YMax(geom)
       FROM ${regionsTable} nr
       WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
-        AND NOT EXISTS (
-          SELECT 1 FROM ${gapTable} g
-          WHERE g.geom IS NOT NULL AND ST_Intersects(nr.geom, g.geom)
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM ${overlapTable} o
-          WHERE least(o.fa, o.fb) = least(nr.unit_a, nr.unit_b)
-            AND greatest(o.fa, o.fb) = greatest(nr.unit_a, nr.unit_b)
-            AND ST_Intersects(nr.geom, o.geom)
+        AND nr.n NOT IN (
+          SELECT t.n FROM ${regionsTable} t
+          JOIN ${gapTable} g ON g.geom IS NOT NULL AND ST_Intersects(t.geom, g.geom)
+          UNION ALL
+          SELECT t.n FROM ${regionsTable} t
+          JOIN ${overlapTable} o
+            ON least(o.fa, o.fb) = least(t.unit_a, t.unit_b)
+            AND greatest(o.fa, o.fb) = greatest(t.unit_a, t.unit_b)
+            AND ST_Intersects(t.geom, o.geom)
         )`;
 }
 

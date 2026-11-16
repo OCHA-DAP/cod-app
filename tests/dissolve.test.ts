@@ -64,3 +64,13 @@ test("unsupported aggregation throws", async () => {
     }),
   ).rejects.toThrow(/unsupported aggregation/);
 });
+
+test("fid follows group-by order", async () => {
+  await run("CREATE OR REPLACE TABLE t_rev AS SELECT * FROM t_01 ORDER BY fid DESC");
+  await runDissolveCore(conn, "t_rev", "t_out", { groupBy: ["adm2_pcode"] });
+  expect(await rows("SELECT fid, adm2_pcode FROM t_out ORDER BY fid")).toEqual([
+    { fid: 1, adm2_pcode: "A1" },
+    { fid: 2, adm2_pcode: "A2" },
+    { fid: 3, adm2_pcode: "B1" },
+  ]);
+});

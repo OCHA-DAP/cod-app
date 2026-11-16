@@ -156,11 +156,13 @@ export async function checkFixedIssues(
       // Fixed unless a notch between the same units still intersects it in the output.
       await detectNotches(conn, "tc_clean", "tc_notch_remaining");
       await conn.query(`--sql
-        UPDATE tc_issues i SET fixed = NOT EXISTS (
-          SELECT 1 FROM tc_notch_remaining r
-          WHERE least(r.unit_a, r.unit_b) = least(i.unit_a, i.unit_b)
+        UPDATE tc_issues SET fixed = key NOT IN (
+          SELECT i.key FROM tc_issues i
+          JOIN tc_notch_remaining r
+            ON least(r.unit_a, r.unit_b) = least(i.unit_a, i.unit_b)
             AND greatest(r.unit_a, r.unit_b) = greatest(i.unit_a, i.unit_b)
             AND ST_Intersects(r.geom, i.geom)
+          WHERE i.kind = 'notch'
         )
         WHERE kind = 'notch'
       `);
@@ -179,12 +181,15 @@ export async function checkFixedIssues(
     await conn.query(`--sql
       CREATE OR REPLACE TABLE tc_open_gaps AS SELECT * FROM (${gapIssuesSql("tc_open_gap_regions")})
     `);
+    await conn.query(`--sql
+      CREATE OR REPLACE TABLE tc_gap_hits AS
+      SELECT i.key AS issue_key, r.key AS open_key
+      FROM tc_issues i JOIN tc_open_gaps r ON ST_Intersects(r.geom, i.geom)
+      WHERE i.kind = 'gap' AND ST_Area(ST_Intersection(r.geom, i.geom)) > 0
+    `);
     if (rows.some((r) => r.kind === "gap")) {
       await conn.query(`--sql
-        UPDATE tc_issues i SET fixed = NOT EXISTS (
-          SELECT 1 FROM tc_open_gaps r
-          WHERE ST_Intersects(r.geom, i.geom) AND ST_Area(ST_Intersection(r.geom, i.geom)) > 0
-        )
+        UPDATE tc_issues SET fixed = key NOT IN (SELECT issue_key FROM tc_gap_hits)
         WHERE kind = 'gap'
       `);
       await conn.query(`--sql
@@ -210,11 +215,7 @@ export async function checkFixedIssues(
           'gap opened by the fix' AS reason
         )
         FROM tc_open_gaps r
-        WHERE NOT EXISTS (
-          SELECT 1 FROM tc_issues i
-          WHERE i.kind = 'gap' AND ST_Intersects(r.geom, i.geom)
-            AND ST_Area(ST_Intersection(r.geom, i.geom)) > 0
-        )
+        WHERE r.key NOT IN (SELECT open_key FROM tc_gap_hits)
       `);
     }
   } catch (e) {
@@ -222,6 +223,7 @@ export async function checkFixedIssues(
   } finally {
     await conn.query("DROP TABLE IF EXISTS tc_open_gap_regions");
     await conn.query("DROP TABLE IF EXISTS tc_open_gaps");
+    await conn.query("DROP TABLE IF EXISTS tc_gap_hits");
   }
 
   return fixed;
@@ -250,10 +252,7 @@ export function resolveGapFillWidths(rows: IssueRow[]): {
     rows
       .filter(
         (r) =>
-          r.kind === "gap" &&
-          !r.key.startsWith(NEW_GAP_PREFIX) &&
-          r.maxWidthM > 0 &&
-          predicate(r),
+          r.kind === "gap" && !r.key.startsWith(NEW_GAP_PREFIX) && r.maxWidthM > 0 && predicate(r),
       )
       .map((r) => r.maxWidthM);
   const allWidths = widthsOf(() => true);
@@ -278,7 +277,9 @@ export async function measureThinFillM(
       SELECT MAX(max_width_m) AS width FROM (${gapIssuesSql(regions)})
       WHERE thinness_ratio <= ${DEFAULT_THINNESS_RATIO}
     `);
-    return ((r.toArray()[0] as { width: number | null }).width ?? 0) * AUTO_GAP_WIDTH_EPSILON_FACTOR;
+    return (
+      ((r.toArray()[0] as { width: number | null }).width ?? 0) * AUTO_GAP_WIDTH_EPSILON_FACTOR
+    );
   } finally {
     await conn.query("DROP TABLE IF EXISTS tc_source_gap_regions");
   }

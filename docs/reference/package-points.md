@@ -28,8 +28,8 @@ tools.
   any output point is not covered by its own source polygon
   (`ST_Covers`).
 - Every level's points MUST be tagged with a depth column holding that
-  level's own numeric depth. `package-points` MUST raise if the requested
-  depth column already exists on the input's attribute table.
+  level's own numeric depth. An input column of the same name (e.g.
+  Schema Fill's real-depth stamp) MUST be dropped and replaced.
 - Every level's own identity columns, including an injected root's, MUST
   land under one name shared across every level: the source file's own
   naming convention, or an explicit schema's fixed `code`/`name`. No
