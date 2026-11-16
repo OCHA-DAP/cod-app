@@ -6,7 +6,7 @@ order: 2
 
 ## Code assignment
 
-The procedure when P-codes are assigned to a country is as follows. Within each parent, sort all units by *adm[N]\_srcid*, then *adm[N]\_name*, then *adm[N]\_name1*, then *adm[N]\_name2*, then *adm[N]\_name3* (nulls sort last at each step; *adm[N]\_srcid* values made only of digits sort by numeric value, and all other values as text), and assign sequential integers in that order, starting at *001*, resetting per parent.
+The procedure when P-codes are assigned to a country is as follows. Within each parent, sort all units by *adm[N]\_srcid*, then *adm[N]\_name*, then *adm[N]\_name1*, then *adm[N]\_name2*, then *adm[N]\_name3* (nulls sort last at each step; *adm[N]\_srcid* values made only of digits sort by numeric value, before all other values, which sort as text), and assign sequential integers in that order, starting at *001*, resetting per parent.
 
 For updates this same cascade, sort by *adm[N]\_srcid*, then *adm[N]\_name*, then *adm[N]\_name1*–*name3*, governs every subsequent code assignment as well: when units are added under an existing parent, they are sorted using this cascade and assigned the next available sequential integers in that resulting order. Units that already hold a P-code are never re-sorted or renumbered. The number carries no meaning beyond “this is the Nth unit registered under this parent.” P-codes are never reused: no existing or historic code can be assigned to a new unit.
 
