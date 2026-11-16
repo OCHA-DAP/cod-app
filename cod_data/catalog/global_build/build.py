@@ -29,6 +29,7 @@ from cod_data.catalog.global_build.config import (
     BUILD,
     COD_AB_CATALOG,
     CODE_FIELD,
+    GAP_WIDTH,
     MATCH_KEY,
     MAX_LVL,
     NAME_FIELD,
@@ -100,7 +101,11 @@ def _punch(con: duckdb.DuckDBPyConnection, path: Path, work: Path) -> Path:
 
 
 def _clean(
-    con: duckdb.DuckDBPyConnection, path: Path, work: Path, kinds: str = "true"
+    con: duckdb.DuckDBPyConnection,
+    path: Path,
+    work: Path,
+    kinds: str = "true",
+    gap: str | None = None,
 ) -> Path:
     """path, or its topo_clean output when topo_detect finds defects matching kinds."""
     issues = work / f"{path.stem}_detect.parquet"
@@ -113,6 +118,7 @@ def _clean(
         path,
         clean,
         work / f"{path.stem}_clean_issues.parquet",
+        maximum_gap_width=gap,
         threads=THREADS,
         tmp_dir=work,
     )
@@ -272,7 +278,13 @@ def job(
     if source:
         # Partner sources can overlap or leave gaps, which edge_extend rejects.
         originals = [
-            _clean(con, _punch(con, o, work), work, "kind IN ('overlap', 'gap')")
+            _clean(
+                con,
+                _punch(con, o, work),
+                work,
+                "kind IN ('overlap', 'gap')",
+                GAP_WIDTH.get(iso3),
+            )
             for o in _stage(con, iso3, source, parents, work)
         ]
         lvl = con.execute(f"SELECT max(src_lvl) FROM '{originals[0]}'").fetchall()[0][0]

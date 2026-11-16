@@ -32,4 +32,6 @@ ADM0_LAYERS = {
 }
 # FieldMaps ADM0 parts that the source covers; the iso3's other parts get the ADM0 fill.
 PARTS_LAYER = "fieldmaps/fieldmaps_polygons/fieldmaps_polygons.parquet"
+# topo_clean maximum_gap_width (degrees) per iso3, for sources' needle gaps above the default fill.
+GAP_WIDTH = {"BRA": "1e-7"}
 PARTS = {"AUS": ["AUS_1"], "JAM": ["JAM_1"], "MUS": ["MUS_1"], "ZAF": ["ZAF_1"]}
