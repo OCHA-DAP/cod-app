@@ -91,7 +91,7 @@ class BoundarySource:
 
 # Filler units (lakes, "Under National Administration") left out of stats and matching; mirrors src/lib/explorer/sources.ts.
 BOUNDARY_SOURCES = [
-    BoundarySource("ocha", "iso3", [1, 2, 3, 4]),
+    BoundarySource("ocha", "iso3", [1, 2, 3, 4], "adm{level}_name", ["Conflict"]),
     BoundarySource(
         "wfp",
         "iso3",
