@@ -92,7 +92,7 @@ def units(source: str, n: int, iso3: str) -> str:
     src = next(s for s in BOUNDARY_SOURCES if s.name == source)
     rows = f"{layer(source, n)} WHERE {c.iso3} = '{iso3}'"
     junk = junk_filter(src, n).removeprefix("WHERE ")
-    # Filler that is a level's only unit is the territory itself (WFP PRI's adm1).
+    # Filler that is a level's only unit is the territory itself (WFP PRI's adm1), named as adm0.
     where = (
         f"WHERE {c.iso3} = '{iso3}' AND ({junk} OR NOT EXISTS (SELECT 1 FROM {rows} AND {junk}))"
         if junk
@@ -114,6 +114,7 @@ def units(source: str, n: int, iso3: str) -> str:
     return f"""
         SELECT {uid} AS id, {parent} AS parent,
             nullif(trim({_sql(c.name, n)}::VARCHAR), '') AS name, {", ".join(alts)},
+            {f"NOT ({junk})" if junk else "false"} AS filler,
             nullif(trim({_sql(c.srcid, n)}::VARCHAR), '') AS srcid,
             nullif(trim({_sql(c.type, n)}::VARCHAR), '') AS type, {lang}, geometry
         FROM {layer(source, n)} {where}
@@ -168,6 +169,7 @@ def stage_sql(source: str, iso3: str, lvl: int, adm0_name: str) -> str:
                 "lang1",
                 "lang2",
                 "lang3",
+                "filler",
             )
         )
         ctes.append(
@@ -177,10 +179,11 @@ def stage_sql(source: str, iso3: str, lvl: int, adm0_name: str) -> str:
     joins = " ".join(
         f"LEFT JOIN u{n} ON u{n + 1}.parent = u{n}.id" for n in range(lvl - 1, 0, -1)
     )
-    cols = [f"'{adm0_name.replace(chr(39), chr(39) * 2)}' AS adm0_name"]
+    adm0 = f"'{adm0_name.replace(chr(39), chr(39) * 2)}'"
+    cols = [f"{adm0} AS adm0_name"]
     for n in range(1, lvl + 1):
         cols += [
-            f"u{n}.name AS adm{n}_name",
+            f"CASE WHEN u{n}.filler THEN {adm0} ELSE u{n}.name END AS adm{n}_name",
             *(f"u{n}.name{i} AS adm{n}_name{i}" for i in (1, 2, 3)),
             f"{_key(f'u{n}')} AS adm{n}_pcode",
             f"u{n}.srcid AS adm{n}_srcid",
