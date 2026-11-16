@@ -231,7 +231,7 @@ TWN,none,false,No subnational units available
 TZA,wfp,false,"WFP uses govt source, but remove lakes"
 UGA,ocha,false,"Mostly same sources, defaulting to OCHA"
 UKR,ocha,true,OCHA updated in 2025
-UMI,fao,false,"WFP has all islands including Navassa, but FAO has names"
+UMI,wfp,false,"WFP has all islands including Navassa, but FAO has names"
 URY,unhcr,false,"UNHCR has a detailed govt source to ADM2, but doesn't match Mapbox"
 USA,fao,false,FAO has most detailed govt data
 UZB,fao,false,FAO matches ISO and Mapbox most closely
