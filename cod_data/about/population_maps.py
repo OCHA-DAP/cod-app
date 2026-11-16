@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 import tempfile
+from itertools import pairwise
 from pathlib import Path
 
 import duckdb
@@ -71,7 +72,7 @@ METRICS = [
 def labels(breaks: list[int]) -> list[str]:
     return (
         [f"under {breaks[0]:,}"]
-        + [f"{a:,} to {b:,}" for a, b in zip(breaks, breaks[1:])]
+        + [f"{a:,} to {b:,}" for a, b in pairwise(breaks)]
         + [f"{breaks[-1]:,} and over"]
     )
 
@@ -112,7 +113,7 @@ def main() -> None:
             ST_Transform(geometry, 'EPSG:4326', '+proj=laea +lat_0={lat:.2f} +lon_0={lon:.2f}', always_xy := true) geom
           FROM ab WHERE iso3 = '{iso3}'""")
         xmin, ymin, xmax, ymax = c.sql(
-            f"SELECT min(ST_XMin(geom)), min(ST_YMin(geom)), max(ST_XMax(geom)), max(ST_YMax(geom)) FROM g"
+            "SELECT min(ST_XMin(geom)), min(ST_YMin(geom)), max(ST_XMax(geom)), max(ST_YMax(geom)) FROM g"
         ).fetchall()[0]
         span = max(xmax - xmin, ymax - ymin)
         pad = span * 0.02

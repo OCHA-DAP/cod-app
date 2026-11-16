@@ -2,6 +2,8 @@ import csv
 import sys
 from pathlib import Path
 
+from httpx2 import HTTPError
+
 from cod_data.shared import http
 
 OUTPUT_DIR = Path(__file__).parents[2] / "public" / "status" / "data"
@@ -52,7 +54,7 @@ def fetch_hdx_hubs():
     for hub, org_name in HUBS.items():
         try:
             countries = fetch_hdx_org_countries(org_name)
-        except Exception as err:
+        except (HTTPError, RuntimeError, ValueError) as err:
             print(f"  HDX: failed for {org_name}: {err}", file=sys.stderr)
             continue
         for iso3 in countries:
@@ -76,7 +78,7 @@ def fetch_hdx_hubs():
                         },
                     )
                     counts[hub] = data.get("result", {}).get("count", 0)
-                except Exception:
+                except (HTTPError, ValueError):
                     counts[hub] = 0
             winner_hub = max(counts, key=counts.__getitem__)
             winner_count = counts[winner_hub]

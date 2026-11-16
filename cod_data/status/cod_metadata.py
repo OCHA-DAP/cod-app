@@ -1,7 +1,7 @@
 import csv
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from cod_data.shared import http
@@ -93,9 +93,7 @@ def convert_timestamps(record: dict) -> dict:
     converted = {}
     for k, v in record.items():
         if isinstance(v, int) and v > 1e11:
-            converted[k] = datetime.fromtimestamp(v / 1000, tz=timezone.utc).strftime(
-                "%Y-%m-%d"
-            )
+            converted[k] = datetime.fromtimestamp(v / 1000, tz=UTC).strftime("%Y-%m-%d")
         else:
             converted[k] = v if v is not None else ""
     return converted

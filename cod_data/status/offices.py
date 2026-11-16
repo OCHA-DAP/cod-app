@@ -113,7 +113,7 @@ def build_m49_lookup() -> dict[str, str]:
         text = M49_CSV.read_text(encoding="utf-8-sig")
     except FileNotFoundError:
         print(
-            "  M49 CSV not found — run `uv run -m cod_data.status.m49` first",
+            "  M49 CSV not found, run `uv run -m cod_data.status.m49` first",
             file=sys.stderr,
         )
         return {}

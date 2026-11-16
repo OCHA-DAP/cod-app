@@ -50,7 +50,7 @@ for row_match in re.finditer(r"<tr[\s>]([\s\S]*?)</tr>", table_html, re.IGNORECA
 
 if len(rows) < 2:
     print(
-        f"Error: Only {len(rows)} rows parsed — check the HTML structure",
+        f"Error: Only {len(rows)} rows parsed, check the HTML structure",
         file=sys.stderr,
     )
     sys.exit(1)

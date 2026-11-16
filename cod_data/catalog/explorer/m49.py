@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Download the UN M49 country/area codes from unstats.un.org."""
 
 import html.parser

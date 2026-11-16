@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Fetch ISO 3166-2 subdivision counts from Debian's iso-codes project.
 
 ISO's own Online Browsing Platform (iso.org/obp) has no public API and blocks
