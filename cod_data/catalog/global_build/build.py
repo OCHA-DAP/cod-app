@@ -196,7 +196,11 @@ def _stage(
         f"SELECT arg_max(adm0_name, ST_Area(geometry)) FROM '{parents}'"
     ).fetchall()[0][0]
     raw = work / "raw.parquet"
-    write_geoparquet(con, stage_sql(source, iso3, lvl, name), raw)
+    keep = None
+    if source == "ocha":
+        # Units the cod-ab catalog leaves out of its extended layer (e.g. Abyei) are dropped.
+        keep = f"SELECT adm{lvl}_pcode FROM '{_cod_ab_path(iso3, lvl)}'"
+    write_geoparquet(con, stage_sql(source, iso3, lvl, name, keep), raw)
     checks = " OR ".join(
         f"_id{n} IS NULL OR _parents{n} > 1" for n in range(1, lvl + 1)
     )

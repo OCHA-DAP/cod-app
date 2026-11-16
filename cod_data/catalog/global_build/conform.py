@@ -150,8 +150,10 @@ def _key(alias: str) -> str:
     return " || chr(31) || ".join([*parts, f"{alias}.id"])
 
 
-def stage_sql(source: str, iso3: str, lvl: int, adm0_name: str) -> str:
-    """One row per level-lvl unit with every level's columns, adm{n}_pcode holding its sort key."""
+def stage_sql(
+    source: str, iso3: str, lvl: int, adm0_name: str, keep: str | None = None
+) -> str:
+    """One row per level-lvl unit (srcid in keep, if given) with every level's columns, sort key in adm{n}_pcode."""
     ctes = []
     for n in range(1, lvl + 1):
         geom = "ST_Union_Agg(geometry)" if n == lvl else "NULL::GEOMETRY"
@@ -195,5 +197,5 @@ def stage_sql(source: str, iso3: str, lvl: int, adm0_name: str) -> str:
     return f"""
         WITH {", ".join(ctes)}
         SELECT {", ".join(cols)}, {lvl} AS src_lvl, u{lvl}.geometry
-        FROM u{lvl} {joins}
+        FROM u{lvl} {joins} {f"WHERE u{lvl}.srcid IN ({keep})" if keep else ""}
     """
