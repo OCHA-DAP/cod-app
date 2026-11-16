@@ -45,7 +45,7 @@
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.1",
     "@astrojs/starlight": "^0.42.5",
-    "@duckdb/duckdb-wasm": "1.33.1-dev114.0",
+    "@duckdb/duckdb-wasm": "1.33.1-dev118.0",
     "astro-rehype-relative-markdown-links": "^0.19.2",
     "fflate": "^0.8.3",
     "hyparquet": "^1.31.5",
