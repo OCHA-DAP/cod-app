@@ -1,6 +1,13 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { SNAP_TOLERANCE } from "./constants";
-import { buildGapTable, hasMicroPolygons, hasNoiseFloorGap, mergeMicroPolygons } from "./coverage";
+import {
+  buildGapTable,
+  hasMicroPolygons,
+  hasNoiseFloorGap,
+  mergeMicroPolygons,
+  mergeSliverGaps,
+} from "./coverage";
+import { isOutOfMemory } from "./errors";
 import { hasInvalidEdges } from "./invalidEdges";
 
 // Shared ST_CoverageClean plumbing used by both the Topology Cleaner tool
@@ -27,6 +34,29 @@ export interface CoverageCleanOptions {
   // Defaults to SNAP_TOLERANCE (ADR-0040, same rationale as snap above); 0
   // remains available as an explicit "no gap filling" override.
   gap?: number;
+  // Merge sliver gaps into a neighbour after the clean (default true).
+  mergeSlivers?: boolean;
+}
+
+// Runs mergeSliverGaps on `table`, appending its rows to `issuesTable`; a failure other
+// than out-of-memory warns and leaves the slivers as gaps.
+async function appendSliverMerge(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  issuesTable: string,
+  where = "TRUE",
+): Promise<void> {
+  const tmp = `${table}_sliver_issues`;
+  try {
+    if (await mergeSliverGaps(conn, table, tmp, where)) {
+      await conn.query(`INSERT INTO ${issuesTable} BY NAME SELECT * FROM ${tmp}`);
+    }
+  } catch (e) {
+    if (isOutOfMemory(e)) throw e;
+    console.warn(`sliver gap merge failed on ${table}:`, e);
+  } finally {
+    await conn.query(`DROP TABLE IF EXISTS ${tmp}`);
+  }
 }
 
 // Freezes an (fid, geom) source table into a single-row (geoms[], fids[]) array
@@ -163,7 +193,7 @@ export async function buildCoverageClean(
   targetTable: string,
   opts: CoverageCleanOptions & { preserveOriginal?: boolean; microIssuesTable?: string } = {},
 ): Promise<void> {
-  const { preserveOriginal, microIssuesTable, ...cleanOpts } = opts;
+  const { preserveOriginal, microIssuesTable, mergeSlivers = true, ...cleanOpts } = opts;
   const merged = `${targetTable}_cc_merged`;
   const microIssues = microIssuesTable ?? `${targetTable}_cc_micro`;
   const scratchInput = `${targetTable}_cc_input`;
@@ -174,18 +204,18 @@ export async function buildCoverageClean(
 
     if (!preserveOriginal) {
       await runCoverageClean(conn, scratchInput, targetTable, cleanOpts);
-      return;
+    } else {
+      const scratchClean = `${targetTable}_cc_clean`;
+      await runCoverageClean(conn, scratchInput, scratchClean, cleanOpts);
+      await conn.query(`--sql
+        CREATE OR REPLACE TABLE ${targetTable} AS
+        SELECT s.fid, COALESCE(c.geom, s.geom) AS geom
+        FROM ${merged} s
+        LEFT JOIN ${scratchClean} c USING (fid)
+      `);
+      await conn.query(`DROP TABLE IF EXISTS ${scratchClean}`);
     }
-
-    const scratchClean = `${targetTable}_cc_clean`;
-    await runCoverageClean(conn, scratchInput, scratchClean, cleanOpts);
-    await conn.query(`--sql
-      CREATE OR REPLACE TABLE ${targetTable} AS
-      SELECT s.fid, COALESCE(c.geom, s.geom) AS geom
-      FROM ${merged} s
-      LEFT JOIN ${scratchClean} c USING (fid)
-    `);
-    await conn.query(`DROP TABLE IF EXISTS ${scratchClean}`);
+    if (mergeSlivers) await appendSliverMerge(conn, targetTable, microIssues);
   } finally {
     await conn.query(`DROP TABLE IF EXISTS ${merged}`);
     await conn.query(`DROP TABLE IF EXISTS ${scratchInput}`);
@@ -219,7 +249,9 @@ export async function coverageCleanRows(
   await conn.query(`CREATE OR REPLACE TABLE ${held} AS SELECT * FROM ${table} WHERE NOT (${where})`);
   await conn.query(`DELETE FROM ${table} WHERE NOT (${where})`);
   await mergeMicroPolygons(conn, table, table, microIssuesTable);
-  await gatedCoverageClean(conn, table);
+  await gatedCoverageClean(conn, table, { mergeSlivers: false });
   await conn.query(`INSERT INTO ${table} BY NAME SELECT * FROM ${held}`);
   await conn.query(`DROP TABLE ${held}`);
+  // Held rows fill their own area, so slivers are found after they return.
+  await appendSliverMerge(conn, table, microIssuesTable, where);
 }

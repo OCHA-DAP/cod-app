@@ -141,7 +141,7 @@ async function buildIssuesTable(conn: AsyncDuckDBConnection): Promise<{
   };
 }
 
-// Appends micro-polygon or invalid-edge rows from `table`, if built, to ge_issues.
+// Appends micro-polygon and sliver-gap, or invalid-edge, rows from `table`, if built, to ge_issues.
 async function appendIssues(conn: AsyncDuckDBConnection, table: string): Promise<number> {
   const exists = await conn.query(
     `SELECT COUNT(*) AS n FROM duckdb_tables() WHERE table_name = '${table}'`,

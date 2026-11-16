@@ -182,7 +182,9 @@
   }
 
   const clipEmptyCount = $derived(issues.filter((i) => i.kind === "clip-empty").length);
-  const microCount = $derived(issues.filter((i) => i.kind === "micro-polygon").length);
+  const microCount = $derived(
+    issues.filter((i) => i.kind === "micro-polygon" || i.kind === "sliver-gap").length,
+  );
   const codeMismatchCount = $derived(issues.filter((i) => i.kind === "code-mismatch").length);
   const codeFallbackCount = $derived(issues.filter((i) => i.kind === "code-fallback").length);
 </script>

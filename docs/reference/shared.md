@@ -178,6 +178,29 @@ name instead of repeating them.
 - `schema-join` and `schema-map` MUST NOT apply this rule, since they
   never modify geometry.
 
+## Sliver gaps (`$lib/db/coverage.ts::mergeSliverGaps`)
+
+- A sliver gap is an enclosed gap with `2 * area * vertices / perimeter^2`
+  at most `SLIVER_GAP_MAX_RATIO` (0.2): its mean width is at most a fifth
+  of its edges' mean segment length, counting the ring's closing point as a
+  vertex. A polygon inside the hole, an enclave or a row held out of the
+  clean, is not part of the gap, and a hole inside an enclave counts once.
+- Every `buildCoverageClean` call MUST merge each sliver gap into the
+  cleaned polygon sharing its longest border (ties to the lowest fid) after
+  `ST_CoverageClean`, except `edge-extend`'s final clean of its merged
+  output. `coverageCleanRows` MUST run the merge after reinserting its held
+  rows, whether or not the clean ran, and MUST NOT merge a gap into a held
+  row. `topo-clean` MUST run it whenever it runs `ST_CoverageClean`, before
+  its validation gate.
+- When the set-based union of a polygon with its slivers throws, the merge
+  MUST union each receiving polygon alone, leaving a polygon that still
+  throws, and its slivers, unchanged.
+- Each merged gap MUST be reported as a `sliver-gap` row by every tool that
+  writes an issues report for that clean (`edge-mosaic`, `edge-match`,
+  `topo-clean`), with the receiving fid in `unit_a`, `unit_b` null, `reason`
+  `merged into neighbouring polygon`, `fixed` true, and the gap itself as
+  `geom`; `topo-clean` also sets `filled_area_m2` to the gap's area.
+
 ## Notches (`$lib/db/notches.ts`)
 
 - A notch is a pair of units whose unshared boundary segments (segments no

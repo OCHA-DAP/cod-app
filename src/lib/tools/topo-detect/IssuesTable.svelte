@@ -42,6 +42,7 @@
     gap: "Gap",
     "micro-polygon": "Micro-polygon",
     notch: "Notch",
+    "sliver-gap": "Sliver gap",
   };
 
   function kindLabel(r: IssueRow): string {

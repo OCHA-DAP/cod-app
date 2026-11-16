@@ -34,7 +34,7 @@
   const fixedCount = $derived(rows.filter((r) => fixedKeys.has(r.key)).length);
   const visible = $derived(
     rows.filter((r) => {
-      if (r.kind === "gap") return showGaps;
+      if (r.kind === "gap" || r.kind === "sliver-gap") return showGaps;
       if (r.kind === "overlap") return showOverlaps;
       if (r.kind === "micro-polygon") return showMicro;
       if (r.kind === "notch") return showNotches;
@@ -47,6 +47,7 @@
     gap: "Gap",
     "micro-polygon": "Micro-polygon",
     notch: "Notch",
+    "sliver-gap": "Sliver gap",
   };
 
   function kindLabel(r: IssueRow): string {
@@ -300,7 +301,8 @@
   .tc-key--overlap {
     background: var(--cd-red--600);
   }
-  .tc-key--gap {
+  .tc-key--gap,
+  .tc-key--sliver-gap {
     background: var(--cd-orange--600);
   }
   .tc-key--micro-polygon {

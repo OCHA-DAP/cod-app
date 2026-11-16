@@ -102,8 +102,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   or abort — an unfilled gap or a residual defect it finds is surfaced for
   display, not rejected.
 - `topo-clean` MUST report, for every originally-detected issue, whether it
-  ended up resolved in the current cleaned output: an overlap or a
-  micro-polygon MUST always count as resolved; a gap MUST count as resolved
+  ended up resolved in the current cleaned output: an overlap, a
+  micro-polygon or a sliver gap MUST always count as resolved; a gap MUST count as resolved
   only if no gap still open in the cleaned output overlaps it; a notch MUST
   count as resolved only if no notch between the same two units still
   intersects it in the cleaned output. A gap open in the cleaned output that
@@ -113,6 +113,10 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
 - `topo-clean` MUST merge or drop every micro-polygon left in its output,
   including when the clean was skipped, and MUST replace the previous
   clean's output `micro-polygon` issues with this clean's on every reclean.
+- Whenever it runs `ST_CoverageClean`, `topo-clean` MUST merge every sliver
+  gap in the result (see `docs/reference/shared.md`) before the validation
+  gate, and MUST replace the previous clean's `sliver-gap` issues with this
+  clean's on every reclean.
 - `topo-clean` MUST report a collapsed-polygon count (input row count minus
   surviving cleaned row count) whenever a clean or reclean runs. A polygon
   removed by the micro-polygon merge MUST NOT count toward the validation

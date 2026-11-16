@@ -18,6 +18,7 @@ export interface MosaicIssueRow {
     | "clip-empty"
     | "detached-part"
     | "micro-polygon"
+    | "sliver-gap"
     | "invalid-edge"
     | "gap"
     | "code-mismatch"

@@ -78,11 +78,13 @@ with other tools.
   combined result table.
 - By default, `edge-match` MUST merge micro-polygons in the combined result,
   then run one gated coverage clean over it, to close the seams between
-  groups. With the clean skipped, it MUST merge micro-polygons only. Each
-  merged micro-polygon MUST be added to the issues export as a
-  `micro-polygon` row (see `docs/reference/shared.md`).
+  groups, then merge its sliver gaps. With the clean skipped, it MUST merge
+  micro-polygons only. Each merged micro-polygon and sliver gap MUST be
+  added to the issues export as a `micro-polygon` or `sliver-gap` row (see
+  `docs/reference/shared.md`).
 - Passthrough rows MUST be left out of the clean, the micro-polygon merge,
-  the invalid-edge check and the gap rows, and MUST be exported unchanged.
+  the invalid-edge check and the gap rows, MUST NOT receive a sliver gap,
+  and MUST be exported unchanged.
 - `edge-match` MUST NOT raise on a topology defect left in the combined
   result. Each pair of rows whose shared edges still don't match MUST be
   reported as an `invalid-edge` row.
@@ -95,7 +97,8 @@ with other tools.
   clipped to empty against its overlay polygon (`kind='clip-empty'`, with
   that pre-clip geometry), every merged or kept clip-detached piece
   (`kind='detached-part'`), every merged micro-polygon
-  (`kind='micro-polygon'`), every `invalid-edge` pair, and a `gap` row, with
+  (`kind='micro-polygon'`), every merged sliver gap (`kind='sliver-gap'`),
+  every `invalid-edge` pair, and a `gap` row, with
   its `overlay_fid`, for every piece of an overlay polygon the result was
   clipped to that no result row covers and wider than `SNAP_TOLERANCE`, in
   both clean modes, each tagged with which kind it is, available

@@ -81,7 +81,7 @@ export async function buildIssues(
   }
 }
 
-// Swaps in the micro-polygon rows of the latest clean's own output merge
+// Swaps in the micro-polygon and sliver-gap rows of the latest clean's own output merges
 // (tc_clean_micro, absent when the clean was skipped).
 export async function syncOutputMicroIssues(
   conn: AsyncDuckDBConnection,
@@ -91,22 +91,23 @@ export async function syncOutputMicroIssues(
     "SELECT COUNT(*) AS n FROM duckdb_tables() WHERE table_name = 'tc_clean_micro'",
   );
   const exists = Number((r.toArray()[0] as { n: bigint | number }).n) > 0;
-  if (exists) {
-    await conn.query(`--sql
-      CREATE OR REPLACE TABLE tc_clean_micro_regions AS
-      SELECT row_number() OVER (ORDER BY unit_a, hash(geom)) AS n, unit_a, unit_b, reason, fixed, geom
-      FROM tc_clean_micro
-    `);
-  }
+  const kinds = [
+    ["micro-polygon", "tc_clean_micro_regions", "micro-polygon-output-"],
+    ["sliver-gap", "tc_clean_sliver_regions", "sliver-gap-"],
+  ] as const;
   try {
-    await replaceMicroIssues(
-      conn,
-      "tc_issues",
-      exists ? "tc_clean_micro_regions" : null,
-      "micro-polygon-output-",
-    );
+    for (const [kind, regions, prefix] of kinds) {
+      if (exists) {
+        await conn.query(`--sql
+          CREATE OR REPLACE TABLE ${regions} AS
+          SELECT row_number() OVER (ORDER BY unit_a, hash(geom)) AS n, unit_a, unit_b, reason, fixed, geom
+          FROM tc_clean_micro WHERE kind = '${kind}'
+        `);
+      }
+      await replaceMicroIssues(conn, "tc_issues", exists ? regions : null, prefix, kind);
+    }
   } finally {
-    await conn.query("DROP TABLE IF EXISTS tc_clean_micro_regions");
+    for (const [, regions] of kinds) await conn.query(`DROP TABLE IF EXISTS ${regions}`);
   }
   return readIssues(conn, "tc_issues", failedKinds);
 }
@@ -129,7 +130,7 @@ export async function checkFixedIssues(
 ): Promise<Set<string>> {
   const fixed = new Set<string>();
   rows
-    .filter((r) => r.kind === "overlap" || r.kind === "micro-polygon")
+    .filter((r) => r.kind === "overlap" || r.kind === "micro-polygon" || r.kind === "sliver-gap")
     .forEach((r) => fixed.add(r.key));
   const areaFactor = degSqToM2(1).toExponential();
 

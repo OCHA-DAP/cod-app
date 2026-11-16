@@ -24,7 +24,7 @@ export interface IssueRow {
   bbox: [number, number, number, number];
 }
 
-export type IssueKind = "gap" | "overlap" | "micro-polygon" | "notch";
+export type IssueKind = "gap" | "overlap" | "micro-polygon" | "notch" | "sliver-gap";
 
 export interface IssuesResult {
   rows: IssueRow[];
@@ -214,9 +214,9 @@ export async function assembleIssues(
 
 // Region rows (n, unit_a, unit_b, reason, fixed, geom) in assembleIssues' inner
 // column order, keyed keyPrefix || n.
-function microRegionsSql(regionsTable: string, keyPrefix: string): string {
+function microRegionsSql(regionsTable: string, keyPrefix: string, kind = "micro-polygon"): string {
   return `--sql
-      SELECT '${keyPrefix}' || n, 'micro-polygon', ST_Area(geom),
+      SELECT '${keyPrefix}' || n, '${kind}', ST_Area(geom),
              (ST_MaximumInscribedCircle(geom)).radius,
              NULL::DOUBLE, NULL::DOUBLE,
              unit_a, unit_b, fixed, reason, geom,
@@ -293,6 +293,7 @@ export async function replaceMicroIssues(
   issuesTable: string,
   regionsTable: string | null,
   keyPrefix: string,
+  kind = "micro-polygon",
 ): Promise<void> {
   await conn.query(`DELETE FROM ${issuesTable} WHERE starts_with(key, '${keyPrefix}')`);
   if (!regionsTable) return;
@@ -304,8 +305,9 @@ export async function replaceMicroIssues(
            area_deg * ${areaFactor} AS area_m2,
            mic_radius_deg * 2 * ${widthFactor} AS max_width_m,
            thinness_ratio, near_length_m, fixed, reason, unit_a, unit_b,
+           ${kind === "sliver-gap" ? `area_deg * ${areaFactor}` : "NULL::DOUBLE"} AS filled_area_m2,
            geom, xmin, ymin, xmax, ymax
-    FROM (${microRegionsSql(regionsTable, keyPrefix)}) t(
+    FROM (${microRegionsSql(regionsTable, keyPrefix, kind)}) t(
       key, kind, area_deg, mic_radius_deg, thinness_ratio, near_length_m,
       unit_a, unit_b, fixed, reason, geom, xmin, ymin, xmax, ymax)
   `);

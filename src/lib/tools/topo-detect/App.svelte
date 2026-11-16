@@ -101,6 +101,7 @@
     gap: MAP_COLORS.gap,
     "micro-polygon": MAP_COLORS.micro,
     notch: MAP_COLORS.notch,
+    "sliver-gap": MAP_COLORS.gap,
   };
 
   function describe(key: string): FeatureInfo | null {

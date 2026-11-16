@@ -6,6 +6,7 @@ import {
   DETACHED_MERGE_MAX_RATIO,
   DETACHED_MIN_NECK_RATIO,
   NODING_FALLBACK_GRID,
+  SLIVER_GAP_MAX_RATIO,
   SNAP_TOLERANCE,
 } from "./constants";
 import { intersectPairs } from "./overlap";
@@ -30,19 +31,115 @@ function gapHolesSql(targetTable: string, sourceTable: string, geomExpr: string)
       FROM ${sourceTable} WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
     ),
     parts AS (
-      SELECT (UNNEST(ST_Dump(u))).geom AS poly
-      FROM union_cte WHERE u IS NOT NULL
+      SELECT row_number() OVER () AS pid, poly, ${bboxColumnsSql("poly")}
+      FROM (SELECT (UNNEST(ST_Dump(u))).geom AS poly FROM union_cte WHERE u IS NOT NULL)
     ),
     holes AS (
+      SELECT row_number() OVER () AS hid, pid, geom, ${bboxColumnsSql("geom")}
+      FROM (
+        SELECT pid, UNNEST(ST_Dump(
+          ST_Difference(ST_MakePolygon(ST_ExteriorRing(poly)), poly)
+        )).geom AS geom
+        FROM parts WHERE ST_NumInteriorRings(poly) > 0
+      )
+      WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+    ),
+    -- The outline of another union part inside a hole (an enclave) is not gap area.
+    inside AS (
+      SELECT h.hid, ST_Union_Agg(ST_MakePolygon(ST_ExteriorRing(p.poly))) AS g
+      FROM holes h
+      JOIN parts p ON p.pid != h.pid
+       AND p.xmin >= h.xmin AND p.xmax <= h.xmax AND p.ymin >= h.ymin AND p.ymax <= h.ymax
+       AND ST_Intersects(p.poly, h.geom)
+      GROUP BY h.hid
+    ),
+    cut AS (
       SELECT UNNEST(ST_Dump(
-        ST_Difference(ST_MakePolygon(ST_ExteriorRing(poly)), poly)
+        CASE WHEN i.g IS NULL THEN h.geom ELSE ST_Difference(h.geom, i.g) END
       )).geom AS geom
-      FROM parts WHERE ST_NumInteriorRings(poly) > 0
+      FROM holes h LEFT JOIN inside i USING (hid)
     )
     SELECT row_number() OVER (ORDER BY hash(geom)) AS n, geom
-    FROM holes
-    WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+    FROM cut
+    WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom) AND ST_Dimension(geom) = 2
   `;
+}
+
+// Merges each sliver gap of `table` (2 * area * vertices / perimeter^2 at most
+// SLIVER_GAP_MAX_RATIO) into its longest-border `where` neighbour; returns the merged count.
+export async function mergeSliverGaps(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  issuesTable: string,
+  where = "TRUE",
+): Promise<number> {
+  const x = (sql: string) => conn.query(sql);
+  const n = async (sql: string) => Number((((await x(sql)).toArray()[0]) as { n: bigint | number }).n);
+  await emptyMicroIssues(conn, issuesTable);
+  const tmp = ["_sliver_holes", "_sliver_gaps", "_sliver_rows", "_sliver_dest", "_sliver_new"];
+  try {
+    await buildGapTable(conn, "_sliver_holes", table);
+    await x(`--sql
+      CREATE OR REPLACE TABLE _sliver_gaps AS
+      SELECT row_number() OVER (ORDER BY hash(geom)) AS gid, geom, ${bboxColumnsSql("geom")}
+      FROM _sliver_holes
+      WHERE 2 * ST_Area(geom) * ST_NPoints(geom) / power(ST_Perimeter(geom), 2) <= ${SLIVER_GAP_MAX_RATIO}
+    `);
+    if ((await n("SELECT count(*) AS n FROM _sliver_gaps")) === 0) return 0;
+    await x(`CREATE OR REPLACE TABLE _sliver_rows AS SELECT row_number() OVER () AS rnid, * FROM ${table}`);
+    await x(`--sql
+      CREATE OR REPLACE TABLE _sliver_dest AS
+      WITH r AS (
+        SELECT rnid, fid, geom, ${bboxColumnsSql("geom")} FROM _sliver_rows
+        WHERE (${where}) AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+      )
+      SELECT g.gid, g.geom, r.rnid, r.fid
+      FROM _sliver_gaps g
+      JOIN r ON ${bboxOverlapSql("r", "g")} AND ST_Intersects(r.geom, g.geom)
+      QUALIFY row_number() OVER (
+        PARTITION BY g.gid
+        ORDER BY ST_Length(ST_Intersection(ST_Boundary(g.geom), r.geom)) DESC, r.fid, r.rnid
+      ) = 1
+    `);
+    // A row whose union with its slivers throws keeps its shape, and those slivers stay gaps.
+    await x(`--sql
+      CREATE OR REPLACE TABLE _sliver_new AS
+      SELECT t.rnid, ST_Union(t.geom, d.g) AS geom
+      FROM _sliver_rows t
+      JOIN (SELECT rnid, ST_Union_Agg(geom) AS g FROM _sliver_dest GROUP BY rnid) d USING (rnid)
+    `).catch(async (e) => {
+      console.warn("sliver gap merge failed; merging row by row:", e);
+      await x(`CREATE OR REPLACE TABLE _sliver_new (rnid BIGINT, geom ${GEOMETRY_TYPE})`);
+      const rnids = (await x("SELECT DISTINCT rnid FROM _sliver_dest ORDER BY 1"))
+        .toArray()
+        .map((r) => Number((r as { rnid: bigint | number }).rnid));
+      for (const rnid of rnids) {
+        await x(`--sql
+          INSERT INTO _sliver_new
+          SELECT ${rnid}, ST_Union(t.geom, (SELECT ST_Union_Agg(geom) FROM _sliver_dest WHERE rnid = ${rnid}))
+          FROM _sliver_rows t WHERE t.rnid = ${rnid}
+        `).catch((err) => console.warn(`sliver gap merge into row ${rnid} failed:`, err));
+      }
+    });
+    await x(`--sql
+      CREATE OR REPLACE TABLE ${issuesTable} AS
+      SELECT 'sliver-gap-' || d.gid AS key, 'sliver-gap' AS kind, d.fid AS unit_a,
+             NULL::BIGINT AS unit_b, '${MICRO_MERGED_REASON}' AS reason,
+             ST_Area(d.geom) * ${degSqToM2(1).toExponential()} AS area_m2,
+             (ST_MaximumInscribedCircle(d.geom)).radius * 2 * ${degToM(1).toExponential()} AS max_width_m,
+             TRUE AS fixed, d.geom, ${bboxColumnsSql("d.geom")}
+      FROM _sliver_dest d SEMI JOIN _sliver_new USING (rnid) ORDER BY d.gid
+    `);
+    await x(`--sql
+      CREATE OR REPLACE TABLE ${table} AS
+      SELECT t.* EXCLUDE (rnid, geom), coalesce(m.geom, t.geom) AS geom
+      FROM _sliver_rows t LEFT JOIN _sliver_new m USING (rnid)
+      ORDER BY t.rnid
+    `);
+    return n(`SELECT count(*) AS n FROM ${issuesTable}`);
+  } finally {
+    for (const t of tmp) await x(`DROP TABLE IF EXISTS ${t}`);
+  }
 }
 
 // Gap regions = interior rings of the union of sourceTable's polygons, written

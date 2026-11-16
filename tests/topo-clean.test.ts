@@ -94,7 +94,7 @@ test("full run", async () => {
   expect(await scalar("SELECT count(*)::INT FROM '_export.parquet'")).toBe(SYNTHETIC.length);
   expect(
     new Set((await rows<{ kind: string }>("SELECT DISTINCT kind FROM _issues")).map((r) => r.kind)),
-  ).toEqual(new Set(["gap", "overlap"]));
+  ).toEqual(new Set(["gap", "overlap", "sliver-gap"]));
 });
 
 test("closes a notch", async () => {

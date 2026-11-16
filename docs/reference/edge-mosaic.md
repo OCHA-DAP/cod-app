@@ -37,7 +37,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
 ## Cleaning
 
 - By default, `edge-mosaic` MUST merge micro-polygons in the clipped result,
-  then run one gated coverage clean over it.
+  then run one gated coverage clean over it, then merge its sliver gaps.
 - With the clean skipped, `edge-mosaic` MUST merge micro-polygons only.
 
 ## Outputs
@@ -51,7 +51,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   identified by its own fid (kind `unassigned` when no overlay polygon won,
   `clip-empty` when its clip came out empty), every merged or kept
   clip-detached piece (`detached-part`), every merged or dropped
-  micro-polygon (`micro-polygon`), every `invalid-edge` pair, every piece of
+  micro-polygon (`micro-polygon`), every merged sliver gap (`sliver-gap`),
+  every `invalid-edge` pair, every piece of
   the winning overlay polygon that no output row covers and wider than
   `SNAP_TOLERANCE` (`gap`, with its `overlay_fid`, in both clean modes), and any
   `code-mismatch`/`code-fallback` rows from a code-based assignment
