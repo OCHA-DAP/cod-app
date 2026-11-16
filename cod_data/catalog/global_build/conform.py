@@ -90,8 +90,14 @@ def units(source: str, n: int, iso3: str) -> str:
     """SQL of the source's level-n rows for iso3 in the unit schema, filler rows dropped."""
     c = COLUMNS[source]
     src = next(s for s in BOUNDARY_SOURCES if s.name == source)
-    junk = junk_filter(src, n)
-    where = f"{'AND' if junk else 'WHERE'} {c.iso3} = '{iso3}'"
+    rows = f"{layer(source, n)} WHERE {c.iso3} = '{iso3}'"
+    junk = junk_filter(src, n).removeprefix("WHERE ")
+    # Filler that is a level's only unit is the territory itself (WFP PRI's adm1).
+    where = (
+        f"WHERE {c.iso3} = '{iso3}' AND ({junk} OR NOT EXISTS (SELECT 1 FROM {rows} AND {junk}))"
+        if junk
+        else f"WHERE {c.iso3} = '{iso3}'"
+    )
     alts = [f"{_sql(a, n)}::VARCHAR AS name{i}" for i, a in enumerate(c.alts, 1)]
     alts += [f"NULL::VARCHAR AS name{i}" for i in range(len(c.alts) + 1, 4)]
     langs = c.langs or erm_langs(iso3)
@@ -110,7 +116,7 @@ def units(source: str, n: int, iso3: str) -> str:
             nullif(trim({_sql(c.name, n)}::VARCHAR), '') AS name, {", ".join(alts)},
             nullif(trim({_sql(c.srcid, n)}::VARCHAR), '') AS srcid,
             nullif(trim({_sql(c.type, n)}::VARCHAR), '') AS type, {lang}, geometry
-        FROM {layer(source, n)} {junk} {where}
+        FROM {layer(source, n)} {where}
     """
 
 
