@@ -86,8 +86,8 @@ def _sql(template: str, n: int) -> str:
     return template.replace("{n}", str(n)).replace("{p}", str(n - 1))
 
 
-def units(source: str, n: int, iso3: str) -> str:
-    """SQL of the source's level-n rows for iso3 in the unit schema, filler rows dropped."""
+def units(source: str, n: int, iso3: str, top: int = 1) -> str:
+    """Source level-n rows for iso3 in the unit schema, filler dropped; level top has no parent."""
     c = COLUMNS[source]
     src = next(s for s in BOUNDARY_SOURCES if s.name == source)
     junk = junk_filter(src, n)
@@ -99,12 +99,12 @@ def units(source: str, n: int, iso3: str) -> str:
         f"{v}::VARCHAR AS {x}"
         for v, x in zip(langs, ("lang", "lang1", "lang2", "lang3"), strict=True)
     )
-    parent = f"{_sql(c.parent, n)}::VARCHAR" if n > 1 else "NULL::VARCHAR"
+    parent = f"{_sql(c.parent, n)}::VARCHAR" if n > top else "NULL::VARCHAR"
     uid = f"{_sql(c.id, n)}::VARCHAR"
     if c.chain:
-        path = [f"{_sql(c.id, k)}::VARCHAR" for k in range(1, n + 1)]
+        path = [f"{_sql(c.id, k)}::VARCHAR" for k in range(top, n + 1)]
         uid = f"concat_ws('/', {', '.join(path)})"
-        parent = f"concat_ws('/', {', '.join(path[:-1])})" if n > 1 else parent
+        parent = f"concat_ws('/', {', '.join(path[:-1])})" if n > top else parent
     return f"""
         SELECT {uid} AS id, {parent} AS parent,
             nullif(trim({_sql(c.name, n)}::VARCHAR), '') AS name, {", ".join(alts)},
@@ -114,24 +114,29 @@ def units(source: str, n: int, iso3: str) -> str:
     """
 
 
-def depth(con: duckdb.DuckDBPyConnection, source: str, iso3: str) -> int:
-    """Deepest level with more units than the one above and FULL_COVER of level 1's area."""
-    stats = {
-        n: con.execute(
-            f"SELECT count(DISTINCT id), coalesce(sum(ST_Area(geometry)), 0) FROM ({units(source, n, iso3)})"
+def depth(con: duckdb.DuckDBPyConnection, source: str, iso3: str) -> tuple[int, int]:
+    """(top, deepest): top is the first source level with units once filler is dropped, deepest
+    has more units than the level above and FULL_COVER of top's area."""
+    stats = {}
+    for n in SOURCE_LEVELS[source]:
+        top = min(stats, default=n)
+        stats[n] = con.execute(
+            "SELECT count(DISTINCT id), coalesce(sum(ST_Area(geometry)), 0) "
+            f"FROM ({units(source, n, iso3, top)})"
         ).fetchall()[0]
-        for n in SOURCE_LEVELS[source]
-    }
-    if not stats[1][0]:
-        raise ValueError(f"{iso3}: {source} has no level-1 units")
+        if not stats[n][0] and n == top:
+            del stats[n]
+    if not stats:
+        raise ValueError(f"{iso3}: {source} has no units")
+    top = min(stats)
     full = [
         n
         for n, (count, area) in stats.items()
         if count
-        and area >= FULL_COVER * stats[1][1]
-        and (n == 1 or count > stats[n - 1][0])
+        and area >= FULL_COVER * stats[top][1]
+        and (n == top or count > stats[n - 1][0])
     ]
-    return max(full)
+    return top, max(full)
 
 
 def _key(alias: str) -> str:
@@ -143,10 +148,10 @@ def _key(alias: str) -> str:
     return " || chr(31) || ".join([*parts, f"{alias}.id"])
 
 
-def stage_sql(source: str, iso3: str, lvl: int, adm0_name: str) -> str:
-    """One row per level-lvl unit with every level's columns, adm{n}_pcode holding its sort key."""
+def stage_sql(source: str, iso3: str, top: int, lvl: int, adm0_name: str) -> str:
+    """One row per level-lvl unit, source level top as adm1, adm{n}_pcode holding its sort key."""
     ctes = []
-    for n in range(1, lvl + 1):
+    for n in range(top, lvl + 1):
         geom = "ST_Union_Agg(geometry)" if n == lvl else "NULL::GEOMETRY"
         attrs = ", ".join(
             f"any_value({c}) AS {c}"
@@ -166,25 +171,27 @@ def stage_sql(source: str, iso3: str, lvl: int, adm0_name: str) -> str:
         )
         ctes.append(
             f"u{n} AS (SELECT id, {attrs}, count(DISTINCT parent) AS parents, "
-            f"{geom} AS geometry FROM ({units(source, n, iso3)}) GROUP BY id)"
+            f"{geom} AS geometry FROM ({units(source, n, iso3, top)}) GROUP BY id)"
         )
     joins = " ".join(
-        f"LEFT JOIN u{n} ON u{n + 1}.parent = u{n}.id" for n in range(lvl - 1, 0, -1)
+        f"LEFT JOIN u{n} ON u{n + 1}.parent = u{n}.id"
+        for n in range(lvl - 1, top - 1, -1)
     )
     cols = [f"'{adm0_name.replace(chr(39), chr(39) * 2)}' AS adm0_name"]
-    for n in range(1, lvl + 1):
+    for n in range(top, lvl + 1):
+        k = n - top + 1
         cols += [
-            f"u{n}.name AS adm{n}_name",
-            *(f"u{n}.name{i} AS adm{n}_name{i}" for i in (1, 2, 3)),
-            f"{_key(f'u{n}')} AS adm{n}_pcode",
-            f"u{n}.srcid AS adm{n}_srcid",
-            f"u{n}.type AS adm{n}_type",
-            f"u{n}.id AS _id{n}",
-            f"u{n}.parents AS _parents{n}",
+            f"u{n}.name AS adm{k}_name",
+            *(f"u{n}.name{i} AS adm{k}_name{i}" for i in (1, 2, 3)),
+            f"{_key(f'u{n}')} AS adm{k}_pcode",
+            f"u{n}.srcid AS adm{k}_srcid",
+            f"u{n}.type AS adm{k}_type",
+            f"u{n}.id AS _id{k}",
+            f"u{n}.parents AS _parents{k}",
         ]
     cols += [f"u{lvl}.{x}" for x in ("lang", "lang1", "lang2", "lang3")]
     return f"""
         WITH {", ".join(ctes)}
-        SELECT {", ".join(cols)}, {lvl} AS src_lvl, u{lvl}.geometry
+        SELECT {", ".join(cols)}, {lvl - top + 1} AS src_lvl, u{lvl}.geometry
         FROM u{lvl} {joins}
     """
