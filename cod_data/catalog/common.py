@@ -123,7 +123,8 @@ def junk_filter(src: BoundarySource, level: int) -> str:
     if not src.junk_field:
         return ""
     quoted = ", ".join("'" + v.replace("'", "''") + "'" for v in src.junk_values)
-    return f"WHERE {src.junk_field.replace('{level}', str(level))} NOT IN ({quoted})"
+    field = src.junk_field.replace("{level}", str(level))
+    return f"WHERE coalesce({field} NOT IN ({quoted}), true)"
 
 
 def item_dir(name: str) -> Path:
