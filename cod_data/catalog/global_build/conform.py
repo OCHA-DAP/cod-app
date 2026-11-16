@@ -154,10 +154,15 @@ def depth(con: duckdb.DuckDBPyConnection, source: str, iso3: str) -> int:
 
 
 def _key(alias: str) -> str:
-    """Spec sort cascade as one text key: srcid, name, name1..3 (nulls last), then id."""
+    """Spec sort cascade as one text key: srcid (digit-only by value), name, name1..3, nulls last, then id."""
+    s = f"{alias}.srcid"
+    padded = f"CASE WHEN regexp_full_match({s}, '[0-9]+') THEN lpad({s}, greatest(20, length({s}))::INT, '0') ELSE {s} END"
     parts = [
-        f"(({alias}.{c}) IS NULL)::INT::VARCHAR || coalesce({alias}.{c}, '')"
-        for c in ("srcid", "name", "name1", "name2", "name3")
+        f"(({v}) IS NULL)::INT::VARCHAR || coalesce({v}, '')"
+        for v in (
+            padded,
+            *(f"{alias}.{c}" for c in ("name", "name1", "name2", "name3")),
+        )
     ]
     return " || chr(31) || ".join([*parts, f"{alias}.id"])
 
