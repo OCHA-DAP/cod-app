@@ -140,8 +140,8 @@ def units(source: str, n: int, iso3: str) -> str:
 
 def depth(con: duckdb.DuckDBPyConnection, source: str, iso3: str) -> int:
     """Deepest level with more units than the one above and FULL_COVER of level 1's area."""
-    if iso3 in DEPTH:
-        return DEPTH[iso3]
+    if (iso3, source) in DEPTH:
+        return DEPTH[iso3, source]
     stats = {
         n: con.execute(
             f"SELECT count(DISTINCT id), coalesce(sum(ST_Area(geometry)), 0) FROM ({units(source, n, iso3)})"

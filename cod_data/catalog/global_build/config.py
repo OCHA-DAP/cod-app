@@ -19,8 +19,8 @@ CODE_FIELD = "adm{n}_pcode"
 MATCH_KEY = "match_key"
 # Share of the level-1 area a level must cover to count as the source's depth.
 FULL_COVER = 0.99
-# Depth per iso3 where the deeper level leaves out only a lake or salt flat, which edge-extend fills.
-DEPTH = {"ARM": 2, "BOL": 3, "MWI": 3, "RWA": 3}
+# Depth per (iso3, source) where the deeper level leaves out only a lake or salt flat, which edge-extend fills.
+DEPTH = {("ARM", "ocha"): 2, ("BOL", "ocha"): 3, ("MWI", "ocha"): 3, ("RWA", "wfp"): 3}
 
 # ADM0 candidates in adm0-app's catalog: file, iso3, row name.
 ADM0_LAYERS = {

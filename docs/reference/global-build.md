@@ -25,7 +25,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   else after the ADM0 layer's location.
 - Units with no name MUST be kept, and counted in the run report.
 - A location's depth MUST be its deepest level with more units than the
-  level above and at least 99% of level 1's area (`FULL_COVER`). For an
+  level above and at least 99% of level 1's area (`FULL_COVER`), unless
+  `DEPTH` sets it for that location and source. For an
   OCHA pick it MUST NOT exceed the deepest level that has a cod-ab extended
   layer, and only units in that layer MUST be kept.
 - `lang` MUST come from the source for OCHA, from the subnational layers
