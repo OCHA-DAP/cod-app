@@ -6,6 +6,7 @@ import {
   DETACHED_MERGE_MAX_RATIO,
   DETACHED_MIN_NECK_RATIO,
   NODING_FALLBACK_GRID,
+  SLIVER_GAP_MAX_RATIO,
   SNAP_TOLERANCE,
 } from "./constants";
 import { intersectPairs } from "./overlap";
@@ -30,39 +31,118 @@ function gapHolesSql(targetTable: string, sourceTable: string, geomExpr: string)
       FROM ${sourceTable} WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
     ),
     parts AS (
-      SELECT (UNNEST(ST_Dump(u))).geom AS poly
-      FROM union_cte WHERE u IS NOT NULL
+      SELECT row_number() OVER () AS pid, poly, ${bboxColumnsSql("poly")}
+      FROM (SELECT (UNNEST(ST_Dump(u))).geom AS poly FROM union_cte WHERE u IS NOT NULL)
     ),
     holes AS (
+      SELECT row_number() OVER () AS hid, pid, geom, ${bboxColumnsSql("geom")}
+      FROM (
+        SELECT pid, UNNEST(ST_Dump(
+          ST_Difference(ST_MakePolygon(ST_ExteriorRing(poly)), poly)
+        )).geom AS geom
+        FROM parts WHERE ST_NumInteriorRings(poly) > 0
+      )
+      WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+    ),
+    -- The outline of another union part inside a hole (an enclave) is not gap area.
+    inside AS (
+      SELECT h.hid, ST_Union_Agg(ST_MakePolygon(ST_ExteriorRing(p.poly))) AS g
+      FROM holes h
+      JOIN parts p ON p.pid != h.pid
+       AND p.xmin >= h.xmin AND p.xmax <= h.xmax AND p.ymin >= h.ymin AND p.ymax <= h.ymax
+       AND ST_Intersects(p.poly, h.geom)
+      GROUP BY h.hid
+    ),
+    cut AS (
       SELECT UNNEST(ST_Dump(
-        ST_Difference(ST_MakePolygon(ST_ExteriorRing(poly)), poly)
+        CASE WHEN i.g IS NULL THEN h.geom ELSE ST_Difference(h.geom, i.g) END
       )).geom AS geom
-      FROM parts WHERE ST_NumInteriorRings(poly) > 0
+      FROM holes h LEFT JOIN inside i USING (hid)
     )
     SELECT row_number() OVER (ORDER BY hash(geom)) AS n, geom
-    FROM holes
-    WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+    FROM cut
+    WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom) AND ST_Dimension(geom) = 2
   `;
 }
 
-// Drops gap regions whose interior point lies outside every clip target: an
-// overlay hole or another overlay feature's territory, not a gap to fill.
-export async function dropGapsOutsideTargets(
+// Merges each sliver gap of `table` (2 * area * vertices / perimeter^2 at most
+// SLIVER_GAP_MAX_RATIO) into its longest-border `where` neighbour; returns the merged count.
+export async function mergeSliverGaps(
   conn: AsyncDuckDBConnection,
-  regionsTable: string,
-  targetsSql: string,
-): Promise<void> {
-  await conn.query(`--sql
-    DELETE FROM ${regionsTable} WHERE n NOT IN (
-      WITH probes AS (
-        SELECT n, ST_PointOnSurface(geom) AS p FROM ${regionsTable}
-      ),
-      pb AS (SELECT n, p, ${bboxColumnsSql("p")} FROM probes),
-      t AS (SELECT geom, ${bboxColumnsSql("geom")} FROM (${targetsSql}))
-      SELECT DISTINCT pb.n FROM pb JOIN t
-        ON ${bboxOverlapSql("pb", "t")} AND ST_Intersects(t.geom, pb.p)
-    )
-  `);
+  table: string,
+  issuesTable: string,
+  where = "TRUE",
+): Promise<number> {
+  const x = (sql: string) => conn.query(sql);
+  const n = async (sql: string) =>
+    Number(((await x(sql)).toArray()[0] as { n: bigint | number }).n);
+  await emptyMicroIssues(conn, issuesTable);
+  const tmp = ["_sliver_holes", "_sliver_gaps", "_sliver_rows", "_sliver_dest", "_sliver_new"];
+  try {
+    await buildGapTable(conn, "_sliver_holes", table);
+    await x(`--sql
+      CREATE OR REPLACE TABLE _sliver_gaps AS
+      SELECT row_number() OVER (ORDER BY hash(geom)) AS gid, geom, ${bboxColumnsSql("geom")}
+      FROM _sliver_holes
+      WHERE 2 * ST_Area(geom) * ST_NPoints(geom) / power(ST_Perimeter(geom), 2) <= ${SLIVER_GAP_MAX_RATIO}
+    `);
+    if ((await n("SELECT count(*) AS n FROM _sliver_gaps")) === 0) return 0;
+    await x(
+      `CREATE OR REPLACE TABLE _sliver_rows AS SELECT row_number() OVER () AS rnid, * FROM ${table}`,
+    );
+    await x(`--sql
+      CREATE OR REPLACE TABLE _sliver_dest AS
+      WITH r AS (
+        SELECT rnid, fid, geom, ${bboxColumnsSql("geom")} FROM _sliver_rows
+        WHERE (${where}) AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+      )
+      SELECT g.gid, g.geom, r.rnid, r.fid
+      FROM _sliver_gaps g
+      JOIN r ON ${bboxOverlapSql("r", "g")} AND ST_Intersects(r.geom, g.geom)
+      QUALIFY row_number() OVER (
+        PARTITION BY g.gid
+        ORDER BY ST_Length(ST_Intersection(ST_Boundary(g.geom), r.geom)) DESC, r.fid, r.rnid
+      ) = 1
+    `);
+    // A row whose union with its slivers throws keeps its shape, and those slivers stay gaps.
+    await x(`--sql
+      CREATE OR REPLACE TABLE _sliver_new AS
+      SELECT t.rnid, ST_Union(t.geom, d.g) AS geom
+      FROM _sliver_rows t
+      JOIN (SELECT rnid, ST_Union_Agg(geom) AS g FROM _sliver_dest GROUP BY rnid) d USING (rnid)
+    `).catch(async (e) => {
+      console.warn("sliver gap merge failed; merging row by row:", e);
+      await x(`CREATE OR REPLACE TABLE _sliver_new (rnid BIGINT, geom ${GEOMETRY_TYPE})`);
+      const rnids = (await x("SELECT DISTINCT rnid FROM _sliver_dest ORDER BY 1"))
+        .toArray()
+        .map((r) => Number((r as { rnid: bigint | number }).rnid));
+      for (const rnid of rnids) {
+        await x(`--sql
+          INSERT INTO _sliver_new
+          SELECT ${rnid}, ST_Union(t.geom, (SELECT ST_Union_Agg(geom) FROM _sliver_dest WHERE rnid = ${rnid}))
+          FROM _sliver_rows t WHERE t.rnid = ${rnid}
+        `).catch((err) => console.warn(`sliver gap merge into row ${rnid} failed:`, err));
+      }
+    });
+    await x(`--sql
+      CREATE OR REPLACE TABLE ${table} AS
+      SELECT t.* EXCLUDE (rnid, geom), coalesce(m.geom, t.geom) AS geom
+      FROM _sliver_rows t LEFT JOIN _sliver_new m USING (rnid)
+      ORDER BY t.rnid
+    `);
+    await x(`--sql
+      CREATE OR REPLACE TABLE ${issuesTable} AS
+      SELECT 'sliver-gap-' || d.gid AS key, 'sliver-gap' AS kind, d.fid AS unit_a,
+             NULL::BIGINT AS unit_b, '${MICRO_MERGED_REASON}' AS reason,
+             ST_Area(d.geom) * ${degSqToM2(1).toExponential()} AS area_m2,
+             (ST_MaximumInscribedCircle(d.geom)).radius * 2 * ${degToM(1).toExponential()} AS max_width_m,
+             TRUE AS fixed, d.geom, ${bboxColumnsSql("d.geom")}
+      FROM _sliver_dest d SEMI JOIN _sliver_new USING (rnid) ORDER BY d.gid
+    `);
+    return n(`SELECT count(*) AS n FROM ${issuesTable}`);
+  } finally {
+    for (const t of tmp) await x(`DROP TABLE IF EXISTS ${t}`);
+  }
 }
 
 // Gap regions = interior rings of the union of sourceTable's polygons, written
@@ -94,7 +174,7 @@ export async function buildGapTable(
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${targetTable} AS
       WITH pts AS (
-        SELECT n, geom, ST_PointOnSurface(geom) AS p FROM ${holes}
+        SELECT n, geom, (ST_MaximumInscribedCircle(geom)).center AS p FROM ${holes}
       ),
       probes AS (
         SELECT n, p, ST_X(p) AS xmin, ST_X(p) AS xmax, ST_Y(p) AS ymin, ST_Y(p) AS ymax
@@ -158,7 +238,10 @@ export function isMicroSql(geom: string, width: number = SNAP_TOLERANCE): string
 export async function checkNoOverlaps(
   conn: AsyncDuckDBConnection,
   table: string,
-  { groupColumn = "fid", minWidth = SNAP_TOLERANCE }: { groupColumn?: string; minWidth?: number } = {},
+  {
+    groupColumn = "fid",
+    minWidth = SNAP_TOLERANCE,
+  }: { groupColumn?: string; minWidth?: number } = {},
 ): Promise<void> {
   const tmp = `${table}_tmp1`;
   await conn.query(`--sql
@@ -372,6 +455,8 @@ export interface DetachedPartsOptions {
   overlaySql: string; // SELECT geom: the one overlay feature they were clipped to
   overlayFid: number;
   originalTable: string | null; // pre-extension layer (fid, geom), when known
+  // originalTable's column pairing each row with one input fid; NULL rows fall back to a point test.
+  originalOwner?: string | null;
   issuesTable: string;
 }
 
@@ -422,6 +507,7 @@ export async function mergeDetachedParts(
   opts: DetachedPartsOptions,
 ): Promise<number> {
   const { preClipSql, overlaySql, overlayFid, originalTable, issuesTable } = opts;
+  const originalOwner = opts.originalOwner ?? null;
   const multi = await conn.query(
     `SELECT COUNT(*) AS n FROM ${tableIn} WHERE ST_NumGeometries(geom) > 1`,
   );
@@ -490,7 +576,7 @@ export async function mergeDetachedParts(
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${pts} AS
       SELECT pid, fid, pt, ST_X(pt) AS px, ST_Y(pt) AS py
-      FROM (SELECT pid, fid, ST_PointOnSurface(geom) AS pt FROM ${parts} WHERE multi)
+      FROM (SELECT pid, fid, (ST_MaximumInscribedCircle(geom)).center AS pt FROM ${parts} WHERE multi)
     `);
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${q} AS
@@ -503,7 +589,13 @@ export async function mergeDetachedParts(
     if (originalTable === null) {
       await conn.query(`CREATE OR REPLACE TABLE ${group} AS SELECT *, TRUE AS on_src FROM ${q}`);
     } else {
-      await groupOnOriginal(conn, issuesTable, originalTable, { parts, pre, pts, q, group });
+      await groupOnOriginal(conn, issuesTable, originalTable, originalOwner, {
+        parts,
+        pre,
+        pts,
+        q,
+        group,
+      });
     }
     // Per pre-clip part, the largest piece on the original footprint is kept,
     // so an extension-only piece never outranks a unit's real footprint.
@@ -627,6 +719,7 @@ async function groupOnOriginal(
   conn: AsyncDuckDBConnection,
   prefix: string,
   originalTable: string,
+  originalOwner: string | null,
   tables: { parts: string; pre: string; pts: string; q: string; group: string },
 ): Promise<void> {
   const { parts, pre, pts, q, group } = tables;
@@ -645,7 +738,7 @@ async function groupOnOriginal(
       FROM ${parts} p JOIN ${q} q USING (pid)
       WHERE q.qid IN (SELECT qid FROM ${q} GROUP BY qid HAVING count(*) > 1)
     `);
-    await loadOwnedOriginal(conn, originalTable, split, pre, oparts);
+    await loadOwnedOriginal(conn, originalTable, originalOwner, split, pre, oparts);
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${onsrc} AS
       SELECT DISTINCT s.id AS pid
@@ -681,12 +774,12 @@ async function groupOnOriginal(
   }
 }
 
-// Writes `oparts` (id, fid, geom, bbox): original parts near a probe, each
-// owned by the pre-clip part holding its feature's interior point, so no key
-// column is shared with the input.
+// Writes `oparts` (id, fid, geom, bbox): original parts near a probe, each owned by
+// the pre-clip part holding its feature's interior point, limited to its originalOwner fid.
 async function loadOwnedOriginal(
   conn: AsyncDuckDBConnection,
   originalTable: string,
+  originalOwner: string | null,
   probeTable: string,
   pre: string,
   oparts: string,
@@ -694,9 +787,13 @@ async function loadOwnedOriginal(
   const tol = SNAP_TOLERANCE;
   await conn.query(`--sql
     CREATE OR REPLACE TABLE ${oparts} AS
-    WITH o AS (SELECT geom, ${bboxColumnsSql()} FROM ${originalTable} WHERE geom IS NOT NULL),
+    WITH o AS (
+      SELECT geom, ${originalOwner ? `"${originalOwner}"` : "NULL::BIGINT"} AS owner_fid,
+             ${bboxColumnsSql()}
+      FROM ${originalTable} WHERE geom IS NOT NULL
+    ),
     near AS (
-      SELECT row_number() OVER () AS oid, geom FROM o
+      SELECT row_number() OVER () AS oid, geom, owner_fid FROM o
       WHERE EXISTS (
         SELECT 1 FROM ${probeTable} p
         WHERE p.xmin - ${tol} <= o.xmax AND p.xmax + ${tol} >= o.xmin
@@ -704,13 +801,14 @@ async function loadOwnedOriginal(
       )
     ),
     pos AS (
-      SELECT oid, pt, ST_X(pt) AS px, ST_Y(pt) AS py
-      FROM (SELECT oid, ST_PointOnSurface(geom) AS pt FROM near)
+      SELECT oid, owner_fid, pt, ST_X(pt) AS px, ST_Y(pt) AS py
+      FROM (SELECT oid, owner_fid, (ST_MaximumInscribedCircle(geom)).center AS pt FROM near)
     ),
     owner AS (
       SELECT f.oid, q.fid FROM pos f JOIN ${pre} q
         ON q.xmin <= f.px AND q.xmax >= f.px
        AND q.ymin <= f.py AND q.ymax >= f.py AND ST_Intersects(q.geom, f.pt)
+       AND (f.owner_fid IS NULL OR q.fid = f.owner_fid)
       QUALIFY row_number() OVER (PARTITION BY f.oid ORDER BY q.qid) = 1
     ),
     dumped AS (

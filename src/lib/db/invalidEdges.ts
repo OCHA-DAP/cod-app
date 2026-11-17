@@ -5,9 +5,98 @@ import { nearPartPairs } from "./gridPairs";
 
 export const INVALID_EDGE_REASON = "edges overlap or do not match the neighbouring polygon";
 
+const xySql = (g: string) =>
+  `list_transform(ST_Dump(ST_Points(${g})), lambda x: [ST_X(x.geom), ST_Y(x.geom)])`;
+
+// Segments of `rings` (pid, ..., xy, inside_right) keyed by sorted ends k1/k2; fw is true
+// when the ring's interior is on the right walking from k1 to k2.
+const segmentsSql = (rings: string) => `(
+  WITH s AS (
+    SELECT * EXCLUDE (xy, i), xy[i] AS p, xy[i + 1] AS q
+    FROM (SELECT *, UNNEST(range(1, len(xy))) AS i FROM ${rings})
+  )
+  SELECT * EXCLUDE (p, q, inside_right), least(p, q) AS k1, greatest(p, q) AS k2,
+         (p < q) = inside_right AS fw
+  FROM s WHERE p != q
+)`;
+
+// Drops _ie_edges segments a third part matches with its interior opposite: GEOS skips
+// such a segment, so only a pair checked without that part flags it.
+async function dropSharedSegments(conn: AsyncDuckDBConnection): Promise<void> {
+  const x = (sql: string) => conn.query(sql);
+  const before = (await x("SELECT count(*) AS n FROM _ie_edges")).toArray()[0] as { n: bigint | number };
+  if (Number(before.n) === 0) return;
+  const flagged = `(
+    SELECT pid, near_pid, ${xySql("g")} AS xy, TRUE AS inside_right
+    FROM (SELECT pid, near_pid, UNNEST(ST_Dump(geom)).geom AS g FROM _ie_edges)
+  )`;
+  await x(`--sql
+    CREATE OR REPLACE TABLE _ie_fseg AS
+    SELECT DISTINCT pid, near_pid, k1, k2 FROM ${segmentsSql(flagged)}
+  `);
+  await x(`--sql
+    CREATE OR REPLACE TABLE _ie_scope AS
+    WITH f AS (SELECT DISTINCT pid, near_pid FROM _ie_fseg),
+    ids AS (SELECT pid FROM f UNION SELECT near_pid FROM f),
+    s AS (
+      SELECT pid FROM ids
+      UNION SELECT n.near_pid FROM _ie_near n SEMI JOIN ids USING (pid)
+      UNION SELECT n.pid FROM _ie_near n JOIN ids i ON i.pid = n.near_pid
+    )
+    SELECT pid, sum(n) OVER (ORDER BY pid) // ${CLIP_PAIR_VERTEX_BUDGET} AS batch
+    FROM _ie_parts SEMI JOIN s USING (pid)
+  `);
+  await x("CREATE OR REPLACE TABLE _ie_pseg (pid BIGINT, k1 DOUBLE[], k2 DOUBLE[], fw BOOLEAN)");
+  const batches = (await x("SELECT DISTINCT batch FROM _ie_scope ORDER BY 1"))
+    .toArray()
+    .map((r) => Number((r as { batch: bigint | number }).batch));
+  for (const batch of batches) {
+    // Interior is on the right of a clockwise (positive shoelace) exterior ring and of a counter-clockwise hole.
+    const rings = `(
+      SELECT pid, xy, (len(path) = 0 OR path[1] = 1) = (list_sum(list_transform(
+               range(1, len(xy)),
+               lambda i: (xy[i + 1][1] - xy[i][1]) * (xy[i + 1][2] + xy[i][2])
+             )) > 0) AS inside_right
+      FROM (
+        SELECT pid, d.path, ${xySql("d.geom")} AS xy
+        FROM (
+          SELECT pid, UNNEST(ST_Dump(ST_Boundary(geom))) AS d FROM _ie_parts
+          WHERE pid IN (SELECT pid FROM _ie_scope WHERE batch = ${batch})
+        )
+      )
+    )`;
+    await x(`--sql
+      INSERT INTO _ie_pseg BY NAME
+      SELECT pid, k1, k2, fw FROM ${segmentsSql(rings)}
+      SEMI JOIN (SELECT DISTINCT k1, k2 FROM _ie_fseg) USING (k1, k2)
+    `);
+  }
+  await x(`--sql
+    CREATE OR REPLACE TABLE _ie_edges AS
+    WITH o AS (
+      SELECT f.pid, f.near_pid, f.k1, f.k2, o.fw, o.pid IN (f.pid, f.near_pid) AS own
+      FROM _ie_fseg f LEFT JOIN _ie_pseg o ON o.k1 = f.k1 AND o.k2 = f.k2
+    ),
+    m AS (
+      SELECT pid, near_pid, k1, k2,
+             count(*) FILTER (WHERE own) AS n_own,
+             count(*) FILTER (WHERE NOT own) AS n_other,
+             bool_or(fw) FILTER (WHERE own) AS own_fw,
+             bool_or(fw) FILTER (WHERE NOT own) AS other_fw
+      FROM o GROUP BY ALL
+    )
+    SELECT pid, near_pid,
+           ST_LineMerge(ST_Collect(list(ST_MakeLine(ST_Point(k1[1], k1[2]), ST_Point(k2[1], k2[2])))))
+             AS geom
+    FROM m WHERE NOT (n_own = 1 AND n_other = 1 AND own_fw != other_fw)
+    GROUP BY pid, near_pid
+  `);
+  for (const t of ["_ie_fseg", "_ie_scope", "_ie_pseg"]) await x(`DROP TABLE IF EXISTS ${t}`);
+}
+
 // Ported from topo-tools' _invalid_part_pairs without its per-batch time limit (WASM can't
 // interrupt a query): creates _ie_edges (pid, near_pid, geom) from the _ie_parts pairs `on`.
-async function invalidPartPairs(conn: AsyncDuckDBConnection, on: string, first = false): Promise<void> {
+async function invalidPartPairs(conn: AsyncDuckDBConnection, on: string): Promise<void> {
   const x = (sql: string) => conn.query(sql);
   await nearPartPairs(conn, "_ie_parts", "_ie_parts", "_ie_near", { on });
   await x(`--sql
@@ -38,42 +127,7 @@ async function invalidPartPairs(conn: AsyncDuckDBConnection, on: string, first =
       WHERE e IS NOT NULL AND ST_Length(e) > 0
     `);
   }
-  // A pair alone flags edges its other neighbours match; recheck each flagged pair
-  // with every part near either side, keeping only edges along both.
-  const flagged = (await x("SELECT pid, near_pid FROM _ie_edges ORDER BY 1, 2")).toArray() as {
-    pid: bigint | number;
-    near_pid: bigint | number;
-  }[];
-  for (const { pid, near_pid } of flagged) {
-    const [a, b] = [Number(pid), Number(near_pid)];
-    await x(`--sql
-      UPDATE _ie_edges SET geom = (
-        WITH g AS (
-          SELECT geom FROM _ie_parts WHERE pid IN (
-            SELECT ${a} UNION SELECT ${b}
-            UNION SELECT near_pid FROM _ie_near WHERE pid IN (${a}, ${b})
-            UNION SELECT pid FROM _ie_near WHERE near_pid IN (${a}, ${b})
-          )
-        ),
-        e AS (
-          SELECT UNNEST(ST_Dump(ST_CoverageInvalidEdges_Agg(geom, ${SNAP_TOLERANCE}))).geom AS geom FROM g
-        )
-        SELECT CASE WHEN count(*) > 0 THEN ST_Collect(list(e.geom)) END
-        FROM e
-        WHERE ST_Length(e.geom) > 0 AND (
-          SELECT bool_and(ST_DWithin(e.geom, x.geom, ${SNAP_TOLERANCE}))
-          FROM _ie_parts x WHERE x.pid IN (${a}, ${b})
-        )
-      )
-      WHERE pid = ${a} AND near_pid = ${b}
-    `);
-    if (first) {
-      const hit = (await x(`SELECT geom IS NOT NULL AS hit FROM _ie_edges WHERE pid = ${a} AND near_pid = ${b}`))
-        .toArray()[0] as { hit: boolean };
-      if (hit.hit) break;
-    }
-  }
-  await x("DELETE FROM _ie_edges WHERE geom IS NULL");
+  await dropSharedSegments(conn);
 }
 
 async function dropTmp(conn: AsyncDuckDBConnection): Promise<void> {
@@ -124,15 +178,15 @@ export async function invalidEdgeIssues(
   return Number(n.n);
 }
 
-// Ported from topo-tools' has_invalid_edges: true at the first confirmed pair of
-// `table`'s parts with overlapping or unmatched shared edges.
+// Ported from topo-tools' has_invalid_edges: true when any pair of `table`'s parts
+// has overlapping or unmatched shared edges.
 export async function hasInvalidEdges(conn: AsyncDuckDBConnection, table: string): Promise<boolean> {
   await conn.query(`--sql
     CREATE OR REPLACE TABLE _ie_parts AS
     WITH d AS (SELECT UNNEST(ST_Dump(geom)).geom AS geom FROM ${table})
     SELECT row_number() OVER () AS pid, geom, ST_NPoints(geom) AS n, ${bboxColumnsSql("geom")} FROM d
   `);
-  await invalidPartPairs(conn, "l.pid < r.pid", true);
+  await invalidPartPairs(conn, "l.pid < r.pid");
   const r = (await conn.query("SELECT count(*) > 0 AS bad FROM _ie_edges")).toArray()[0] as { bad: boolean };
   await dropTmp(conn);
   return Boolean(r.bad);

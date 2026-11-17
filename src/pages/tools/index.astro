@@ -29,7 +29,6 @@ const nameClean = bySlug("name-clean");
 const nameDetect = bySlug("name-detect");
 const schemaDetect = bySlug("schema-detect");
 const codeDetect = bySlug("code-detect");
-const validate = bySlug("validate");
 ---
 
 <Layout
@@ -95,15 +94,6 @@ const validate = bySlug("validate");
             <Disclosure label="Show 1 individual tool">
               <ToolCard tool={nameDetect} variant="secondary" />
             </Disclosure>
-          </GroupBox>
-        </Step>
-
-        <Step
-          title="Validate"
-          summary="Check the layer's schema, topology, codes and names in one pass before packaging it."
-        >
-          <GroupBox>
-            <ToolCard tool={validate} header />
           </GroupBox>
         </Step>
 

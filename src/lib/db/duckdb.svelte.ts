@@ -73,6 +73,8 @@ export async function initDuckDB(): Promise<void> {
     const c = await instance.connect();
 
     await c.query("SET preserve_insertion_order = false");
+    // Shredded CRS geometry loses rows under a WHERE after a checkpoint (DuckDB 2.0).
+    await c.query("SET geometry_minimum_shredding_size = -1");
     // Cache core's OGC:CRS84 before spatial's PROJ lookup, whose WKT2 export of "CRS84" throws stoi
     // in WASM. Outside an explicit transaction the cast throws an INTERNAL error.
     await c.query("BEGIN");

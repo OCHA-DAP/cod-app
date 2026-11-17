@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { canonicalOrder, siblingName } from "$lib/db/adminColumns";
+import { canonicalOrder, genericFamilies, siblingName } from "$lib/db/adminColumns";
 
 test("orders deepest level first, names before codes", () => {
   const columns = [
@@ -83,3 +83,34 @@ test.todo(
   "output_renames maps templates and siblings (no TS counterpart: py #83 output templates)",
 );
 test.todo("output_renames rejects collision (no TS counterpart: py #83 output templates)");
+
+const plain = (m: Map<string, Map<number, string>>) =>
+  Object.fromEntries([...m].map(([k, v]) => [k, Object.fromEntries(v)]));
+
+test("genericFamilies names families by suffix", () => {
+  const columns = ["adm1_id", "adm1_name", "adm1_name1", "adm1_pcode", "other"];
+  expect(plain(genericFamilies(columns, [1], "adm{n}_name", "adm{n}_id"))).toEqual({
+    id: { 1: "adm1_id" },
+    name: { 1: "adm1_name" },
+    name1: { 1: "adm1_name1" },
+    pcode: { 1: "adm1_pcode" },
+  });
+});
+
+test.each([
+  ["ADM1_pcode", []],
+  ["ADM1_FID", ["fid"]],
+  ["ADM1_", []],
+])("genericFamilies rejects unusable name %s", (extra, reserved) => {
+  const columns = ["ADM1_PCODE", "ADM1_EN", extra as string];
+  expect(() =>
+    genericFamilies(columns, [1], "ADM{n}_EN", "ADM{n}_PCODE", reserved as string[]),
+  ).toThrow("unusable name");
+});
+
+test("genericFamilies falls back to code and name without a suffix", () => {
+  expect(plain(genericFamilies(["GID_1", "NAME_1"], [1], "NAME_{n}", "GID_{n}"))).toEqual({
+    code: { 1: "GID_1" },
+    name: { 1: "NAME_1" },
+  });
+});

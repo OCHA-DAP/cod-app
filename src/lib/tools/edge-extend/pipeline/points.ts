@@ -170,16 +170,17 @@ export async function stagePoints(conn: AsyncDuckDBConnection, distance: number)
       AND abs(ST_X(geom)) != 180 AND abs(ST_Y(geom)) != 90
   `);
 
-  const [beforeFids, afterFids] = await Promise.all([
-    conn.query("SELECT COUNT(DISTINCT fid) AS n FROM layer_03_tmp4"),
-    conn.query("SELECT COUNT(DISTINCT fid) AS n FROM layer_03b"),
-  ]);
-  const nBefore = Number((beforeFids.toArray()[0] as { n: bigint | number }).n);
-  const nAfter = Number((afterFids.toArray()[0] as { n: bigint | number }).n);
-  if (nAfter < nBefore)
-    console.warn(
-      `points: ${nBefore - nAfter} fid(s) lost all points after boundary-zone differencing`,
-    );
+  // An exterior edge within 2x the zone radius is all zone, so may drop entirely.
+  const missing = await conn.query(`--sql
+    SELECT count(*) AS n FROM (
+      SELECT fid FROM layer_02a GROUP BY fid HAVING max(ST_Length(geom)) > ${2 * SNAP_TOLERANCE}
+      EXCEPT
+      SELECT DISTINCT fid FROM layer_03b
+    )
+  `);
+  const nMissing = Number((missing.toArray()[0] as { n: bigint | number }).n);
+  if (nMissing > 0)
+    console.warn(`points: ${nMissing} fid(s) lost all points after boundary-zone differencing`);
   console.log("[EE-DEBUG] points:6 done, dropping tmp tables");
 
   await conn.query("DROP TABLE IF EXISTS layer_03_tmp2");

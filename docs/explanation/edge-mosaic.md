@@ -37,8 +37,9 @@ shared with Edge Matcher. Ported from topo-tools' `edge-mosaic` (its ADR
    clean skipped, only the micro-polygon merge runs.
 5. **Assemble issues** (`pipeline/issues.ts`): `clip-empty`, `unassigned`,
    `detached-part`, `micro-polygon`, `invalid-edge` (edges that still don't
-   match after the clean), `gap` (holes inside the winning overlay polygon,
-   only with the clean) and any `code-mismatch`/`code-fallback` rows, in
+   match after the clean), `gap` (winning overlay polygon area no output row
+   covers, in both clean modes, see
+   [`0056`](../adr/0056-edge-gap-rows-report-uncovered-overlay-area.md)) and any `code-mismatch`/`code-fallback` rows, in
    one report.
 
 ## Why assign-one
@@ -67,7 +68,10 @@ for example where the overlay edge crosses a thin tip. `mergeDetachedParts`
 original footprint, and merges a piece under 1% of it into the neighbour it
 shares the longest edge with, unless the original drew it that way. Mosaic
 needs the optional original layer (the input before extension) for that
-test, and without it only reports such pieces. See `docs/adr/0042` and
+test, and without it only reports such pieces. `pipeline/originals.ts`
+pairs each original row with the input feature sharing its finest-level
+code, so a neighbour's original land can't own a piece; rows without a
+matching code fall back to the interior-point test. See `docs/adr/0042` and
 topo-tools' ADR 0120.
 
 ## Code-based assignment override
@@ -84,7 +88,7 @@ file falls back to the vote when no code matches. See `docs/adr/0029` and
 The clean is one `ST_CoverageClean` over every clipped row, the most
 memory-hungry step for a large layer. The "Skip the final clean" option
 leaves it out, so seams stay in the output and are listed as `invalid-edge`
-issues, and no gap rows are reported.
+issues.
 
 ## Reported, not raised
 

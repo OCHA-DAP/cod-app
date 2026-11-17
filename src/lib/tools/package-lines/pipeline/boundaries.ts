@@ -1,32 +1,42 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { genericFamilies } from "$lib/db/adminColumns";
 import { bboxColumnsSql } from "$lib/db/bbox";
+import { SNAP_TOLERANCE } from "$lib/db/constants";
 import { runDissolveCore } from "$lib/tools/package-polygons/pipeline/dissolveCore";
+import { genericNamesByFamily } from "$lib/tools/schema-map/pipeline/identityNames";
 import {
-  detectLevelColumnsOrSingle,
+  detectLevelsWithRoot,
+  fallbackFamilies,
   groupFamiliesByLevel,
-  levelFamilyNames,
+  levelCodeColumns,
   verifyFunctionalCluster,
 } from "$lib/tools/schema-map/pipeline/levelColumns";
 import type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 
-const EMPTY_LINES = "ST_GeomFromText('MULTILINESTRING EMPTY')";
+// Ports topo-tools' core/package_lines/_02_boundaries.py.
+
+// Grid cell size, in degrees, that boundaries are clipped to before noding.
+export const TILE_DEG = 1.0;
+// Tiles overlap by this much so a line cut at a tile edge still meets its node.
+export const TILE_MARGIN_DEG = 0.00001;
+
 const RESERVED_COLUMNS = new Set(["left_fid", "right_fid", "geom"]);
 
-async function tableColumnSet(conn: AsyncDuckDBConnection, table: string): Promise<Set<string>> {
+type Families = Map<string, Map<number, string>>;
+
+async function tableColumns(conn: AsyncDuckDBConnection, table: string): Promise<string[]> {
   const desc = await conn.query(`DESCRIBE "${table}"`);
-  return new Set((desc.toArray() as Array<{ column_name: string }>).map((r) => r.column_name));
+  return (desc.toArray() as Array<{ column_name: string }>).map((r) => r.column_name);
 }
 
-// codeColumns[i] is non-null here: resolveFinestGroupBy throws on an empty
-// group-by for any level once levels.length > 1.
 function classificationSql(levels: number[], codeColumns: Array<string | null>): string {
   if (levels.length === 1) return String(levels[0]);
   const cases = levels
     .slice(0, -1)
-    .map(
-      (level, i) =>
-        `WHEN l."${codeColumns[i]!}" IS DISTINCT FROM r."${codeColumns[i]!}" THEN ${level} `,
-    )
+    .flatMap((level, i) => {
+      const col = codeColumns[i];
+      return col === null ? [] : [`WHEN l."${col}" IS DISTINCT FROM r."${col}" THEN ${level} `];
+    })
     .join("");
   return `CASE ${cases}ELSE ${levels[levels.length - 1]} END`;
 }
@@ -50,60 +60,82 @@ async function checkEveryFidPresent(
   }
 }
 
-async function resolveFinestGroupBy(
+// The coarsest level if it has one unit (its outline), else one less.
+async function outerDepth(
   conn: AsyncDuckDBConnection,
   table: string,
   levels: number[],
-  schema: TargetSchema | null,
-): Promise<{
-  finestGroupBy: string[];
-  codeColumns: Array<string | null>;
-  targetSchema: TargetSchema | undefined;
-  finestGenerics: Map<string, string | null>;
-}> {
-  const finest = Math.max(...levels);
-
-  if (schema !== null) {
-    const codeColumns = levels.map((n) => schema.codeField.replace("{n}", String(n)));
-    const finestGenerics = new Map<string, string | null>([
-      ["code", codeColumns[codeColumns.length - 1]],
-      ["name", schema.nameField.replace("{n}", String(finest))],
-    ]);
-    return {
-      finestGroupBy: [codeColumns[codeColumns.length - 1]],
-      codeColumns,
-      targetSchema: schema,
-      finestGenerics,
-    };
-  }
-
-  const levelColumns = await detectLevelColumnsOrSingle(conn, table);
-  const multiLevel = levelColumns.size > 1;
-  const safeGroupByByLevel = new Map<number, string[]>();
-  for (const n of levels) {
-    const cols = levelColumns.get(n)!;
-    const identitySet = new Set(cols.identityColumns);
-    const safe = cols.groupBy.filter((c) => identitySet.has(c));
-    if (safe.length === 0 && multiLevel) {
-      throw new Error(`no reliable group-by column detected for level ${n}`);
-    }
-    safeGroupByByLevel.set(n, safe);
-  }
-  const codeColumns = levels.map((n) => safeGroupByByLevel.get(n)![0] ?? null);
-  const finestGroupBy = safeGroupByByLevel.get(finest)!;
-  const finestCode = codeColumns[codeColumns.length - 1];
-  if (finestGroupBy.length > 0 && finestCode !== null) {
-    await verifyFunctionalCluster(conn, table, finestCode, finestGroupBy);
-  }
-
-  const families = await groupFamiliesByLevel(conn, table, levelColumns);
-  const renamed = levelFamilyNames(families, finest, finestCode);
-  const finestGenerics = new Map<string, string | null>(
-    finestGroupBy.map((col) => [renamed.get(col) ?? col, col]),
-  );
-  return { finestGroupBy, codeColumns, targetSchema: undefined, finestGenerics };
+  codeColumns: Array<string | null>,
+): Promise<number> {
+  const code = codeColumns[0];
+  const coarsest = Math.min(...levels);
+  if (code === null) return coarsest;
+  const r = await conn.query(`SELECT COUNT(DISTINCT "${code}") AS n FROM "${table}"`);
+  return Number((r.toArray()[0] as { n: bigint }).n) <= 1 ? coarsest : coarsest - 1;
 }
 
+// Each label's source column per row depth; outer edges use the coarsest.
+function labelColumns(
+  families: Families,
+  levels: number[],
+  codeColumns: Array<string | null>,
+  dissolvedColumns: Set<string>,
+  outer: number,
+): Map<string, Map<number, string>> {
+  const labelLevels = new Map(levels.map((l): [number, number] => [l, l]));
+  labelLevels.set(outer, Math.min(...levels));
+  if (families.size === 0) {
+    const codes = new Map<number, string>();
+    levels.forEach((l, i) => {
+      if (codeColumns[i] !== null) codes.set(l, codeColumns[i]!);
+    });
+    families = new Map([["code", codes]]);
+  }
+  const labels = new Map<string, Map<number, string>>();
+  for (const [generic, perLevel] of families) {
+    const byDepth = new Map<number, string>();
+    for (const [depth, lvl] of labelLevels) {
+      const col = perLevel.get(lvl);
+      if (col !== undefined && dissolvedColumns.has(col)) byDepth.set(depth, col);
+    }
+    if (byDepth.size) labels.set(generic, byDepth);
+  }
+  return labels.size ? labels : new Map([["code", new Map()]]);
+}
+
+// Dissolves at the detected finest level; returns codes, families and the root level.
+async function autoDetect(
+  conn: AsyncDuckDBConnection,
+  tableIn: string,
+  dissolved: string,
+  levels: number[],
+): Promise<[Array<string | null>, Families, number | null]> {
+  const levelColumns = await detectLevelsWithRoot(conn, tableIn);
+  for (const n of levels) {
+    const cols = levelColumns.get(n)!;
+    if (!cols.groupBy.length && levelColumns.size > 1 && !cols.isRoot) {
+      throw new Error(`no reliable group-by column detected for level ${n}`);
+    }
+  }
+  const grouped = await groupFamiliesByLevel(conn, tableIn, levelColumns);
+  let families = grouped.size ? grouped : fallbackFamilies(levelColumns, levels);
+  const codeColumns = levelCodeColumns(levelColumns, families, levels);
+  const finestGroupBy = levelColumns.get(Math.max(...levels))!.groupBy;
+  if (finestGroupBy.length) {
+    await verifyFunctionalCluster(
+      conn,
+      tableIn,
+      codeColumns[codeColumns.length - 1]!,
+      finestGroupBy,
+    );
+  }
+  await runDissolveCore(conn, tableIn, dissolved, { groupBy: finestGroupBy });
+  families = genericNamesByFamily(families, levels, codeColumns);
+  const root = [...levelColumns].find(([, c]) => c.isRoot)?.[0] ?? null;
+  return [codeColumns, families, root];
+}
+
+// Dissolves at the finest level, then extracts and classifies its noded boundary network.
 export async function buildBoundaries(
   conn: AsyncDuckDBConnection,
   tableIn: string,
@@ -111,157 +143,283 @@ export async function buildBoundaries(
   levels: number[],
   schema: TargetSchema | null,
   depthColumn: string,
+  minLevel: number | null = null,
 ): Promise<void> {
   if (RESERVED_COLUMNS.has(depthColumn)) {
     throw new Error(`depthColumn "${depthColumn}" collides with a fixed output column`);
   }
-
-  const { finestGroupBy, codeColumns, targetSchema, finestGenerics } = await resolveFinestGroupBy(
-    conn,
-    tableIn,
-    levels,
-    schema,
-  );
+  if (minLevel !== null && minLevel > Math.max(...levels)) {
+    throw new Error(`no admin level at or above min level ${minLevel}`);
+  }
 
   const dissolved = `${name}_dissolved`;
-  await runDissolveCore(conn, tableIn, dissolved, { groupBy: finestGroupBy, targetSchema });
-
-  const dissolvedColumns = await tableColumnSet(conn, dissolved);
-  for (const [generic, col] of [...finestGenerics]) {
-    if (col === null || !dissolvedColumns.has(col)) finestGenerics.delete(generic);
+  let codeColumns: Array<string | null>;
+  let families: Families;
+  let rootLevel: number | null = null;
+  if (schema !== null) {
+    codeColumns = levels.map((n) => schema.codeField.replace("{n}", String(n)));
+    families = genericFamilies(
+      await tableColumns(conn, tableIn),
+      levels,
+      schema.nameField,
+      schema.codeField,
+    );
+    await runDissolveCore(conn, tableIn, dissolved, {
+      groupBy: [codeColumns[codeColumns.length - 1]!],
+      targetSchema: schema,
+    });
+  } else {
+    [codeColumns, families, rootLevel] = await autoDetect(conn, tableIn, dissolved, levels);
   }
-  if (finestGenerics.size === 0) finestGenerics.set("code", null);
 
+  const dissolvedColumns = new Set(await tableColumns(conn, dissolved));
+  const outer = await outerDepth(conn, tableIn, levels, codeColumns);
+  const labels = labelColumns(families, levels, codeColumns, dissolvedColumns, outer);
+
+  await nodedLines(conn, name, dissolved);
+
+  // A whole-table-constant root never separates two units; a NULL would.
+  const classification = classificationSql(
+    levels,
+    levels.map((n, i) => (n === rootLevel ? null : codeColumns[i])),
+  );
   await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_parts" AS
-    SELECT fid, (dump).geom AS geom, ${bboxColumnsSql("(dump).geom")}
-    FROM "${dissolved}", UNNEST(ST_Dump(geom)) AS d(dump)
-  `);
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_pairs" AS
-    SELECT DISTINCT a.fid AS left_fid, b.fid AS right_fid
-    FROM "${name}_parts" a JOIN "${name}_parts" b
-      ON a.fid < b.fid
-      AND a.xmin <= b.xmax AND a.xmax >= b.xmin
-      AND a.ymin <= b.ymax AND a.ymax >= b.ymin
-  `);
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_boundary" AS
-    SELECT fid, ST_Boundary(geom) AS boundary FROM "${dissolved}"
-  `);
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_boundary_parts" AS
-    SELECT fid, (dump).geom AS geom, ${bboxColumnsSql("(dump).geom")}
-    FROM "${name}_boundary", UNNEST(ST_Dump(boundary)) AS d(dump)
-  `);
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_touching" AS
-    SELECT p.left_fid, p.right_fid
-    FROM "${name}_pairs" p
-    JOIN "${dissolved}" wl ON wl.fid = p.left_fid
-    JOIN "${dissolved}" wr ON wr.fid = p.right_fid
-    WHERE ST_Touches(wl.geom, wr.geom)
-  `);
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_shared" AS
-    WITH pieces AS (
-      SELECT t.left_fid, t.right_fid,
-             ST_CollectionExtract(ST_Intersection(lp.geom, rp.geom), 2) AS geom
-      FROM "${name}_touching" t
-      JOIN "${name}_boundary_parts" lp ON lp.fid = t.left_fid
-      JOIN "${name}_boundary_parts" rp ON rp.fid = t.right_fid
-        AND lp.xmin <= rp.xmax AND lp.xmax >= rp.xmin
-        AND lp.ymin <= rp.ymax AND lp.ymax >= rp.ymin
-    ),
-    merged AS (
-      SELECT left_fid, right_fid, ST_LineMerge(ST_Union_Agg(geom)) AS geom
-      FROM pieces
-      WHERE NOT ST_IsEmpty(geom)
-      GROUP BY left_fid, right_fid
-    )
-    SELECT left_fid, right_fid, geom FROM merged
-    WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
-  `);
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_shared_by_fid" AS
-    SELECT fid, ST_Union_Agg(geom) AS geom
-    FROM (
-      SELECT left_fid AS fid, geom FROM "${name}_shared"
-      UNION ALL
-      SELECT right_fid AS fid, geom FROM "${name}_shared"
-    )
-    GROUP BY fid
-  `);
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_exterior_raw" AS
-    SELECT bp.fid,
-           ST_LineMerge(ST_Difference(bp.geom, COALESCE(s.geom, ${EMPTY_LINES}))) AS geom
-    FROM "${name}_boundary_parts" bp
-    LEFT JOIN "${name}_shared_by_fid" s ON s.fid = bp.fid
-  `);
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_shared_atomic" AS
-    SELECT left_fid, right_fid, (dump).geom AS geom
-    FROM "${name}_shared", UNNEST(ST_Dump(geom)) AS d(dump)
-    WHERE NOT ST_IsEmpty((dump).geom)
-  `);
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE "${name}_exterior" AS
-    SELECT fid AS left_fid, NULL::BIGINT AS right_fid, (dump).geom AS geom
-    FROM "${name}_exterior_raw", UNNEST(ST_Dump(geom)) AS d(dump)
-    WHERE NOT ST_IsEmpty((dump).geom)
+    CREATE OR REPLACE TABLE "${name}_rows" AS
+    SELECT s.left_fid, s.right_fid,
+           CASE WHEN s.right_fid IS NULL THEN ${outer} ELSE ${classification} END AS depth, s.geom
+    FROM "${name}_lines" s
+    JOIN "${dissolved}" l ON l.fid = s.left_fid
+    LEFT JOIN "${dissolved}" r ON r.fid = s.right_fid
   `);
 
-  const classification = classificationSql(levels, codeColumns);
-  const finestEntries = [...finestGenerics];
-  const aCols = (table: string) =>
-    finestEntries
-      .map(([generic, col]) =>
-        col ? `${table}."${col}" AS "a_${generic}"` : `NULL AS "a_${generic}"`,
-      )
-      .join(", ");
-  const sharedBCols = finestEntries
-    .map(([generic, col]) => (col ? `r."${col}" AS "b_${generic}"` : `NULL AS "b_${generic}"`))
+  const label = (side: string, byDepth: Map<number, string>) => {
+    const cases = [...byDepth]
+      .map(([depth, col]) => `WHEN ${depth} THEN ${side}."${col}" `)
+      .join("");
+    return cases ? `CASE s.depth ${cases}END` : "NULL";
+  };
+  const labelSql = ["a", "b"]
+    .flatMap((side) =>
+      [...labels].map(([g, byDepth]) => `${label(side, byDepth)} AS "${side}_${g}"`),
+    )
     .join(", ");
-  const exteriorBCols = finestEntries.map(([generic]) => `NULL AS "b_${generic}"`).join(", ");
-
   await conn.query(`--sql
     CREATE OR REPLACE TABLE "${name}" AS
-    SELECT s.left_fid, s.right_fid,
-           ${aCols("l")}, ${sharedBCols},
-           ${classification} AS "${depthColumn}", s.geom
-    FROM "${name}_shared_atomic" s
-    JOIN "${dissolved}" l ON l.fid = s.left_fid
-    JOIN "${dissolved}" r ON r.fid = s.right_fid
-
-    UNION ALL BY NAME
-
-    SELECT e.left_fid, e.right_fid,
-           ${aCols("d")}, ${exteriorBCols},
-           ${Math.min(...levels) - 1} AS "${depthColumn}", e.geom
-    FROM "${name}_exterior" e
-    JOIN "${dissolved}" d ON d.fid = e.left_fid
+    SELECT s.left_fid, s.right_fid, ${labelSql}, s.depth AS "${depthColumn}", s.geom
+    FROM "${name}_rows" s
+    JOIN "${dissolved}" a ON a.fid = s.left_fid
+    LEFT JOIN "${dissolved}" b ON b.fid = s.right_fid
   `);
 
   await checkEveryFidPresent(conn, dissolved, name);
 
   await conn.query(`--sql
     CREATE OR REPLACE TABLE "${name}" AS SELECT * EXCLUDE (left_fid, right_fid) FROM "${name}"
+    ${minLevel !== null ? `WHERE "${depthColumn}" >= ${minLevel}` : ""}
     ORDER BY left_fid, right_fid NULLS LAST, hash(geom)
   `);
 
-  for (const suffix of [
-    "parts",
-    "pairs",
-    "boundary",
-    "boundary_parts",
-    "touching",
-    "shared",
-    "shared_by_fid",
-    "exterior_raw",
-    "shared_atomic",
-    "exterior",
-  ]) {
+  for (const suffix of ["lines", "rows", "dissolved"]) {
     await conn.query(`DROP TABLE IF EXISTS "${name}_${suffix}"`);
   }
+}
+
+// Moves each endpoint onto the least endpoint within tol; drops zero-length lines.
+export async function snapEnds(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  key: string,
+  tol: number,
+): Promise<void> {
+  const cell = TILE_MARGIN_DEG;
+  const near = `(a.x - b.x) ** 2 + (a.y - b.y) ** 2 < ${tol} ** 2`;
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${table}" AS
+    WITH ends AS (
+      SELECT ${key}, side, ST_X(pt) AS x, ST_Y(pt) AS y, pt,
+             floor(ST_X(pt) / ${cell})::BIGINT AS gx,
+             floor(ST_Y(pt) / ${cell})::BIGINT AS gy
+      FROM (
+        SELECT ${key}, UNNEST([0, 1]) AS side,
+               UNNEST([ST_StartPoint(geom), ST_EndPoint(geom)]) AS pt
+        FROM "${table}"
+      )
+    ),
+    probes AS (
+      SELECT ${key}, side, x, y, gx + dx AS gx, gy + dy AS gy
+      FROM ends, (SELECT UNNEST([-1, 0, 1]) AS dx), (SELECT UNNEST([-1, 0, 1]) AS dy)
+      WHERE (dx = 0 OR (dx = -1 AND x - gx * ${cell} < ${tol})
+             OR (dx = 1 AND (gx + 1) * ${cell} - x < ${tol}))
+        AND (dy = 0 OR (dy = -1 AND y - gy * ${cell} < ${tol})
+             OR (dy = 1 AND (gy + 1) * ${cell} - y < ${tol}))
+    ),
+    targets AS (
+      SELECT a.${key}, a.side, arg_min(b.pt, [b.x, b.y]) AS pt
+      FROM probes a JOIN ends b ON a.gx = b.gx AND a.gy = b.gy
+        AND a.${key} <> b.${key} AND ${near}
+        AND (b.x < a.x OR (b.x = a.x AND b.y < a.y))
+      GROUP BY a.${key}, a.side
+    ),
+    moves AS (
+      SELECT ${key}, any_value(pt) FILTER (side = 0) AS first,
+             any_value(pt) FILTER (side = 1) AS last
+      FROM targets GROUP BY ${key}
+    )
+    SELECT * FROM (
+      SELECT t.* REPLACE (CASE WHEN m.${key} IS NULL THEN t.geom
+        ELSE ST_MakeLine(list_concat(
+          [coalesce(m.first, ST_StartPoint(t.geom))],
+          list_slice([p.geom FOR p IN ST_Dump(ST_Points(t.geom))], 2, -2),
+          [coalesce(m.last, ST_EndPoint(t.geom))]
+        )) END AS geom)
+      FROM "${table}" t LEFT JOIN moves m USING (${key})
+    )
+    WHERE ST_Length(geom) > 0
+  `);
+}
+
+function tileRange(low: string, high: string): string {
+  const [first, last] = [low, high].map((v) => `floor(${v} / ${TILE_DEG})::BIGINT`);
+  return `range(${first}, ${last} + 1)`;
+}
+
+function envelope(margin: number): string {
+  return `ST_MakeEnvelope(tx * ${TILE_DEG} - ${margin}, ty * ${TILE_DEG} - ${margin}, (tx + 1) * ${TILE_DEG} + ${margin}, (ty + 1) * ${TILE_DEG} + ${margin})`;
+}
+
+// Clips geom to its tile, skipping the clip for a geom already inside it.
+function clipToTile(margin: number): string {
+  const inside = [
+    `xmin >= tx * ${TILE_DEG} - ${margin}`,
+    `xmax <= (tx + 1) * ${TILE_DEG} + ${margin}`,
+    `ymin >= ty * ${TILE_DEG} - ${margin}`,
+    `ymax <= (ty + 1) * ${TILE_DEG} + ${margin}`,
+  ].join(" AND ");
+  const clip = `ST_CollectionExtract(ST_Intersection(geom, ${envelope(margin)}), 2)`;
+  return `CASE WHEN ${inside} THEN geom ELSE ${clip} END`;
+}
+
+// Nodes every unit boundary per grid tile and labels each edge by its one or two units.
+// Writes `${name}_lines` (left_fid, right_fid NULL for an exterior edge, geom).
+export async function nodedLines(
+  conn: AsyncDuckDBConnection,
+  name: string,
+  dissolved: string,
+): Promise<void> {
+  const tol = SNAP_TOLERANCE * 10;
+  const margin = TILE_MARGIN_DEG;
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${name}_tmp1" AS
+    SELECT fid, ST_Boundary(geom) AS geom, ${bboxColumnsSql("geom")}
+    FROM "${dissolved}"
+  `);
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${name}_tmp2" AS
+    SELECT row_number() OVER () AS bid, fid, tx, ty, geom, ${bboxColumnsSql("geom")}
+    FROM (
+      SELECT fid, tx, ty, ${clipToTile(margin)} AS geom
+      FROM (
+        SELECT *, UNNEST(${tileRange(`(ymin - ${margin})`, `(ymax + ${margin})`)}) AS ty
+        FROM (
+          SELECT *, UNNEST(${tileRange(`(xmin - ${margin})`, `(xmax + ${margin})`)}) AS tx
+          FROM "${name}_tmp1"
+        )
+      )
+    )
+    WHERE NOT ST_IsEmpty(geom)
+  `);
+  await conn.query(`DROP TABLE "${name}_tmp1"`);
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${name}_tmp3" AS
+    SELECT row_number() OVER () AS eid, tx, ty, geom
+    FROM (
+      SELECT tx, ty, UNNEST(ST_Dump(ST_LineMerge(ST_Union_Agg(geom)))).geom AS geom
+      FROM "${name}_tmp2" GROUP BY tx, ty
+    )
+  `);
+  await snapEnds(conn, `${name}_tmp3`, "eid", tol);
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${name}_tmp3" AS
+    SELECT row_number() OVER (
+             ORDER BY tx, ty, ST_XMin(geom), ST_YMin(geom), ST_AsWKB(geom)
+           ) AS eid, tx, ty, geom,
+           ST_LineInterpolatePoint(geom, 0.5) AS mid,
+           ${bboxColumnsSql("geom")}
+    FROM (SELECT tx, ty, ST_Normalize(geom) AS geom FROM "${name}_tmp3")
+  `);
+  // Pairing on bbox columns alone first keeps geometry out of the join's hash table.
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${name}_tmp4" AS
+    SELECT e.eid, b.bid
+    FROM (SELECT eid, tx, ty, ST_X(mid) AS mx, ST_Y(mid) AS my FROM "${name}_tmp3") e
+    JOIN (SELECT bid, tx, ty, xmin, xmax, ymin, ymax FROM "${name}_tmp2") b
+      ON b.tx = e.tx AND b.ty = e.ty
+      AND e.mx BETWEEN b.xmin - ${tol} AND b.xmax + ${tol}
+      AND e.my BETWEEN b.ymin - ${tol} AND b.ymax + ${tol}
+  `);
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${name}_tmp4" AS
+    WITH near AS (
+      SELECT c.eid, b.fid, ST_Distance(b.geom, e.mid) AS dist
+      FROM "${name}_tmp4" c
+      JOIN (SELECT eid, mid FROM "${name}_tmp3") e USING (eid)
+      JOIN (SELECT bid, fid, geom FROM "${name}_tmp2") b USING (bid)
+      WHERE ST_DWithin(b.geom, e.mid, ${tol})
+    ),
+    ranked AS (
+      SELECT eid, fid, row_number() OVER (PARTITION BY eid ORDER BY dist, fid) AS rank
+      FROM near
+    )
+    SELECT eid, min(fid) AS left_fid,
+           CASE WHEN count(*) = 2 THEN max(fid) END AS right_fid
+    FROM ranked WHERE rank <= 2 GROUP BY eid
+  `);
+  await conn.query(`DROP TABLE "${name}_tmp2"`);
+  // Each side's vertices go into the other's copy of a shared border.
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${name}_tmp5" AS
+    WITH labelled AS (
+      SELECT l.eid, l.left_fid, l.right_fid, e.tx, e.ty, e.geom, e.xmin, e.xmax, e.ymin, e.ymax
+      FROM "${name}_tmp4" l JOIN "${name}_tmp3" e USING (eid)
+      WHERE l.right_fid IS NOT NULL
+    )
+    SELECT a.eid,
+           ST_Snap(any_value(a.geom),
+                   ST_Collect(list_append(list(b.geom ORDER BY b.eid), any_value(a.geom))),
+                   ${tol}) AS geom
+    FROM labelled a JOIN labelled b ON a.tx = b.tx AND a.ty = b.ty
+      AND a.left_fid = b.left_fid AND a.right_fid = b.right_fid
+      AND a.eid <> b.eid
+      AND a.xmin <= b.xmax + ${tol} AND a.xmax >= b.xmin - ${tol}
+      AND a.ymin <= b.ymax + ${tol} AND a.ymax >= b.ymin - ${tol}
+    GROUP BY a.eid
+  `);
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${name}_tmp6" AS
+    SELECT row_number() OVER (ORDER BY left_fid, right_fid, ST_AsWKB(geom)) AS pid,
+           left_fid, right_fid, geom
+    FROM (
+      SELECT l.left_fid, l.right_fid, ${clipToTile(0)} AS geom
+      FROM (
+        SELECT e.eid, e.tx, e.ty, e.xmin, e.xmax, e.ymin, e.ymax,
+               coalesce(s.geom, e.geom) AS geom
+        FROM "${name}_tmp3" e LEFT JOIN "${name}_tmp5" s USING (eid)
+      ) e
+      JOIN "${name}_tmp4" l USING (eid)
+    )
+    WHERE NOT ST_IsEmpty(geom)
+  `);
+  for (const t of ["tmp3", "tmp4", "tmp5"]) await conn.query(`DROP TABLE "${name}_${t}"`);
+  await snapEnds(conn, `${name}_tmp6`, "pid", tol);
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${name}_lines" AS
+    SELECT left_fid, right_fid, geom
+    FROM (
+      SELECT left_fid, right_fid,
+             UNNEST(ST_Dump(ST_LineMerge(ST_Union_Agg(geom ORDER BY pid)))).geom AS geom
+      FROM "${name}_tmp6" GROUP BY left_fid, right_fid
+    )
+    WHERE NOT ST_IsEmpty(geom)
+  `);
+  await conn.query(`DROP TABLE "${name}_tmp6"`);
 }

@@ -47,6 +47,37 @@ test("mismatched name and code prefixes drop the finer names", async () => {
   expect(columns).not.toContain("NAME_2");
 });
 
+test("an auto-detected constant root writes a one-row admin0", async () => {
+  await load(`SELECT 'SEN' AS adm0_pcode, 'Senegal' AS adm0_name, adm1_pcode, adm1_name,
+    adm2_pcode, adm2_name, ST_GeomFromText(wkt) AS geom FROM (${BASE})`);
+  const { levels } = await runPackagePolygons(conn, null);
+  expect(levels.map((l) => l.level)).toEqual([0, 1, 2]);
+  expect(await rows("SELECT adm0_pcode, adm0_name FROM pp_attr_0")).toEqual([
+    { adm0_pcode: "SEN", adm0_name: "Senegal" },
+  ]);
+});
+
+test("a constant root takes its own level number", async () => {
+  await load(`SELECT 'SN01' AS adm1_pcode, adm1_pcode AS adm2_pcode, adm2_pcode AS adm3_pcode,
+    ST_GeomFromText(wkt) AS geom FROM (${BASE})`);
+  const { levels } = await runPackagePolygons(conn, null);
+  expect(levels.map((l) => l.level)).toEqual([1, 2, 3]);
+  expect(await rows("SELECT adm1_pcode FROM pp_attr_1")).toEqual([{ adm1_pcode: "SN01" }]);
+});
+
+test("min level leaves out coarser levels", async () => {
+  await load();
+  const { levels } = await runPackagePolygons(conn, SCHEMA, 2);
+  expect(levels.map((l) => l.level)).toEqual([2]);
+});
+
+test("a min level above every level throws", async () => {
+  await load();
+  await expect(runPackagePolygons(conn, SCHEMA, 9)).rejects.toThrow(
+    "no admin level at or above min level 9",
+  );
+});
+
 test.todo("the finest level is skipped when its path equals the input (file output)");
 test.todo("an output path template without {n} raises (file output)");
 test.todo("the finest level is written when its path resolves elsewhere (file output)");

@@ -10,10 +10,10 @@ Input for `topo-tools topo-detect` and `topo-tools topo-clean`: the {rows} gemee
 
 ```bash
 topo-tools topo-detect {url} nld_admin2_issues.parquet
-topo-tools topo-clean {url} nld_admin2_cleaned.parquet --maximum-gap-width thin
+topo-tools topo-clean {url} nld_admin2_cleaned.parquet
 ```
 
-`topo-detect` reports {overlap_issues} overlaps and {gap_issues} gaps, {min_w} to {max_w} m wide. `topo-clean` always fixes the overlaps. `--maximum-gap-width thin` also fills the gaps, because each is a thin wedge along a border. In the browser: [topo-clean]({web}/topo-clean?url={url}&gap=thin), [topo-detect]({web}/topo-detect?url={url}).
+`topo-detect` reports {overlap_issues} overlaps and {gap_issues} gaps, {min_w} to {max_w} m wide. `topo-clean` fixes the overlaps and fills the gaps, because each is a thin wedge along a border. In the browser: [topo-clean]({web}/topo-clean?url={url}), [topo-detect]({web}/topo-detect?url={url}).
 
 ## Quirks
 

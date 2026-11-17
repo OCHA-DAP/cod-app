@@ -1,6 +1,6 @@
 <script lang="ts">
   import IssueTable from "$lib/components/IssueTable.svelte";
-  import type { ValidateResult } from "./pipeline/index";
+  import type { ValidateResult } from "./pipeline/validate";
 
   let {
     result,

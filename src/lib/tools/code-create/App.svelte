@@ -28,6 +28,9 @@
   let loadedBounds = $state<[number, number, number, number] | null>(null);
 
   let rootCode = $state("");
+  let rootMode = $state<"code" | "column">("code");
+  let rootField = $state("");
+  let columns = $state<string[]>([]);
   let delimMode = $state<"char" | "none">("char");
   let delimChar = $state("-");
   let minWidth = $state("3");
@@ -41,6 +44,10 @@
   };
   const delimiter = $derived(delimMode === "none" ? "" : delimChar);
   syncParam("root", textParam, () => rootCode, (v) => (rootCode = v));
+  syncParam("rootfield", textParam, () => (rootMode === "column" ? rootField : ""), (v) => {
+    rootField = v;
+    if (v !== "") rootMode = "column";
+  });
   syncParam("delim", delimParam, () => delimiter, (v) => {
     delimMode = v === "" ? "none" : "char";
     if (v !== "") delimChar = v;
@@ -96,6 +103,10 @@
         await loadFile(db, conn, files);
         originalGeoJSON = await tableToGeoJSON(conn, "layer_01", null);
         loadedBounds = await layerBounds(conn);
+        const desc = await conn.query("DESCRIBE layer_attr");
+        columns = (desc.toArray() as Array<{ column_name: string }>)
+          .map((c) => c.column_name)
+          .filter((c) => c !== "fid");
       });
       loaded = true;
     } catch (e) {
@@ -116,11 +127,12 @@
       const result = await withDb((_db, conn) =>
         runCodeCreate(
           conn,
-          rootCode,
+          rootMode === "code" ? rootCode : null,
           delimiter,
           minWidth,
           sourceCodes,
           schema,
+          rootMode === "column" ? rootField : null,
         ),
       );
       resultGeoJSON = result.resultGeoJSON;
@@ -153,7 +165,7 @@
     }
   });
   const configValid = $derived(
-    rootCode.trim() !== "" &&
+    (rootMode === "code" ? rootCode.trim() !== "" : columns.includes(rootField)) &&
       (delimMode === "none" || [...delimChar].length === 1) &&
       minWidthError === null,
   );
@@ -188,9 +200,29 @@
       <section class="step">
         <h2 class="step-heading">Code format</h2>
         <label class="field">
-          <span>Root code</span>
-          <input type="text" bind:value={rootCode} placeholder="e.g. AAA" disabled={running} />
+          <span>Root</span>
+          <select bind:value={rootMode} disabled={running}>
+            <option value="code">One code</option>
+            <option value="column">From a column</option>
+          </select>
         </label>
+        {#if rootMode === "code"}
+          <label class="field">
+            <span>Root code</span>
+            <input type="text" bind:value={rootCode} placeholder="e.g. AAA" disabled={running} />
+          </label>
+        {:else}
+          <label class="field">
+            <span>Root code column</span>
+            <select bind:value={rootField} disabled={running}>
+              <option value="" disabled>Choose a column</option>
+              {#each columns as c (c)}<option value={c}>{c}</option>{/each}
+            </select>
+          </label>
+          <p class="field-hint">
+            Each value's units are numbered on their own, as if the tool ran once per value.
+          </p>
+        {/if}
         <label class="field">
           <span>Delimiter</span>
           <select bind:value={delimMode} disabled={running}>

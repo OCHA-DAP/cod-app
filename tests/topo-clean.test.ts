@@ -18,7 +18,7 @@ const SYNTHETIC: [number, string][] = [
   [6, "POLYGON((10.95 0, 12 0, 12 1, 10.95 1, 10.95 0))"],
   [7, "POLYGON((30 0, 32 0, 32 2, 30 2, 30 0))"],
   [8, "POLYGON((30.5 0.5, 31.5 0.5, 31.5 1.5, 30.5 1.5, 30.5 0.5))"],
-  // Same hole area as fid 1-4's, but a thinness ratio far below the default.
+  // A sliver gap of similar area to fid 1-4's compact square hole.
   [9, "POLYGON((50 0, 62 0, 62 1, 50 1, 50 0))"],
   [10, "POLYGON((50 1.1, 62 1.1, 62 2.1, 50 2.1, 50 1.1))"],
   [11, "POLYGON((50 1, 51 1, 51 1.1, 50 1.1, 50 1))"],
@@ -94,7 +94,7 @@ test("full run", async () => {
   expect(await scalar("SELECT count(*)::INT FROM '_export.parquet'")).toBe(SYNTHETIC.length);
   expect(
     new Set((await rows<{ kind: string }>("SELECT DISTINCT kind FROM _issues")).map((r) => r.kind)),
-  ).toEqual(new Set(["gap", "overlap"]));
+  ).toEqual(new Set(["gap", "overlap", "sliver-gap"]));
 });
 
 test("closes a notch", async () => {
@@ -151,8 +151,8 @@ test("maximum gap width all fills the gap", async () => {
   expect(await scalar<number>("SELECT filled_area_m2 FROM _issues WHERE kind = 'gap'")).toBeGreaterThan(0);
 });
 
-test("maximum gap width thin fills only the thin gap", async () => {
-  await clean(SYNTHETIC, { mode: "thin", gapWidthM: 0 });
+test("the default merges the sliver gap only", async () => {
+  await clean(SYNTHETIC);
   expect(
     await rows(`WITH u AS (SELECT ST_Union_Agg(geometry) AS g FROM '_export.parquet')
       SELECT ST_Contains(u.g, ST_Point(1.5, 1.5)) AS compact, ST_Contains(u.g, ST_Point(55, 1.05)) AS thin
@@ -163,9 +163,10 @@ test("maximum gap width thin fills only the thin gap", async () => {
       "SELECT fixed FROM _issues WHERE kind = 'gap' ORDER BY thinness_ratio DESC",
     )).map((r) => r.fixed),
   ).toEqual([false, true]);
+  expect(await scalar("SELECT count(*)::INT FROM _issues WHERE kind = 'sliver-gap'")).toBe(1);
 });
 
-test.each(["minimal", "thin", "all"] as const)(
+test.each(["minimal", "all"] as const)(
   "reports every gap topo-detect finds (%s)",
   async (mode) => {
     await clean(SYNTHETIC, { mode, gapWidthM: 0 });

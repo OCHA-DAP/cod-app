@@ -1,5 +1,12 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { parentPrefix, quoteIdent, widthFor, writeRootCode, type CodeFormat } from "$lib/db/code";
+import {
+  parentPrefix,
+  quoteIdent,
+  quoteLiteral,
+  widthFor,
+  writeRootCode,
+  type CodeFormat,
+} from "$lib/db/code";
 import type { ChangeRow } from "./assign";
 import type { SideLevels } from "./levels";
 
@@ -137,7 +144,7 @@ export async function writeOutputs(
     const rootName = sideA.schema.nameField.replace("{n}", "0");
     const after = existing.has(rootName) ? [rootName] : [sideA.columns.get(1), sideB.names.get(1)];
     const root = sideA.schema.codeField.replace("{n}", "0");
-    await writeRootCode(conn, finestTable, root, fmt.rootCode, after);
+    await writeRootCode(conn, finestTable, root, quoteLiteral(fmt.rootCode!), after);
   }
 }
 

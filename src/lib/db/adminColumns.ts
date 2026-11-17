@@ -48,6 +48,46 @@ export function templateFamilies(
   return families;
 }
 
+export class ColumnNameError extends Error {}
+
+// Throws ColumnNameError if a [source, generic] name is empty, reserved or shared.
+export function checkGenericNames(
+  names: Array<[string, string]>,
+  reserved: Iterable<string> = [],
+): void {
+  const taken = new Set([...reserved].map((r) => r.toLowerCase()));
+  for (const [source, name] of names) {
+    if (!name || taken.has(name.toLowerCase())) {
+      throw new ColumnNameError(`column family '${source}' reduces to unusable name '${name}'`);
+    }
+    taken.add(name.toLowerCase());
+  }
+}
+
+// Template families keyed by their suffix (pcode, name1), else code or name.
+export function genericFamilies(
+  columns: string[],
+  levels: number[],
+  nameField: string,
+  codeField: string,
+  reserved: Iterable<string> = [],
+): Map<string, Map<number, string>> {
+  const fallback = new Map([
+    [codeField, "code"],
+    [nameField, "name"],
+  ]);
+  const named: Array<[string, string, Map<number, string>]> = [];
+  for (const [key, perLevel] of templateFamilies(columns, levels, nameField, codeField)) {
+    const suffix = key.slice(key.indexOf("{n}") + 3).replace(/^_+|_+$/g, "");
+    named.push([key, suffix || (fallback.get(key) ?? ""), perLevel]);
+  }
+  checkGenericNames(
+    named.map(([key, name]) => [key, name]),
+    reserved,
+  );
+  return new Map(named.map(([, name, perLevel]) => [name, perLevel]));
+}
+
 // A column's index-th numbered sibling, `_`-separated after a trailing digit.
 export function siblingName(column: string, index: number): string {
   return /\d$/.test(column) ? `${column}_${index}` : `${column}${index}`;

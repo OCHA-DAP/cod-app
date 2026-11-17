@@ -2,7 +2,7 @@
 
 Detects overlaps and gaps in a polygon coverage and cleans them via DuckDB
 spatial's `ST_CoverageClean`, with an adjustable gap-width threshold exposed
-as Minimal / Thin / All / Manual modes.
+as Minimal / All / Manual modes.
 
 ## Pipeline
 
@@ -30,7 +30,9 @@ as Minimal / Thin / All / Manual modes.
    violations and no gap-fill was requested (see
    [`0013`](../adr/0013-clean-skips-coverageclean-when-no-defects.md));
    otherwise it runs `ST_CoverageClean(geoms, snap=SNAP_TOLERANCE, gap)` at
-   the requested gap width.
+   the requested gap width, then merges each sliver gap left in the result
+   into the neighbour sharing its longest border (`mergeSliverGaps`, see
+   [`0057`](../adr/0057-sliver-gaps-merge-in-every-coverage-clean.md)).
 4. **Verify export** (`pipeline/verify.ts`) — independently re-runs the same
    gap/overlap detection and an `ST_IsValid` sweep against the _exported_
    table (`tc_clean`), not just the pre-clean input, catching anything the
@@ -42,23 +44,19 @@ as Minimal / Thin / All / Manual modes.
 The gap-width slider is in meters, converted to degrees in `pipeline/units.ts`
 by the same fixed 111,320 m/° factor the issues table uses for max width, so a
 slider value equal to a gap's displayed width fills exactly that gap. It has
-four UI modes:
+three UI modes:
 
-- **Minimal** (default) — fills only gaps at or below `SNAP_TOLERANCE`
-  (floating-point-noise scale), at exactly that width. No shape heuristic.
-  Matches topo-tools' own default (ADR-0033/0034 there).
-- **Thin** — fills gaps shaped like a digitization sliver: a Polsby-Popper
-  compactness ratio (`4·π·Area / Perimeter²`) at or below 0.3, the same
-  formula and cutoff guidance ArcGIS Pro's "Polygon Sliver" check uses. The
-  fill width is the widest qualifying gap's Maximum-Inscribed-Circle
-  diameter plus 1% headroom, measured after notch closing, which reshapes
-  gaps.
+- **Minimal** (default): runs the clean at `SNAP_TOLERANCE` whenever a gap is
+  detected, so floating-point-noise gaps fill and sliver gaps merge into a
+  neighbour. A sliver is judged by its width against the spacing of the
+  vertices drawn around it, so a finely drawn narrow lake stays open while a
+  long straight-edged digitizing crack closes. Matches topo-tools' default.
 - **All** — fills every detected gap regardless of shape or width, via a
   fixed sentinel width (`GAP_MAXIMUM_WIDTH_ALL_DEG`, 360°) rather than one
   derived from the widest detected gap.
 - **Manual** — the user sets the width directly.
 
-Minimal or Thin can resolve to a width of 0 (no qualifying gaps), meaning
+Minimal can resolve to a width of 0 (no detected gap), meaning
 "fill nothing." A separate UI-only value (twice the widest detected gap,
 rounded to a nice number) sizes the Manual slider's ceiling and All mode's
 display estimate — it is never the actual fill width.

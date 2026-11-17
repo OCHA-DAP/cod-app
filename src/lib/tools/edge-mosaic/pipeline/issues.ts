@@ -6,8 +6,7 @@ import {
   CODE_MISMATCH_REASON,
   type AssignmentMethod,
 } from "$lib/db/codeJoin";
-import { buildGapTable, dropGapsOutsideTargets } from "$lib/db/coverage";
-import { gapIssuesSql } from "$lib/db/issues";
+import { uncoveredOverlayIssuesSql } from "$lib/db/issues";
 
 // Combined issues report: dropped input features, clip-detached pieces, merged
 // micro-polygons, invalid edges, gaps after the final clean, and code-join rows when one was supplied (docs/adr/0045).
@@ -19,6 +18,7 @@ export interface MosaicIssueRow {
     | "clip-empty"
     | "detached-part"
     | "micro-polygon"
+    | "sliver-gap"
     | "invalid-edge"
     | "gap"
     | "code-mismatch"
@@ -45,23 +45,27 @@ export interface AssignmentOutcomeInfo {
 
 export async function buildMosaicIssues(
   conn: AsyncDuckDBConnection,
-  overlayFid: number,
   assignment: AssignmentOutcomeInfo = {},
-  gaps = true,
 ): Promise<MosaicIssuesResult> {
-  await conn.query(`--sql
-    CREATE OR REPLACE TABLE ms_gap_regions AS SELECT NULL::BIGINT AS n, NULL::${GEOMETRY_TYPE} AS geom WHERE FALSE
-  `);
-  if (gaps) {
-    await buildGapTable(conn, "ms_gap_regions", "cl_clip");
-    await dropGapsOutsideTargets(
-      conn,
-      "ms_gap_regions",
-      `SELECT geom FROM overlay_layer_01 WHERE fid = ${overlayFid}`,
-    );
+  try {
+    await conn.query(`--sql
+      CREATE OR REPLACE TABLE ms_gaps AS
+      ${uncoveredOverlayIssuesSql("cl_clip", "overlay_layer_01", "cl_clip_cover")}
+    `);
+  } catch (e) {
+    console.warn("gap issues failed:", e);
+    await conn.query(`--sql
+      CREATE OR REPLACE TABLE ms_gaps AS
+      SELECT NULL::VARCHAR AS key, NULL::VARCHAR AS kind, NULL::DOUBLE AS area_m2,
+             NULL::DOUBLE AS max_width_m, NULL::DOUBLE AS thinness_ratio, NULL::BOOLEAN AS fixed,
+             NULL::BIGINT AS unit_a, NULL::BIGINT AS unit_b, NULL::BIGINT AS overlay_fid,
+             NULL::VARCHAR AS reason, NULL::${GEOMETRY_TYPE} AS geom, NULL::DOUBLE AS xmin,
+             NULL::DOUBLE AS ymin, NULL::DOUBLE AS xmax, NULL::DOUBLE AS ymax
+      WHERE FALSE
+    `);
+  } finally {
+    await conn.query("DROP TABLE IF EXISTS cl_clip_cover");
   }
-  await conn.query(`CREATE OR REPLACE TABLE ms_gaps AS ${gapIssuesSql("ms_gap_regions")}`);
-  await conn.query("DROP TABLE ms_gap_regions");
 
   await conn.query(`--sql
     CREATE OR REPLACE TABLE ms_unassigned AS
@@ -114,7 +118,7 @@ export async function buildMosaicIssues(
     FROM ms_invalid
     UNION ALL
     SELECT key, kind, area_m2, max_width_m, thinness_ratio, fixed, unit_a, unit_b,
-           NULL::BIGINT AS overlay_fid, reason, geom, xmin, ymin, xmax, ymax
+           overlay_fid, reason, geom, xmin, ymin, xmax, ymax
     FROM ms_gaps
   `);
   await conn.query("DROP TABLE IF EXISTS ms_gaps");
@@ -144,16 +148,16 @@ export async function buildMosaicIssues(
   }>;
 
   const rows: MosaicIssueRow[] = meta.map((r) => ({
-      key: r.key,
-      kind: r.kind,
-      areaM2: r.area_m2,
-      maxWidthM: r.max_width_m,
-      thinnessRatio: r.thinness_ratio,
-      unitA: r.unit_a == null ? null : Number(r.unit_a),
-      unitB: r.unit_b == null ? null : Number(r.unit_b),
-      overlayFid: r.overlay_fid == null ? null : Number(r.overlay_fid),
-      reason: r.reason,
-      bbox: [r.xmin, r.ymin, r.xmax, r.ymax] as [number, number, number, number],
+    key: r.key,
+    kind: r.kind,
+    areaM2: r.area_m2,
+    maxWidthM: r.max_width_m,
+    thinnessRatio: r.thinness_ratio,
+    unitA: r.unit_a == null ? null : Number(r.unit_a),
+    unitB: r.unit_b == null ? null : Number(r.unit_b),
+    overlayFid: r.overlay_fid == null ? null : Number(r.overlay_fid),
+    reason: r.reason,
+    bbox: [r.xmin, r.ymin, r.xmax, r.ymax] as [number, number, number, number],
   }));
 
   const gj = await conn.query(`--sql

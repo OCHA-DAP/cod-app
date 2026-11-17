@@ -87,3 +87,11 @@ admin0 code) never becomes a level, so the root code is only the literal
 parent of level 1, since no level 0 column name follows from the data.
 With explicit templates, level 0 always exists: its code column holds the
 root code on every row, and only levels `>= 1` are numbered.
+
+A root code column gives each row its own root, for a file of several
+countries. Level detection runs on a view that leaves that column out,
+since it would otherwise resolve as the coarsest level. Level 1 is then
+ranked under each row's root value, the same parent grouping every deeper
+level uses, so one run gives the same codes as separate runs per root.
+`auto` widths and the zero-padding of embedded integer codes are sized per
+root too, so the widths match as well.

@@ -41,8 +41,9 @@ export const steps = [
     n: 6,
     slug: "package",
     title: "Packaging",
-    brief: "Build polygons, points and lines",
-    summary: "Build per-level polygons, label points, and the boundary line network for release.",
+    brief: "Check, then build polygons, points and lines",
+    summary:
+      "Check the schema, topology, codes and names, then build per-level polygons, label points, and the boundary line network for release.",
   },
 ] as const;
 

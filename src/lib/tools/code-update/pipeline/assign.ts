@@ -146,7 +146,7 @@ export async function assignLevel(
       : new Map<number, number>();
 
   function newParentCode(bFid: number): string {
-    if (prevLevel === null) return fmt.rootCode;
+    if (prevLevel === null) return fmt.rootCode!;
     const parentFid = childToParentFid.get(bFid);
     if (parentFid === undefined) {
       throw new Error(`level ${n}: no re-derived parent for new fid ${bFid}`);

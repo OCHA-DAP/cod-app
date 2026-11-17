@@ -62,6 +62,8 @@
     OVERLAP,
     "gap",
     GAP,
+    "sliver-gap",
+    GAP,
     "micro-polygon",
     MICRO,
     "notch",

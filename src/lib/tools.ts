@@ -18,7 +18,6 @@ export const tools: Tool[] = [
     iconHref: "/icons/tools/topo-clean.svg",
     demo: {
       url: toolsUrl("nld/demo/topo/nld_admin2.parquet"),
-      gap: "thin",
     },
   },
   {
@@ -183,12 +182,5 @@ export const tools: Tool[] = [
     demo: {
       url: toolsUrl("nld/demo/names/nld_admin2.parquet"),
     },
-  },
-  {
-    slug: "validate",
-    name: "Validate",
-    tagline:
-      "Run the schema, topology, code and name checks on one layer and summarize their findings by kind, without changing anything.",
-    iconHref: "/icons/tools/validate.svg",
   },
 ];

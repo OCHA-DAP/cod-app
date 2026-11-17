@@ -9,13 +9,21 @@ tools.
 - `package-polygons` MUST read the input via the shared loader (see
   `docs/reference/shared.md`), then merge its micro-polygons, and MUST
   raise if the input overlaps itself (see `docs/reference/shared.md`,
-  Coverage-topology checks).
+  Coverage-topology checks). Called with `checkTopology: false` (Package
+  with Clean off), it MUST skip that check, and each level's issues MUST
+  hold `invalid-edge` rows in place of gap rows.
 - `package-polygons` MUST detect every admin level present, either
   structurally (`schema-map`'s cardinality/containment matcher, no naming
   convention assumed, the default when a target schema is omitted) or via
   an explicit `nameField`/`codeField` pair, each containing a `{n}`
   placeholder, given together or not at all. `package-polygons` MUST
   raise if no level is found.
+- With auto-detection, a whole-table-constant column family named like the
+  detected levels MUST be its own coarsest (root) level, dissolved to one
+  row and numbered by its own anchor digit when that is coarser than every
+  detected level, else one above the coarsest.
+- `minLevel`, if given, MUST leave out every level whose depth is below
+  it, and MUST raise if no level is at or above it.
 
 ## Dissolving
 

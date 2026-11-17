@@ -31,7 +31,7 @@ export async function runSchemaDetect(
   prefix = "sd",
 ): Promise<SchemaResult> {
   await buildSchemaLevels(conn, "layer_attr", prefix, schema);
-  await runSchemaChecks(conn, prefix, "layer_attr");
+  await runSchemaChecks(conn, prefix, "layer_attr", schema);
   const severity = Object.entries(SEVERITY)
     .map(([k, v]) => `WHEN '${k}' THEN '${v}'`)
     .join(" ");

@@ -210,9 +210,10 @@ async function rootRows(
   const root = await detectRootLevel(conn, table, detected);
   const anchor = await rootAnchor(conn, table, detected);
   if (root === null || anchor === null || coarsest < 1) return [];
+  const [level, rootColumns] = root;
   const codeFamily = rows.find((r) => r.isCode && r.level === coarsest)!.family;
-  return root.identityColumns
-    .map((c) => columnRow(coarsest - 1, c, anchor, false))
+  return rootColumns.identityColumns
+    .map((c) => columnRow(level, c, anchor, false))
     .map((r) => ({ ...r, isCode: r.family === codeFamily }));
 }
 

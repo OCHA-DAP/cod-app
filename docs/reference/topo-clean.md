@@ -46,15 +46,10 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
 
 ## Gap-fill modes
 
-- The default mode (`minimal`) MUST fill a gap only when its maximum width
-  is at or below `SNAP_TOLERANCE` (floating-point-noise scale), and MUST
-  set the fill width to exactly `SNAP_TOLERANCE` — no shape heuristic.
-- The `thin` mode MUST fill a gap only when its compactness ratio is at or
-  below `0.3` (a digitization-sliver shape), measured after notch closing,
-  and MUST set the fill width to the widest such gap's maximum width plus 1%
-  headroom — just enough to
-  reliably clear `ST_CoverageClean`'s internal width comparison, not enough
-  to also sweep in a wider, non-thin gap.
+- The default mode (`minimal`) MUST set the fill width to exactly
+  `SNAP_TOLERANCE` when any gap is detected, so the clean fills
+  floating-point-noise gaps and merges sliver gaps (see
+  `docs/reference/shared.md`).
 - The `all` mode MUST consider every detected gap regardless of shape or
   width, and MUST set the fill width to a fixed sentinel
   (`GAP_MAXIMUM_WIDTH_ALL_DEG`, `360°`) guaranteed to exceed any real gap by
@@ -65,7 +60,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   a separate UI-only value (twice the widest detected gap's maximum width,
   rounded up to a nice number, 1/2/5 × 10^k) — this value MUST NOT be used
   as the actual fill width for any mode.
-- `minimal` or `thin` MAY resolve to a width of `0` when no gap qualifies,
+- `minimal` MAY resolve to a width of `0` when no gap is detected,
   meaning no gap is filled.
 
 ## Fixing topology
@@ -102,8 +97,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   or abort — an unfilled gap or a residual defect it finds is surfaced for
   display, not rejected.
 - `topo-clean` MUST report, for every originally-detected issue, whether it
-  ended up resolved in the current cleaned output: an overlap or a
-  micro-polygon MUST always count as resolved; a gap MUST count as resolved
+  ended up resolved in the current cleaned output: an overlap, a
+  micro-polygon or a sliver gap MUST always count as resolved; a gap MUST count as resolved
   only if no gap still open in the cleaned output overlaps it; a notch MUST
   count as resolved only if no notch between the same two units still
   intersects it in the cleaned output. A gap open in the cleaned output that
@@ -113,6 +108,10 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
 - `topo-clean` MUST merge or drop every micro-polygon left in its output,
   including when the clean was skipped, and MUST replace the previous
   clean's output `micro-polygon` issues with this clean's on every reclean.
+- Whenever it runs `ST_CoverageClean`, `topo-clean` MUST merge every sliver
+  gap in the result (see `docs/reference/shared.md`) before the validation
+  gate, and MUST replace the previous clean's `sliver-gap` issues with this
+  clean's on every reclean.
 - `topo-clean` MUST report a collapsed-polygon count (input row count minus
   surviving cleaned row count) whenever a clean or reclean runs. A polygon
   removed by the micro-polygon merge MUST NOT count toward the validation
@@ -128,11 +127,11 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   - `checkFixedIssues` + export-check), reusing the cached input freeze
     and the cached issues list, never re-running gap/overlap detection.
 - Opening the page with a `gap` query parameter MUST set the gap-fill mode
-  before the first clean: `thin` or `all` selects that mode, a non-negative
-  number selects `manual` at that width in meters, and any other value
-  leaves `minimal`. The first clean MUST run at that mode and width.
+  before the first clean: `all` selects that mode, a non-negative number
+  selects `manual` at that width in meters, and any other value (including
+  `thin`) leaves `minimal`. The first clean MUST run at that mode and width.
 - Every mode or width change MUST write the current mode to `gap` (the
-  Manual width in meters, or `thin`/`all`), and MUST remove `gap` for
+  Manual width in meters, or `all`), and MUST remove `gap` for
   `minimal`. The mode and width MUST persist when a new input is loaded.
 - The gap-fill mode controls, the issues table, and the input map MUST be
   available once gap/overlap detection finishes, including when the first

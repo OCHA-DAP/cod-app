@@ -247,7 +247,7 @@ export async function runPipeline(
 
   if (!skipOutputClean) {
     console.log("[EE-DEBUG] === stageOutputClean ===");
-    await gatedCoverageClean(conn, "layer_05");
+    await gatedCoverageClean(conn, "layer_05", { mergeSlivers: false });
   }
 
   // Topology validation (warn-only)

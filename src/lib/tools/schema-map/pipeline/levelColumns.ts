@@ -10,6 +10,7 @@ export interface LevelColumns {
   identityColumns: string[];
   hasCode: boolean;
   nameColumn: string | null;
+  isRoot?: boolean;
 }
 
 const MIN_LEVELS_TO_DIFF = 2;
@@ -315,21 +316,46 @@ export async function rootAnchor(
     candidateAnchors.add(c.slice(prefix.length, c.length - suffix.length));
   }
   for (const u of usedAnchors) candidateAnchors.delete(u);
-  if (candidateAnchors.size !== 1) return null;
-  return [prefix, [...candidateAnchors][0], suffix];
+  let candidates = [...candidateAnchors];
+  if ([...usedAnchors].every((a) => /^\d+$/.test(a))) {
+    // Only a coarser digit can be a root; stray columns like adm_lvl never are.
+    const coarsest = Math.min(...[...usedAnchors].map(Number));
+    candidates = candidates.filter((a) => /^\d+$/.test(a) && Number(a) < coarsest);
+  }
+  const held: string[] = [];
+  for (const a of candidates) {
+    if (await hasValue(conn, table, prefix + a + suffix)) held.push(a);
+  }
+  if (held.length !== 1) return null;
+  return [prefix, held[0], suffix];
 }
 
-// A coarser, whole-table-constant level one below the finest one, completing
-// the naming style the detected levels already established.
+async function hasValue(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  column: string,
+): Promise<boolean> {
+  const r = await conn.query(
+    `SELECT 1 FROM ${table} WHERE ${quoteIdent(column)} IS NOT NULL LIMIT 1`,
+  );
+  return r.numRows > 0;
+}
+
+// A coarser, whole-table-constant level named like the detected levels, numbered by its
+// own digit when coarser, else one above the coarsest; returns [level, columns].
 export async function detectRootLevel(
   conn: AsyncDuckDBConnection,
   table: string,
   levelColumns: Map<number, LevelColumns>,
-): Promise<LevelColumns | null> {
-  if (levelColumns.size === 0) return null;
+): Promise<[number, LevelColumns] | null> {
+  if (levelColumns.size === 0 || Math.min(...levelColumns.keys()) < 1) return null;
   const root = await rootAnchor(conn, table, levelColumns);
   if (root === null) return null;
   const [prefix, anchor, suffix] = root;
+  const coarsest = Math.min(...levelColumns.keys());
+  const digit = LEVEL_DIGIT_RE.exec(anchor);
+  let level = digit ? Number(digit[0]) : coarsest - 1;
+  if (level >= coarsest) level = coarsest - 1;
 
   const tableColumns = await tableColumnNames(conn, table);
   const assigned = new Set<string>();
@@ -347,9 +373,63 @@ export async function detectRootLevel(
     .join(", ");
   const r = await conn.query(`SELECT ${select} FROM ${table}`);
   const row = r.toArray()[0] as Record<string, number | bigint>;
-  const rootColumns = candidates.filter((_c, i) => Number(row[`__ra_${i}`]) <= 1);
-  if (rootColumns.length === 0) return null;
-  return { groupBy: [], identityColumns: rootColumns, hasCode: true, nameColumn: null };
+  const counts = candidates.map((_c, i) => Number(row[`__ra_${i}`]));
+  if (!counts.includes(1)) return null;
+  const rootColumns = candidates.filter((_c, i) => counts[i] <= 1);
+  return [
+    level,
+    { groupBy: [], identityColumns: rootColumns, hasCode: true, nameColumn: null, isRoot: true },
+  ];
+}
+
+// detectLevelColumnsOrSingle, plus a whole-table-constant root level.
+export async function detectLevelsWithRoot(
+  conn: AsyncDuckDBConnection,
+  table: string,
+): Promise<Map<number, LevelColumns>> {
+  const levelColumns = await detectLevelColumnsOrSingle(conn, table);
+  const root = await detectRootLevel(conn, table, levelColumns);
+  if (root === null) return levelColumns;
+  return new Map([[root[0], root[1]], ...levelColumns]);
+}
+
+// Each level's own code and name column as `code`/`name`, without anchors.
+export function fallbackFamilies(
+  levelColumns: Map<number, LevelColumns>,
+  levels: number[],
+): Map<string, Map<number, string>> {
+  const families = new Map<string, Map<number, string>>();
+  const put = (kind: string, n: number, column: string) => {
+    if (!families.has(kind)) families.set(kind, new Map());
+    families.get(kind)!.set(n, column);
+  };
+  for (const n of levels) {
+    const cols = levelColumns.get(n);
+    if (cols === undefined) continue;
+    const code = cols.groupBy.find((c) => c !== cols.nameColumn);
+    if (code !== undefined) put("code", n, code);
+    if (cols.nameColumn !== null) put("name", n, cols.nameColumn);
+  }
+  return families;
+}
+
+// Each level's code column; a constant root's sits in the next level's code family.
+export function levelCodeColumns(
+  levelColumns: Map<number, LevelColumns>,
+  families: Map<string, Map<number, string>>,
+  levels: number[],
+): (string | null)[] {
+  const codes = new Map<number, string | null>();
+  for (const [n, c] of levelColumns) if (c.groupBy.length) codes.set(n, c.groupBy[0]);
+  const root = [...levelColumns].find(([, c]) => c.isRoot)?.[0];
+  if (root !== undefined && codes.size) {
+    const first = Math.min(...codes.keys());
+    const below = levelColumns.get(first)!;
+    const nextCode = below.groupBy.find((c) => c !== below.nameColumn) ?? codes.get(first)!;
+    const family = [...families.values()].find((perLevel) => perLevel.get(first) === nextCode);
+    codes.set(root, family?.get(root) ?? null);
+  }
+  return levels.map((n) => codes.get(n) ?? null);
 }
 
 // (parentColumn, column) pairs are each distinct, tolerating noise.
@@ -420,10 +500,11 @@ export async function groupFamiliesByLevel(
   levelColumns: Map<number, LevelColumns>,
 ): Promise<Map<string, Map<number, string>>> {
   const anchors = await detectLevelAnchors(conn, table);
-  if (levelColumns.has(0) && !anchors.has(0)) {
-    const realLevels = new Map([...levelColumns].filter(([k]) => k !== 0));
+  const rootLevel = [...levelColumns].find(([, c]) => c.isRoot)?.[0];
+  if (rootLevel !== undefined && !anchors.has(rootLevel)) {
+    const realLevels = new Map([...levelColumns].filter(([, c]) => !c.isRoot));
     const root = await rootAnchor(conn, table, realLevels);
-    if (root !== null) anchors.set(0, root);
+    if (root !== null) anchors.set(rootLevel, root);
   }
   const families = new Map<string, Map<number, string>>();
   for (const [level, cols] of levelColumns) {

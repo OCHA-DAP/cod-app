@@ -1,9 +1,7 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { quoteIdent, widthFor, type CodeFormat } from "$lib/db/code";
+import { quoteIdent, quoteLiteral, widthFor, type CodeFormat } from "$lib/db/code";
 import type { SourceCodes } from "./assign";
 import type { Level } from "./levels";
-
-const sqlStr = (s: string): string => "'" + s.replace(/'/g, "''") + "'";
 
 export interface CodeIssueRow {
   kind: string;
@@ -23,9 +21,10 @@ export async function buildCodeIssues(
   levels: Map<number, Level>,
   fmt: CodeFormat,
   sourceCodes: SourceCodes,
+  rootSql: string,
 ): Promise<CodeIssueRow[]> {
   const rows: CodeIssueRow[] = [];
-  let parentSql = sqlStr(fmt.rootCode);
+  let parentSql = `${rootSql}::VARCHAR`;
   for (const level of [...levels.keys()].filter((n) => n >= 1).sort((a, b) => a - b)) {
     const { code, seeded } = levels.get(level)!;
     const qCode = quoteIdent(code);
@@ -77,7 +76,7 @@ async function writeIssuesTable(conn: AsyncDuckDBConnection, rows: CodeIssueRow[
   const values = rows
     .map(
       (r) =>
-        `(${sqlStr(r.kind)}, ${r.level}, ${sqlStr(r.parentCode)}, ${sqlStr(r.assignedCode)}, ${r.childCount}, ${r.minWidth}, ${sqlStr(r.reason)})`,
+        `(${quoteLiteral(r.kind)}, ${r.level}, ${quoteLiteral(r.parentCode)}, ${quoteLiteral(r.assignedCode)}, ${r.childCount}, ${r.minWidth}, ${quoteLiteral(r.reason)})`,
     )
     .join(", ");
   await conn.query(`INSERT INTO cc_issues VALUES ${values}`);

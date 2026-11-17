@@ -30,6 +30,36 @@ async function hasCodes(
   return r.v === true;
 }
 
+// A view of table without rootColumn; throws if it is missing or blank on any row.
+async function withoutRoot(
+  conn: AsyncDuckDBConnection,
+  table: string,
+  rootColumn: string,
+): Promise<string> {
+  const columns = (
+    (await conn.query(`DESCRIBE ${quoteIdent(table)}`)).toArray() as Array<{
+      column_name: string;
+    }>
+  ).map((r) => r.column_name);
+  if (!columns.includes(rootColumn)) {
+    throw new Error(`root code column ${JSON.stringify(rootColumn)} not found in ${table}`);
+  }
+  const q = quoteIdent(rootColumn);
+  const r = (
+    await conn.query(
+      `SELECT COUNT(*) AS n FROM ${quoteIdent(table)} WHERE coalesce(trim(${q}::VARCHAR), '') = ''`,
+    )
+  ).toArray()[0] as { n: number | bigint };
+  if (Number(r.n)) {
+    throw new Error(`root code column ${JSON.stringify(rootColumn)} is blank on ${r.n} row(s)`);
+  }
+  const view = `${table}_levels`;
+  await conn.query(
+    `CREATE OR REPLACE TEMP VIEW ${quoteIdent(view)} AS SELECT * EXCLUDE (${q}) FROM ${quoteIdent(table)}`,
+  );
+  return view;
+}
+
 // A constant coarsest column (empty groupBy) is dropped before renumbering,
 // so every structurally resolved level ends up a clean 1..N.
 export async function resolveCodeLevels(
@@ -37,7 +67,10 @@ export async function resolveCodeLevels(
   table: string,
   geomTable: string,
   schema: TargetSchema | null,
+  rootColumn: string | null = null,
 ): Promise<Map<number, Level>> {
+  // The root column holds each row's root, so detection leaves it out.
+  if (rootColumn !== null) table = await withoutRoot(conn, table, rootColumn);
   if (schema !== null) {
     const columns = new Set(
       (

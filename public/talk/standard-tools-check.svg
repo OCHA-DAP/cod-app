@@ -17,7 +17,7 @@
 <text x="500" y="185" fill="#4d4d4d">Python CLI</text>
 <text x="500" y="219" fill="#4d4d4d">and web app</text>
 <text x="860" y="125" fill="#0074b7" font-size="40" font-weight="600">Check</text>
-<text x="860" y="185" fill="#4d4d4d">Validate checks</text>
+<text x="860" y="185" fill="#4d4d4d">Package checks</text>
 <text x="860" y="219" fill="#4d4d4d">schema, topology,</text>
 <text x="860" y="253" fill="#4d4d4d">codes and names</text>
 <g stroke="#0074b7" stroke-width="3" marker-end="url(#h)"><path d="M 292 150 H 348"/><path d="M 652 150 H 708"/></g>

@@ -4,7 +4,7 @@ import { tableToGeoJSON } from "$lib/db/geojson";
 import { setCentroidLat } from "$lib/db/units";
 import {
   detectLevelCodes,
-  detectLevelColumns,
+  detectLevelsWithRoot,
   verifyFunctionalCluster,
 } from "$lib/tools/schema-map/pipeline/levelColumns";
 import {
@@ -48,10 +48,16 @@ async function resolveLevelPlans(
   conn: AsyncDuckDBConnection,
   attrTable: string,
   schema: TargetSchema | null,
+  minLevel: number | null,
 ): Promise<LevelPlan[]> {
+  const atOrAbove = (levels: number[]) => {
+    const kept = levels.filter((n) => minLevel === null || n >= minLevel);
+    if (!kept.length) throw new Error(`no admin level at or above min level ${minLevel}`);
+    return kept;
+  };
   if (schema !== null) {
     validateTargetSchema(schema);
-    const levels = await detectLevels(conn, attrTable, schema);
+    const levels = atOrAbove(await detectLevels(conn, attrTable, schema));
     return levels.map((level) => ({
       level,
       groupBy: [schema.codeField.replace("{n}", String(level))],
@@ -59,12 +65,21 @@ async function resolveLevelPlans(
     }));
   }
 
-  const levelColumns = await detectLevelColumns(conn, attrTable);
+  const levelColumns = await detectLevelsWithRoot(conn, attrTable);
   const levelCodes = await detectLevelCodes(conn, attrTable);
-  const levels = [...levelColumns.keys()].sort((a, b) => a - b);
+  const allLevels = [...levelColumns.keys()].sort((a, b) => a - b);
+  const levels = atOrAbove(allLevels);
   const plans: LevelPlan[] = [];
   for (const level of levels) {
     const cols = levelColumns.get(level)!;
+    const exclude = allLevels
+      .filter((l) => l > level)
+      .flatMap((l) => levelColumns.get(l)!.identityColumns);
+    // A constant root dissolves the whole layer into one unit.
+    if (cols.isRoot) {
+      plans.push({ level, groupBy: [], exclude });
+      continue;
+    }
     // groupBy is unfiltered by naming anchor and can sweep in incidental
     // numeric columns at row-unique cardinality; identityColumns is safe.
     const identitySet = new Set(cols.identityColumns);
@@ -77,9 +92,6 @@ async function resolveLevelPlans(
       throw new Error(`no canonical code column resolved for level ${level} in ${attrTable}`);
     }
     await verifyFunctionalCluster(conn, attrTable, canonical, groupBy);
-    const exclude = levels
-      .filter((l) => l > level)
-      .flatMap((l) => levelColumns.get(l)!.identityColumns);
     plans.push({ level, groupBy, exclude });
   }
   return plans;
@@ -90,16 +102,18 @@ async function resolveLevelPlans(
 export async function runPackagePolygons(
   conn: AsyncDuckDBConnection,
   schema: TargetSchema | null,
+  minLevel: number | null = null,
+  checkTopology = true,
 ): Promise<PackagePolygonsResult> {
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pp_micro");
-  await checkNoOverlaps(conn, "layer_01");
+  if (checkTopology) await checkNoOverlaps(conn, "layer_01");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE pp_input AS
     SELECT a.fid, a.geom, b.* EXCLUDE (fid)
     FROM layer_01 a LEFT JOIN layer_attr b ON a.fid = b.fid
   `);
 
-  const plans = await resolveLevelPlans(conn, "layer_attr", schema);
+  const plans = await resolveLevelPlans(conn, "layer_attr", schema, minLevel);
   if (plans.length === 0) {
     throw new Error("no admin hierarchy level detected");
   }
@@ -127,14 +141,14 @@ export async function runPackagePolygons(
       summedColumns = summed;
       droppedColumns = dropped;
 
-      const attrCols = [...plan.groupBy, ...keptColumns, ...summedColumns]
+      const attrCols = ["fid", ...plan.groupBy, ...keptColumns, ...summedColumns]
         .map((c) => `"${c}"`)
         .join(", ");
       await conn.query(
         `CREATE OR REPLACE TABLE ${geomTable} AS SELECT fid, geom FROM ${dissolveTable}`,
       );
       await conn.query(
-        `CREATE OR REPLACE TABLE ${attrTable} AS SELECT fid, ${attrCols} FROM ${dissolveTable}`,
+        `CREATE OR REPLACE TABLE ${attrTable} AS SELECT ${attrCols} FROM ${dissolveTable}`,
       );
       await conn.query(`DROP TABLE IF EXISTS ${dissolveTable}`);
     }
@@ -147,6 +161,7 @@ export async function runPackagePolygons(
       geomTable,
       plan.level,
       exportable ? null : "pp_micro",
+      checkTopology,
     );
 
     levels.push({

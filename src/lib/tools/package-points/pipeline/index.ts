@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { checkGenericNames } from "$lib/db/adminColumns";
 import { checkNoOverlaps, mergeMicroPolygons } from "$lib/db/coverage";
 import { tableToGeoJSON } from "$lib/db/geojson";
 import { setCentroidLat } from "$lib/db/units";
@@ -15,7 +16,7 @@ export interface PackagePointsResult {
   resultGeoJSON: string;
   bounds: [number, number, number, number] | null;
   levels: number[];
-  rootInjected: boolean;
+  rootLevel: number | null;
 }
 
 async function rowCount(conn: AsyncDuckDBConnection, table: string): Promise<number> {
@@ -39,20 +40,23 @@ interface LevelOutput {
   attrTable: string;
 }
 
-// Called coarsest-to-finest: the first real level's surviving columns seed the
-// generalizable-columns gate, since a column a coarser dissolve drops can't generalize.
+// Points carry only their own level's identity; other attributes stay on polygons.
 async function buildLevelOutput(
   conn: AsyncDuckDBConnection,
   sourceTable: string,
   plan: LevelPlan,
-  isRoot: boolean,
-  generalizable: Set<string> | null,
   depthColumn: string,
-): Promise<{ output: LevelOutput; generalizable: Set<string> | null }> {
+  schema: TargetSchema | null,
+): Promise<LevelOutput> {
   const dissolveTable = `pkpt_dissolved_${plan.level}`;
-  const { kept, summed, overridden } = await runDissolveCore(conn, sourceTable, dissolveTable, {
+  const keep = new Set([...plan.groupBy, ...plan.rename.keys(), "fid", "geom"]);
+  const columns = (await conn.query(`DESCRIBE ${sourceTable}`)).toArray() as Array<{
+    column_name: string;
+  }>;
+  await runDissolveCore(conn, sourceTable, dissolveTable, {
     groupBy: plan.groupBy,
-    exclude: plan.exclude,
+    exclude: columns.map((r) => r.column_name).filter((c) => !keep.has(c)),
+    targetSchema: schema ?? undefined,
   });
 
   const expected = await distinctTupleCount(conn, sourceTable, plan.groupBy);
@@ -63,20 +67,15 @@ async function buildLevelOutput(
     );
   }
 
-  const identitySet = new Set(plan.rename.keys());
-  let extraCols = [...kept, ...summed, ...overridden].filter((c) => !identitySet.has(c));
-  let nextGeneralizable = generalizable;
-  if (!isRoot) {
-    if (nextGeneralizable === null) nextGeneralizable = new Set(extraCols);
-    else extraCols = extraCols.filter((c) => nextGeneralizable!.has(c));
-  }
-
-  const identitySelect = [...plan.rename.entries()].map(
-    ([col, generic]) => `"${col}" AS "${generic}"`,
+  // Dissolve drops a column that varies within a group; only survivors are written.
+  const dissolved = new Set(
+    ((await conn.query(`DESCRIBE ${dissolveTable}`)).toArray() as Array<{ column_name: string }>).map(
+      (r) => r.column_name,
+    ),
   );
-  const extraSelect = extraCols.map((c) => `"${c}"`);
-  const selectCols = [...identitySelect, ...extraSelect];
-
+  const rename = [...plan.rename].filter(([col]) => dissolved.has(col));
+  checkGenericNames(rename, ["fid", "geom", "geometry", depthColumn]);
+  const selectCols = rename.map(([col, generic]) => `"${col}" AS "${generic}", `);
   const geomTable = `pkpt_geom_${plan.level}`;
   const attrTable = `pkpt_attr_${plan.level}`;
   await conn.query(`--sql
@@ -96,58 +95,52 @@ async function buildLevelOutput(
 
   await conn.query(`--sql
     CREATE OR REPLACE TABLE ${attrTable} AS
-    SELECT fid, ${selectCols.length > 0 ? selectCols.join(", ") + "," : ""} ${plan.level} AS "${depthColumn}"
+    SELECT fid, ${selectCols.join("")}${plan.level} AS "${depthColumn}"
     FROM ${dissolveTable}
   `);
 
   await conn.query(`DROP TABLE IF EXISTS ${dissolveTable}`);
-  return { output: { geomTable, attrTable }, generalizable: nextGeneralizable };
+  return { geomTable, attrTable };
 }
 
 export async function runPackagePoints(
   conn: AsyncDuckDBConnection,
   schema: TargetSchema | null,
   depthColumn: string = DEFAULT_DEPTH_COLUMN,
+  minLevel: number | null = null,
+  checkTopology = true,
 ): Promise<PackagePointsResult> {
   const attrCols = await conn.query(`DESCRIBE layer_attr`);
   const hasDepthColumn = (attrCols.toArray() as Array<{ column_name: string }>).some(
     (r) => r.column_name === depthColumn,
   );
+  // Each point is stamped with the level it labels, so an input depth column is replaced.
+  const attrSource = hasDepthColumn ? "pkpt_layer_attr" : "layer_attr";
   if (hasDepthColumn) {
-    throw new Error(`depthColumn "${depthColumn}" already exists on layer_attr`);
+    await conn.query(`--sql
+      CREATE OR REPLACE VIEW pkpt_layer_attr AS SELECT * EXCLUDE ("${depthColumn}") FROM layer_attr
+    `);
   }
 
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pkpt_micro");
-  await checkNoOverlaps(conn, "layer_01");
+  if (checkTopology) await checkNoOverlaps(conn, "layer_01");
   await conn.query("DROP TABLE IF EXISTS pkpt_micro");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE pkpt_input AS
     SELECT a.fid, a.geom, b.* EXCLUDE (fid)
-    FROM layer_01 a LEFT JOIN layer_attr b ON a.fid = b.fid
+    FROM layer_01 a LEFT JOIN ${attrSource} b ON a.fid = b.fid
   `);
 
-  const { plans, rootInjected } = await resolvePointLevelPlans(conn, "layer_attr", schema);
+  const plans = await resolvePointLevelPlans(conn, attrSource, schema, depthColumn, minLevel);
   if (plans.length === 0) {
     throw new Error("no admin hierarchy level detected");
   }
-  const rootLevel = Math.min(...plans.map((p) => p.level));
-  const sortedAsc = [...plans].sort((a, b) => a.level - b.level);
-
-  let generalizable: Set<string> | null = null;
   const outputs: LevelOutput[] = [];
-  for (const plan of sortedAsc) {
-    const result = await buildLevelOutput(
-      conn,
-      "pkpt_input",
-      plan,
-      rootInjected && plan.level === rootLevel,
-      generalizable,
-      depthColumn,
-    );
-    outputs.push(result.output);
-    generalizable = result.generalizable;
+  for (const plan of [...plans].sort((a, b) => a.level - b.level)) {
+    outputs.push(await buildLevelOutput(conn, "pkpt_input", plan, depthColumn, schema));
   }
   await conn.query(`DROP TABLE IF EXISTS pkpt_input`);
+  await conn.query("DROP VIEW IF EXISTS pkpt_layer_attr");
 
   const unionSql = outputs
     .map(
@@ -180,6 +173,6 @@ export async function runPackagePoints(
     resultGeoJSON,
     bounds,
     levels: plans.map((p) => p.level).sort((a, b) => a - b),
-    rootInjected,
+    rootLevel: plans.find((p) => p.isRoot)?.level ?? null,
   };
 }

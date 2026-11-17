@@ -1,6 +1,8 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { GEOMETRY_TYPE, NOTCH_SPACING, SNAP_TOLERANCE } from "./constants";
+import { bboxColumnsSql } from "./bbox";
+import { GEOMETRY_TYPE, NOTCH_SPACING, SNAP_TOLERANCE, UNCOVERED_AREA_RATIO } from "./constants";
 import { buildGapTable, buildOverlapTable, emptyRegions, isMicroSql } from "./coverage";
+import { isOutOfMemory } from "./errors";
 import { detectNotches } from "./notches";
 import { degSqToM2, degToM } from "./units";
 
@@ -22,7 +24,7 @@ export interface IssueRow {
   bbox: [number, number, number, number];
 }
 
-export type IssueKind = "gap" | "overlap" | "micro-polygon" | "notch";
+export type IssueKind = "gap" | "overlap" | "micro-polygon" | "notch" | "sliver-gap";
 
 export interface IssuesResult {
   rows: IssueRow[];
@@ -45,6 +47,7 @@ export async function buildGapRegions(
     await buildGapTable(conn, targetTable, sourceTable);
     return true;
   } catch (e) {
+    if (isOutOfMemory(e)) throw e;
     console.warn("gap-region detection failed; skipping gaps:", e);
     await emptyRegions(conn, targetTable);
     return false;
@@ -71,6 +74,7 @@ export async function buildOverlapRegions(
     await buildOverlapTable(conn, targetTable, sourceTable);
     return true;
   } catch (e) {
+    if (isOutOfMemory(e)) throw e;
     console.warn("overlap detection failed; skipping overlaps:", e);
     await emptyRegions(conn, targetTable, ", NULL::BIGINT AS fa, NULL::BIGINT AS fb");
     return false;
@@ -95,6 +99,7 @@ export async function buildMicroRegions(
     `);
     return true;
   } catch (e) {
+    if (isOutOfMemory(e)) throw e;
     console.warn("micro-polygon detection failed; skipping micro-polygons:", e);
     await emptyRegions(
       conn,
@@ -116,6 +121,7 @@ export async function buildNotchRegions(
     await detectNotches(conn, sourceTable, targetTable);
     return true;
   } catch (e) {
+    if (isOutOfMemory(e)) throw e;
     console.warn("notch detection failed; skipping notches:", e);
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${targetTable} AS
@@ -208,9 +214,9 @@ export async function assembleIssues(
 
 // Region rows (n, unit_a, unit_b, reason, fixed, geom) in assembleIssues' inner
 // column order, keyed keyPrefix || n.
-function microRegionsSql(regionsTable: string, keyPrefix: string): string {
+function microRegionsSql(regionsTable: string, keyPrefix: string, kind = "micro-polygon"): string {
   return `--sql
-      SELECT '${keyPrefix}' || n, 'micro-polygon', ST_Area(geom),
+      SELECT '${keyPrefix}' || n, '${kind}', ST_Area(geom),
              (ST_MaximumInscribedCircle(geom)).radius,
              NULL::DOUBLE, NULL::DOUBLE,
              unit_a, unit_b, fixed, reason, geom,
@@ -228,16 +234,57 @@ function notchRegionsSql(regionsTable: string, gapTable: string, overlapTable: s
              ST_XMin(geom), ST_YMin(geom), ST_XMax(geom), ST_YMax(geom)
       FROM ${regionsTable} nr
       WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
-        AND NOT EXISTS (
-          SELECT 1 FROM ${gapTable} g
-          WHERE g.geom IS NOT NULL AND ST_Intersects(nr.geom, g.geom)
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM ${overlapTable} o
-          WHERE least(o.fa, o.fb) = least(nr.unit_a, nr.unit_b)
-            AND greatest(o.fa, o.fb) = greatest(nr.unit_a, nr.unit_b)
-            AND ST_Intersects(nr.geom, o.geom)
+        AND nr.n NOT IN (
+          SELECT t.n FROM ${regionsTable} t
+          JOIN ${gapTable} g ON g.geom IS NOT NULL AND ST_Intersects(t.geom, g.geom)
+          UNION ALL
+          SELECT t.n FROM ${regionsTable} t
+          JOIN ${overlapTable} o
+            ON least(o.fa, o.fb) = least(t.unit_a, t.unit_b)
+            AND greatest(o.fa, o.fb) = greatest(t.unit_a, t.unit_b)
+            AND ST_Intersects(t.geom, o.geom)
         )`;
+}
+
+// Gap rows: overlay area no row of table covers, per overlay fid whose clipped area falls short.
+export function uncoveredOverlayIssuesSql(
+  table: string,
+  overlayTable: string,
+  coverTable: string,
+  minWidth = SNAP_TOLERANCE,
+): string {
+  const areaFactor = degSqToM2(1).toExponential();
+  const widthFactor = degToM(1).toExponential();
+  return `--sql
+    WITH short AS (
+      SELECT o.fid, o.geom, ${bboxColumnsSql("o.geom")}
+      FROM ${overlayTable} o
+      JOIN (SELECT overlay_fid, sum(area) AS area FROM ${coverTable} GROUP BY 1) c
+        ON c.overlay_fid = o.fid
+      WHERE c.area < ST_Area(o.geom) * (1 - ${UNCOVERED_AREA_RATIO})
+    ),
+    r AS (
+      SELECT geom, ${bboxColumnsSql("geom")} FROM ${table}
+      WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+    ),
+    gaps AS (
+      SELECT fid, UNNEST(ST_Dump(ST_Difference(
+        any_value(s.geom), ST_Union_Agg(ST_Intersection(r.geom, s.geom))
+      ))).geom AS geom
+      FROM short s
+      JOIN r ON r.xmax >= s.xmin AND r.xmin <= s.xmax AND r.ymax >= s.ymin AND r.ymin <= s.ymax
+      GROUP BY fid
+    )
+    SELECT 'gap-' || fid || '-' || row_number() OVER (PARTITION BY fid ORDER BY hash(geom)) AS key,
+           'gap' AS kind,
+           ST_Area(geom) * ${areaFactor} AS area_m2,
+           (ST_MaximumInscribedCircle(geom)).radius * 2 * ${widthFactor} AS max_width_m,
+           4 * pi() * ST_Area(geom) / POWER(ST_Perimeter(geom), 2) AS thinness_ratio,
+           FALSE AS fixed, NULL::BIGINT AS unit_a, NULL::BIGINT AS unit_b, fid AS overlay_fid,
+           'overlay area no output row covers' AS reason, geom,
+           ST_XMin(geom) AS xmin, ST_YMin(geom) AS ymin, ST_XMax(geom) AS xmax, ST_YMax(geom) AS ymax
+    FROM gaps
+    WHERE ST_Dimension(geom) = 2 AND (ST_MaximumInscribedCircle(geom)).radius * 2 > ${minWidth}`;
 }
 
 // Replaces issuesTable's rows keyed keyPrefix* with regionsTable's micro rows.
@@ -246,6 +293,7 @@ export async function replaceMicroIssues(
   issuesTable: string,
   regionsTable: string | null,
   keyPrefix: string,
+  kind = "micro-polygon",
 ): Promise<void> {
   await conn.query(`DELETE FROM ${issuesTable} WHERE starts_with(key, '${keyPrefix}')`);
   if (!regionsTable) return;
@@ -257,8 +305,9 @@ export async function replaceMicroIssues(
            area_deg * ${areaFactor} AS area_m2,
            mic_radius_deg * 2 * ${widthFactor} AS max_width_m,
            thinness_ratio, near_length_m, fixed, reason, unit_a, unit_b,
+           ${kind === "sliver-gap" ? `area_deg * ${areaFactor}` : "NULL::DOUBLE"} AS filled_area_m2,
            geom, xmin, ymin, xmax, ymax
-    FROM (${microRegionsSql(regionsTable, keyPrefix)}) t(
+    FROM (${microRegionsSql(regionsTable, keyPrefix, kind)}) t(
       key, kind, area_deg, mic_radius_deg, thinness_ratio, near_length_m,
       unit_a, unit_b, fixed, reason, geom, xmin, ymin, xmax, ymax)
   `);

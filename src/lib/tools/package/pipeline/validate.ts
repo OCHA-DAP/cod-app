@@ -7,7 +7,7 @@ import { runSchemaDetect } from "$lib/tools/schema-detect/pipeline/index";
 import type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 import { computeBounds, scanTopology } from "$lib/tools/topo-detect/pipeline/index";
 
-// Ported from topo-tools' core/validate and api/validate.py.
+// Ported from topo-tools' core/validate and api/_validate.py.
 
 export const STAGES = ["schema", "topo", "code", "name"] as const;
 export type Stage = (typeof STAGES)[number];
@@ -43,6 +43,8 @@ export interface SummaryRow {
 
 export interface ValidateResult {
   issues: SummaryRow[];
+  // Any error row, including a stage that failed.
+  hasErrors: boolean;
   ran: Stage[];
   map: FlaggedLayer;
 }
@@ -65,6 +67,7 @@ export async function runValidate(
   conn: AsyncDuckDBConnection,
   schema: TargetSchema | null,
   stem: string,
+  skipTopo = false,
 ): Promise<ValidateResult> {
   const runs: Record<Stage, () => Promise<unknown>> = {
     schema: () => runSchemaDetect(conn, schema),
@@ -87,6 +90,10 @@ export async function runValidate(
   const ran: Stage[] = [];
   let blocked = false;
   for (const stage of STAGES) {
+    if (stage === "topo" && skipTopo) {
+      await outcome(stage, "skipped", "warn", "not checked: Package ran with Clean off");
+      continue;
+    }
     if (blocked && (stage === "code" || stage === "name")) {
       await outcome(stage, "skipped", "warn", "levels could not be detected; see the schema report");
       continue;
@@ -130,6 +137,7 @@ export async function runValidate(
     Record<string, unknown>
   >;
   return {
+    hasErrors: rows.some((r) => r.severity === "error"),
     issues: rows.map((r) => ({
       key: `${r.stage}:${r.kind ?? ""}`,
       stage: r.stage as Stage,

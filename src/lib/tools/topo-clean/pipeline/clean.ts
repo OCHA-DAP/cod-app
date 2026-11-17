@@ -1,7 +1,8 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { buildCoverageCleanInput, runCoverageClean } from "$lib/db/coverageClean";
 import { hasInvalidEdges } from "$lib/db/invalidEdges";
-import { mergeMicroPolygons } from "$lib/db/coverage";
+import { mergeMicroPolygons, mergeSliverGaps } from "$lib/db/coverage";
+import { isOutOfMemory } from "$lib/db/errors";
 import { tryCloseNotches } from "$lib/db/notches";
 import { validateCleanOutput } from "./validate";
 
@@ -75,16 +76,21 @@ export async function buildClean(
     return;
   }
   const scratch = `${targetTable}_scratch`;
+  const slivers = `${targetTable}_slivers`;
   await runCoverageClean(conn, "tc_input", scratch, { gap: gapDeg });
   try {
+    await mergeSliverGaps(conn, scratch, slivers).catch((e) => {
+      if (isOutOfMemory(e)) throw e;
+      console.warn("sliver gap merge failed:", e);
+    });
     await validateCleanOutput(conn, scratch, gapDeg);
-  } catch (e) {
+    // Catches parts the clean itself left micro, as topo-tools' topo-clean does.
+    await mergeMicroPolygons(conn, scratch, targetTable, `${targetTable}_micro`);
+    await conn.query(`INSERT INTO ${targetTable}_micro BY NAME SELECT * FROM ${slivers}`);
+  } finally {
     await conn.query(`DROP TABLE IF EXISTS ${scratch}`);
-    throw e;
+    await conn.query(`DROP TABLE IF EXISTS ${slivers}`);
   }
-  // Catches parts the clean itself left micro, as topo-tools' topo-clean does.
-  await mergeMicroPolygons(conn, scratch, targetTable, `${targetTable}_micro`);
-  await conn.query(`DROP TABLE IF EXISTS ${scratch}`);
 }
 
 // Count rows in a cleaned table (post-explode) for the collapsed-feature warning.

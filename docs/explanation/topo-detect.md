@@ -45,7 +45,7 @@ fids involved) only for overlap rows.
 
 ## No noise floor
 
-Unlike Topology Cleaner's Minimal/Thin/All gap-fill modes, `topo-detect` reports
+Unlike Topology Cleaner's Minimal/All gap-fill modes, `topo-detect` reports
 every gap and overlap it finds regardless of size — there is no
 `SNAP_TOLERANCE` filter here, since nothing is being filled. Distinguishing
 a real defect from floating-point noise is left to the person reading the

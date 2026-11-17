@@ -172,12 +172,18 @@ export async function runDissolveCore(
   const selectSql = [...columnTypes.keys()].flatMap((c) => exprs.get(c) ?? []).join(", ");
   const groupClause = groupBy.length > 0 ? `GROUP BY ${groupColsSql.join(", ")}` : "";
 
+  // A window in the same query as ST_Union_Agg runs the union about 3x slower.
   await conn.query(`--sql
     CREATE OR REPLACE TABLE "${tableOut}" AS
-    SELECT row_number() OVER () AS fid, ${selectSql},
-           ST_MakeValid(ST_Union_Agg(geom)) AS geom
+    SELECT ${selectSql}, ST_MakeValid(ST_Union_Agg(geom)) AS geom
     FROM "${tableIn}"
     ${groupClause}
+  `);
+  const orderSql = groupBy.length > 0 ? `ORDER BY ${groupColsSql.join(", ")}` : "";
+  await conn.query(`--sql
+    CREATE OR REPLACE TABLE "${tableOut}" AS
+    SELECT row_number() OVER (${orderSql}) AS fid, * FROM "${tableOut}"
+    ${orderSql}
   `);
 
   return { kept, summed, overridden, dropped };

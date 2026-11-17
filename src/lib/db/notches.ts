@@ -286,22 +286,21 @@ async function fillEnclosedNotchGaps(
     ),
     parts AS (SELECT before, UNNEST(ST_Dump(g)).geom AS p FROM u),
     holes AS (
-      SELECT before,
-             UNNEST(ST_Dump(ST_Difference(ST_MakePolygon(ST_ExteriorRing(p)), p))).geom AS h
-      FROM parts
+      SELECT before, h FROM (
+        SELECT before,
+               UNNEST(ST_Dump(ST_Difference(ST_MakePolygon(ST_ExteriorRing(p)), p))).geom AS h
+        FROM parts
+      ) WHERE NOT ST_IsEmpty(h)
     )
-    SELECT h FROM holes n
-    WHERE NOT n.before AND NOT ST_IsEmpty(n.h)
-      AND NOT EXISTS (
-        SELECT 1 FROM holes o WHERE o.before AND ST_Intersects(o.h, ST_PointOnSurface(n.h))
-      )
+    SELECT n.h FROM holes n
+    LEFT JOIN holes o
+      ON o.before AND ST_Intersects(o.h, (ST_MaximumInscribedCircle(n.h)).center)
+    WHERE NOT n.before AND o.h IS NULL
   `);
   await conn.query(`--sql
-    DELETE FROM _notch_holes n WHERE EXISTS (
-      SELECT 1 FROM _notch_all x
-      WHERE x.rnid NOT IN (${ua}, ${ub}) AND ST_Intersects(x.geom, n.h)
-        AND ST_Area(ST_Intersection(x.geom, n.h)) > 0
-    )
+    DELETE FROM _notch_holes n USING _notch_all x
+    WHERE x.rnid NOT IN (${ua}, ${ub}) AND ST_Intersects(x.geom, n.h)
+      AND ST_Area(ST_Intersection(x.geom, n.h)) > 0
   `);
   await conn.query(`--sql
     UPDATE _notch_one o SET

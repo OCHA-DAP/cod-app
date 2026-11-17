@@ -43,7 +43,7 @@ name instead of repeating them.
   | Tool | Parameters |
   | --- | --- |
   | `change` | `match`, `same`, `by` (`geometry`/`identity`), `link` (`either`/`both`) |
-  | `code-create` | `root`, `delim` (a character, or `none`), `width`, `source` (`replace`/`embed`/`copy`), `name`, `code` |
+  | `code-create` | `root`, `rootfield` (a root code column, chosen over `root`), `delim` (a character, or `none`), `width`, `source` (`replace`/`embed`/`copy`), `name`, `code` |
   | `code-update` | `root`, `delim` (absent = detect, `none`, or a character), `width`, `name-a`, `code-a`, `name-b`, `code-b`, `code-col-a`, `code-col-b`, `name-col-a`, `name-col-b`, `match`, `same`, `by-code`, `by-name`, `link` |
   | `edge-match` | `match` (`auto`/`one`/`many`), `passthrough` |
   | `package`, `package-polygons`, `package-points`, `package-lines` | `name`, `code` |
@@ -116,7 +116,7 @@ name instead of repeating them.
   non-enclosed inlet between two polygons MUST NOT be reported as a gap.
 - When the exact union throws, the gap check MUST retry the union on
   `ST_ReducePrecision(geom, 1e-11)` and MUST drop every resulting hole whose
-  `ST_PointOnSurface` intersects an input polygon. A retry that still throws
+  inscribed-circle center intersects an input polygon. A retry that still throws
   MUST propagate to the caller.
 - The shared overlap check (`buildOverlapTable`) MUST intersect every pair
   whose interiors overlap or where one contains the other, through
@@ -178,6 +178,29 @@ name instead of repeating them.
 - `schema-join` and `schema-map` MUST NOT apply this rule, since they
   never modify geometry.
 
+## Sliver gaps (`$lib/db/coverage.ts::mergeSliverGaps`)
+
+- A sliver gap is an enclosed gap with `2 * area * vertices / perimeter^2`
+  at most `SLIVER_GAP_MAX_RATIO` (0.2): its mean width is at most a fifth
+  of its edges' mean segment length, counting the ring's closing point as a
+  vertex. A polygon inside the hole, an enclave or a row held out of the
+  clean, is not part of the gap, and a hole inside an enclave counts once.
+- Every `buildCoverageClean` call MUST merge each sliver gap into the
+  cleaned polygon sharing its longest border (ties to the lowest fid) after
+  `ST_CoverageClean`, except `edge-extend`'s final clean of its merged
+  output. `coverageCleanRows` MUST run the merge after reinserting its held
+  rows, whether or not the clean ran, and MUST NOT merge a gap into a held
+  row. `topo-clean` MUST run it whenever it runs `ST_CoverageClean`, before
+  its validation gate.
+- When the set-based union of a polygon with its slivers throws, the merge
+  MUST union each receiving polygon alone, leaving a polygon that still
+  throws, and its slivers, unchanged.
+- Each merged gap MUST be reported as a `sliver-gap` row by every tool that
+  writes an issues report for that clean (`edge-mosaic`, `edge-match`,
+  `topo-clean`), with the receiving fid in `unit_a`, `unit_b` null, `reason`
+  `merged into neighbouring polygon`, `fixed` true, and the gap itself as
+  `geom`; `topo-clean` also sets `filled_area_m2` to the gap's area.
+
 ## Notches (`$lib/db/notches.ts`)
 
 - A notch is a pair of units whose unshared boundary segments (segments no
@@ -236,7 +259,9 @@ each clipped output before any micro-polygon merge.
 - A piece is on the original footprint when its interior point falls on an
   original part of the same polygon, or when at least
   `DETACHED_MAX_ORIGINAL_SHARE` (50%) of its area is original land. An
-  original polygon belongs to the pre-clip part holding its interior point.
+  original polygon belongs to the pre-clip part holding its interior point,
+  limited to its paired input fid when the original carries one
+  (`originalOwner`).
 - A piece under `DETACHED_MERGE_MAX_RATIO` (1%) of its kept piece's area
   MUST merge into the polygon, clipped to the same overlay polygon, it
   shares the longest edge with (ties to the lowest fid), when under 50% of
@@ -329,7 +354,8 @@ Shared by `edge-match` and `edge-mosaic` for overlay assignment.
   the spatial result (see `docs/adr/0029`).
 - The outcome MUST be recorded as `assignmentMethod: 'code' | 'spatial_fallback'`
   and `spatialAgrees: boolean | null` (`true`/`false` when the method is
-  `'code'`, `null` when it's `'spatial_fallback'`).
+  `'code'`, `null` when it's `'spatial_fallback'`). For assign-one, a code
+  overlay tied for the top spatial vote MUST count as agreeing.
 - A disagreement or fallback MUST surface as an issues row: `kind='code-mismatch'`
   when the code match won but disagreed with the spatial result, or
   `kind='code-fallback'` when no code match existed, with `reason`
@@ -346,7 +372,8 @@ Shared by `code-create` (cold-start) and `code-update` (reconcile
 against an already-coded OLD layer).
 
 - A `CodeFormat` (`rootCode`, `delimiter`, `minWidth`) MUST be validated
-  via `resolveCodeFormat`: `rootCode` non-empty, `delimiter` exactly one
+  via `resolveCodeFormat`: `rootCode` non-empty, or null when each row's
+  root comes from a column, `delimiter` exactly one
   character, or empty when the caller allows no delimiter. No field has
   a default.
 - `minWidth` MUST be one positive width (`3`), one positive width per
@@ -355,14 +382,16 @@ against an already-coded OLD layer).
   level (`checkLevelCount`), else throw.
 - `parseCode` MUST split on `delimiter`, or, with an empty delimiter,
   strip `rootCode` and cut each level's tail at that level's width,
-  throwing when the code doesn't start with the root or can't be cut.
+  throwing when the code doesn't start with the root or can't be cut, or
+  when `rootCode` is null.
 - `assignNewCodes` MUST rank rows per parent group by their given sort
   columns and format each as `parentCode || delimiter || lpad(tail,
   width, '0')`, starting above every integer the parent's direct
   children use in `existingCodes`. It MUST NOT reuse a raw source value
   as-is.
 - Under `auto`, every new tail at a level MUST pad to the widest tail
-  that level needs, `existingCodes` included.
+  that level needs, `existingCodes` included, per `widthGroupColumn`
+  value when one is given.
 - With an empty delimiter and a fixed width, when the next number doesn't
   fit the width, numbering MUST continue above the parent's highest used
   number below the top 10% of the range (`9 * 10 ** (width - 1)`), and

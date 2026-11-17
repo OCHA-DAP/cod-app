@@ -13,38 +13,32 @@ topo-tools' `package-points`.
 1. **Load** (`$lib/db/loader`, shared), then `pipeline/index.ts` joins
    `layer_01`/`layer_attr` into a working `pkpt_input` table.
 2. **Resolve level plans** (`pipeline/points.ts`'s
-   `resolvePointLevelPlans`) - detects every level (explicit schema or
-   structural auto-detection, same engine `package-polygons` uses), and,
-   on the auto-detect path, looks for a whole-table-constant coarser
-   family one level below the finest detected levels
-   (`schema-map/pipeline/levelColumns.ts`'s `detectRootLevel`), injecting
-   it as a synthetic level 0 when found (`rootInjected`). Each level's
-   `groupBy` is filtered to the anchor-conforming subset of its
-   `identityColumns` (see `docs/adr/0033`), and `exclude` is every
-   _other_ level's own `identityColumns` (not just finer ones, since an
-   ancestor never survives under its own numbered name here either).
+   `resolvePointLevelPlans`) - detects every level (explicit schema, or
+   `schema-map/pipeline/levelColumns.ts`'s `detectLevelsWithRoot` on the
+   auto-detect path, which adds a whole-table-constant coarser family as
+   its own root level, numbered by its own anchor digit). Each level's
+   own identity columns come from its column families: `genericFamilies`
+   (`$lib/db/adminColumns`) names an explicit schema's families by their
+   suffix, and `groupFamiliesByLevel`, or `fallbackFamilies` when no
+   naming anchor exists, groups auto-detected ones.
+   `levelCodeColumns` gives a constant root, which has no group-by column,
+   the member of the next level's code family, so a bare `adm0` lands
+   under `code` beside `adm1`/`adm2`, not under `name`.
+   `checkGenericNames` throws when two families reduce to one name.
 3. **Per-level dissolve and point extraction**
    (`pipeline/index.ts`'s `buildLevelOutput`) - dissolves via
-   `package-polygons/pipeline/dissolveCore.ts`'s `runDissolveCore`, checks
+   `package-polygons/pipeline/dissolveCore.ts`'s `runDissolveCore`,
+   keeping only the level's group-by and own identity columns, checks
    the dissolved row count against the input's own distinct group-by
    tuple count, computes `(ST_MaximumInscribedCircle(geom)).center` per
-   row, stamps the depth column, and verifies every point is
-   `ST_Covers`-ed by its own source polygon.
-4. **Generalizable-columns gate** - processing runs coarsest-to-finest,
-   as in topo-tools; `generalizable` seeds from the coarsest real
-   level's own surviving column set, and every finer level's own output is
-   filtered down to that set before renaming. A column a coarser dissolve
-   drops (e.g. a finest-level-only attribute) would be `NULL` on that
-   level's rows, so it is dropped from every level. The root level (if
-   injected) is exempt, since it has nothing coarser to compare against.
-5. **Rename and combine** - each level's own identity columns are renamed
-   to a name shared across every level
-   (`schema-map/pipeline/levelColumns.ts`'s `groupFamiliesByLevel`/
-   `levelFamilyNames` on the auto-detect path, or a fixed `code`/`name` on
-   the explicit-schema path), then every level's points table is combined
-   via `UNION ALL BY NAME`: a column excluded at a given level is simply
-   absent from that level's own table, not unioned in as an always-`NULL`
-   column.
+   row, stamps the depth column (an input column of that name, such as
+   Schema Fill's real-depth stamp, is left out of the input first), and
+   verifies every point is `ST_Covers`-ed by its own source polygon.
+4. **Rename and combine** - each level's own identity columns are renamed
+   to their generic names, then every level's points table is combined
+   via `UNION ALL BY NAME`. The output schema is fixed (geometry, identity
+   columns, depth), since any other attribute stays on the polygons and
+   joins back by code and depth.
 
 ## Why `ST_MaximumInscribedCircle`, not the centroid
 

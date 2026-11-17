@@ -37,7 +37,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
 ## Cleaning
 
 - By default, `edge-mosaic` MUST merge micro-polygons in the clipped result,
-  then run one gated coverage clean over it.
+  then run one gated coverage clean over it, then merge its sliver gaps.
 - With the clean skipped, `edge-mosaic` MUST merge micro-polygons only.
 
 ## Outputs
@@ -51,9 +51,10 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
   identified by its own fid (kind `unassigned` when no overlay polygon won,
   `clip-empty` when its clip came out empty), every merged or kept
   clip-detached piece (`detached-part`), every merged or dropped
-  micro-polygon (`micro-polygon`), every `invalid-edge` pair, every gap
-  wider than `SNAP_TOLERANCE` whose interior point falls inside the winning
-  overlay polygon (`gap`, only when the clean ran), and any
+  micro-polygon (`micro-polygon`), every merged sliver gap (`sliver-gap`),
+  every `invalid-edge` pair, every piece of
+  the winning overlay polygon that no output row covers and wider than
+  `SNAP_TOLERANCE` (`gap`, with its `overlay_fid`, in both clean modes), and any
   `code-mismatch`/`code-fallback` rows from a code-based assignment
   override (see `docs/reference/shared.md`).
 - `edge-mosaic` MUST report the count of remaining gaps and invalid-edge
@@ -62,6 +63,14 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
 ## Configuration
 
 - `edge-mosaic` MAY accept one original layer file (`original` URL param).
+  Each original row MUST pair with the input feature sharing its own
+  finest-level code (detected from the original), and a row whose code is
+  NULL or matches no input feature MUST fall back to the interior-point
+  test. With a one-feature input, an original with one row or no
+  detectable code column, an input lacking that code column, or no code
+  pairing, `edge-mosaic` MUST run without the original; each case but the
+  one-feature input MUST show a warning, as MUST originals whose codes
+  match no input feature.
 - `edge-mosaic` MAY accept a `matchColumn` name or an
   `overlayMatchColumn`/`inputMatchColumn` pair for the code-based
   assignment override (see `docs/adr/0029`).

@@ -2,6 +2,7 @@ import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { assignOne } from "$lib/db/assignOne";
 import { carryOverlayColumns } from "$lib/db/carryColumns";
 import { clipEngine, mergeClipDetached } from "$lib/db/clipEngine";
+import { pairOriginals } from "./originals";
 import { buildTiles } from "$lib/db/clipTiles";
 import { checkNoOverlaps, mergeMicroPolygons } from "$lib/db/coverage";
 import { checkValidTopology, coverageCleanRows } from "$lib/db/coverageClean";
@@ -43,6 +44,8 @@ export interface MosaicResult {
   gapCount: number;
   inputColumns: ColumnGuess;
   overlayColumns: ColumnGuess;
+  // Why the original was not paired, or which of its codes paired nothing.
+  warnings: string[];
 }
 
 // Ported from topo-tools' mosaic: assign-one, then a clip to the winning overlay
@@ -71,6 +74,8 @@ export async function runMosaic(
   } catch (e) {
     throw new PipelineError(e instanceof Error ? e.message : String(e), 1);
   }
+  const warnings: string[] = [];
+  const originalTable = originalFiles.length > 0 ? await pairOriginals(conn, warnings) : null;
   const inputGeoJSON = await tableToGeoJSON(conn, "input_layer_01", null);
   const overlayOutlineGeoJSON = await tableToGeoJSON(conn, "overlay_layer_01", null);
   const bounds = await layerBounds(conn, "input_layer_01").catch(() => null);
@@ -106,7 +111,12 @@ export async function runMosaic(
       SELECT c.fid, a.overlay_fid, c.geom FROM input_layer_01 c JOIN cl_assign a ON a.input_fid = c.fid
     `);
     await conn.query("DROP TABLE IF EXISTS cl_tiles_all");
-    await buildTiles(conn, "overlay_layer_01", "SELECT overlay_fid FROM cl_clip_in", "cl_tiles_all");
+    await buildTiles(
+      conn,
+      "overlay_layer_01",
+      "SELECT overlay_fid FROM cl_clip_in",
+      "cl_tiles_all",
+    );
     engineResult = await clipEngine(conn, "cl_clip_in", "cl_tiles_all", "cl_clip");
     await conn.query("DROP TABLE IF EXISTS cl_tiles_all");
     await conn.query("DROP TABLE IF EXISTS cl_clip_in");
@@ -119,7 +129,7 @@ export async function runMosaic(
   }
   let detached;
   try {
-    detached = await mergeClipDetached(conn, assign.overlayFid, originalFiles.length > 0);
+    detached = await mergeClipDetached(conn, assign.overlayFid, originalTable);
   } catch (e) {
     throw new PipelineError(e instanceof Error ? e.message : String(e), 3);
   }
@@ -135,10 +145,10 @@ export async function runMosaic(
   }
 
   onProgress(5, "Assembling issues report");
-  const { rows, geojson } = await buildMosaicIssues(conn, assign.overlayFid, {
+  const { rows, geojson } = await buildMosaicIssues(conn, {
     assignmentMethod: assign.assignmentMethod,
     spatialAgrees: assign.spatialAgrees,
-  }, clean);
+  });
   const gapCount = rows.filter((r) => r.kind === "gap").length;
 
   return {
@@ -156,5 +166,6 @@ export async function runMosaic(
     gapCount,
     inputColumns,
     overlayColumns,
+    warnings,
   };
 }

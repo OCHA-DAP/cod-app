@@ -1,5 +1,10 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { ColumnNameError } from "$lib/db/adminColumns";
 import { quoteIdent } from "$lib/db/code";
+import { isNumericDuckdbType } from "$lib/db/columnTypes";
+import { checkIdentityNames } from "$lib/tools/schema-map/pipeline/identityNames";
+import { isNoiseColumn } from "$lib/tools/schema-map/pipeline/constants";
+import type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 
 // Ported from topo-tools' core/schema_detect/_03_checks.py.
 
@@ -89,6 +94,74 @@ const orphan: Check = (p, table, parents) =>
     `;
   });
 
+const none = (p: string) => `SELECT NULL, NULL, NULL, NULL, NULL FROM ${p}_02 WHERE false`;
+
+// Packaging drops a text column with several values in one coarsest unit.
+function varying(p: string, table: string, codes: Array<[number, string]>, metadata: string[]) {
+  if (!codes.length || !metadata.length) return none(p);
+  const [level, code] = codes[0];
+  const c = quoteIdent(code);
+  const flags = metadata.map((col, i) => `count(DISTINCT ${quoteIdent(col)}) > 1 AS "v${i}"`);
+  const keys = metadata.map((col, i) => `('v${i}', ${lit(col)})`).join(", ");
+  const names = metadata.map((_c, i) => `"v${i}"`).join(", ");
+  return `--sql
+    SELECT 'varying-column', ${level}, m.column_name, min(u.unit),
+           'several values within ' || count(*) || ${lit(` unit(s) of ${code}`)}
+    FROM (
+      SELECT ${c}::VARCHAR AS unit, ${flags.join(", ")}
+      FROM ${quoteIdent(table)} WHERE ${c} IS NOT NULL GROUP BY ${c}
+    ) UNPIVOT (varies FOR flag IN (${names})) u
+    JOIN (VALUES ${keys}) m(flag, column_name) USING (flag)
+    WHERE u.varies
+    GROUP BY m.column_name
+  `;
+}
+
+// Packaging names each identity family without its level; two must not share one.
+async function identityNames(
+  conn: AsyncDuckDBConnection,
+  p: string,
+  table: string,
+  schema: TargetSchema | null,
+  codes: Array<[number, string]>,
+): Promise<string> {
+  try {
+    if (codes.length) await checkIdentityNames(conn, table, schema);
+  } catch (e) {
+    // Levels that can't resolve are reported by the level checks.
+    if (e instanceof ColumnNameError) {
+      return `SELECT 'unusable-column-name', NULL, NULL, NULL, ${lit(e.message)}`;
+    }
+  }
+  return none(p);
+}
+
+// Every non-numeric column outside the level and supplemental columns.
+async function metadataColumns(conn: AsyncDuckDBConnection, p: string, table: string) {
+  const known = new Set(
+    (
+      (
+        await conn.query(`SELECT column_name FROM ${p}_02 WHERE column_name IS NOT NULL`)
+      ).toArray() as Array<{ column_name: string }>
+    ).map((r) => r.column_name),
+  );
+  const desc = (await conn.query(`DESCRIBE ${quoteIdent(table)}`)).toArray() as Array<{
+    column_name: string;
+    column_type: string;
+  }>;
+  return desc
+    .filter(
+      ({ column_name: c, column_type: t }) =>
+        !known.has(c) &&
+        c !== "fid" &&
+        c !== "geom" &&
+        !isNoiseColumn(c) &&
+        !isNumericDuckdbType(t) &&
+        !t.startsWith("GEOMETRY"),
+    )
+    .map((r) => r.column_name);
+}
+
 const CHECKS: Array<[string, Check]> = [
   ["problems", problems],
   ["column-naming", naming],
@@ -102,20 +175,30 @@ export async function runSchemaChecks(
   conn: AsyncDuckDBConnection,
   p: string,
   table: string,
+  schema: TargetSchema | null = null,
 ): Promise<void> {
   const codes = (
-    await conn.query(`--sql
-      SELECT level, column_name FROM ${p}_02
-      WHERE is_code AND problem IS NULL ORDER BY level
-    `)
-  ).toArray() as Array<{ level: number; column_name: string }>;
-  const parents: Parent[] = codes
-    .slice(1)
-    .map((c, i) => [Number(c.level), c.column_name, codes[i].column_name]);
+    (
+      await conn.query(`--sql
+        SELECT level, column_name FROM ${p}_02
+        WHERE is_code AND problem IS NULL ORDER BY level
+      `)
+    ).toArray() as Array<{ level: number; column_name: string }>
+  ).map((c): [number, string] => [Number(c.level), c.column_name]);
+  const parents: Parent[] = codes.slice(1).map(([level, child], i) => [level, child, codes[i][1]]);
+  const metadata = await metadataColumns(conn, p, table);
+  const checks: Array<[string, () => Promise<string>]> = [
+    ...CHECKS.map(([kind, build]): [string, () => Promise<string>] => [
+      kind,
+      async () => build(p, table, parents),
+    ]),
+    ["varying-column", async () => varying(p, table, codes, metadata)],
+    ["unusable-column-name", () => identityNames(conn, p, table, schema, codes)],
+  ];
   await conn.query(`CREATE OR REPLACE TABLE ${p}_03 (${COLUMNS})`);
-  for (const [kind, build] of CHECKS) {
+  for (const [kind, build] of checks) {
     try {
-      await conn.query(`INSERT INTO ${p}_03 ${build(p, table, parents)}`);
+      await conn.query(`INSERT INTO ${p}_03 ${await build()}`);
     } catch (e) {
       // One failing check must not hide the rest, and its failure is a finding.
       console.warn(`${kind} check failed`, e);
