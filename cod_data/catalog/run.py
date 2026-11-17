@@ -30,7 +30,7 @@ EXPLORER_STEPS = [
     "comparison",
     "bbox",
 ]
-STEPS = [*EXPLORER_STEPS, "tools"]
+STEPS = [*EXPLORER_STEPS, "tools", "global"]
 TOOLS = CATALOG / "tools"
 CACHE = Path("tmp/catalog/cache")
 DEMO_DATETIME = "2025-01-01"
@@ -98,6 +98,8 @@ def add_all() -> None:
         if (demo / ".portolan").is_dir():
             add(demo, DEMO_DATETIME)
     add(TOOLS / "sources", SOURCES_DATETIME)
+    for collection in collections(CATALOG / "global"):
+        add(collection, download_date(collection))
 
 
 def main() -> None:
@@ -129,6 +131,11 @@ def main() -> None:
             run_explorer_step(step)
     if "tools" in steps:
         build_tools(refetch=args.refetch, detect=args.detect)
+    if "global" in steps:
+        from cod_data.catalog.global_build import publish
+
+        for adm0 in publish.built():
+            publish.stage(adm0)
 
     from cod_data.catalog.tools.annotate_nld import annotate_catalog
 

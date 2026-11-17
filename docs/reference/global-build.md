@@ -86,3 +86,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `lines` outputs, listing the others.
 - `--only` MUST rebuild only the listed locations and merge every location
   already built.
+- The merge MUST write `points` and `lines` in Hilbert order.
+- The catalog's `global` step MUST copy each ADM0 layer in `PUBLISH` into
+  `catalog/global/<adm0>/<adm0>_<layer>/`, one collection per layer, as a
+  single GeoParquet with PMTiles.

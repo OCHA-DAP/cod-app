@@ -462,6 +462,10 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
     ]
 
 
+# Spatial order lets a reader skip row groups outside its area.
+HILBERT = "ST_Hilbert(geometry, ST_Extent(ST_MakeEnvelope(-180, -90, 180, 90)))"
+
+
 def merge(out: Path, iso3s: list[str]) -> list[str]:
     valid_from = date.today().isoformat()
     con = connect()
@@ -479,7 +483,7 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
         staged.append(out / f".{geom}.parquet")
         write_geoparquet(
             con,
-            f"SELECT * FROM read_parquet({files}, union_by_name = true)",
+            f"SELECT * FROM read_parquet({files}, union_by_name = true) ORDER BY {HILBERT}",
             staged[-1],
         )
     con.close()
