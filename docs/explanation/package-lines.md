@@ -25,7 +25,9 @@ one line network and labelling each edge by its nearby units recovers it
    `package-polygons/pipeline/dissolveCore.ts`'s `runDissolveCore`); every
    coarser boundary is already contained in the finest level's own
    adjacency.
-2. `nodedLines` clips every unit's `ST_Boundary` to its 1° tiles
+2. `nodedLines` cuts each part of every unit's `ST_Boundary` longer than
+   `SUBDIVIDE_MAX_VERTICES` at its own vertices into runs of at most that
+   many, sharing an end vertex, and clips each run to its 1° tiles
    (`TILE_DEG`) plus a `TILE_MARGIN_DEG` overlap, so a line cut at a tile
    edge still meets its node, then nodes each tile with
    `ST_LineMerge(ST_Union_Agg(...))`.
@@ -34,7 +36,8 @@ one line network and labelling each edge by its nearby units recovers it
    ending a rounding error apart at a junction don't form a loop.
 4. Each edge, normalised with `ST_Normalize`, is labelled by the units
    whose boundary lies within the tolerance of its midpoint
-   (`ST_LineInterpolatePoint(geom, 0.5)`): one unit is exterior, two are
+   (`ST_LineInterpolatePoint(geom, 0.5)`), each unit's distance the least
+   over its runs: one unit is exterior, two are
    shared, more keep the two nearest. Candidates are paired on bbox
    columns first, keeping geometry out of the join's hash table.
 5. The two copies of a shared border in one tile are snapped onto each
