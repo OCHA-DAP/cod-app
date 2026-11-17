@@ -140,7 +140,10 @@ def main() -> None:
     if "global" in steps:
         from cod_data.catalog.global_build import publish
 
-        for adm0 in publish.built():
+        ready = publish.built()
+        for adm0 in sorted(set(publish.PUBLISH) - set(ready)):
+            print(f"global: no merged build for {adm0}, skipping it")
+        for adm0 in ready:
             publish.stage(adm0)
 
     from cod_data.catalog.tools.annotate_nld import annotate_catalog
