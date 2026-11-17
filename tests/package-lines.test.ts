@@ -295,6 +295,41 @@ test("noded lines ignore input row order", async () => {
   expect(outputs.size).toBe(1);
 }, 120_000);
 
+async function nodedWkb(maxVertices: number): Promise<string> {
+  await nodedLines(conn, "x", "d", maxVertices);
+  const out = await rows(
+    "SELECT left_fid, right_fid, ST_AsHEXWKB(geom) AS g FROM x_lines ORDER BY ALL",
+  );
+  return JSON.stringify(out);
+}
+
+test("noded lines are the same when long boundaries are split", async () => {
+  const border = Array.from({ length: 2001 }, (_, i) => [3 + 0.01 * Math.sin(i), (i * 3) / 2000]);
+  const shared = border.map(([x, y]) => `${x} ${y}`).join(", ");
+  const back = [...border]
+    .reverse()
+    .map(([x, y]) => `${x} ${y}`)
+    .join(", ");
+  await run(`CREATE OR REPLACE TABLE synthetic AS SELECT * FROM (VALUES
+    (1, ST_GeomFromText('POLYGON((0 0, ${shared}, 0 3, 0 0))')),
+    (2, ST_GeomFromText('POLYGON((${back}, 6 0, 6 3, ${border[2000][0]} 3))'))
+  ) t(fid, geom)`);
+  await loadFixture(mmrSeamUrl, "mmr_seam.parquet");
+  await run(`CREATE OR REPLACE TABLE mmr AS
+    SELECT row_number() OVER (ORDER BY a.adm1_pcode) AS fid, g.geom
+    FROM layer_01 g JOIN layer_attr a USING (fid)`);
+  for (const table of ["synthetic", "mmr"]) {
+    await run(`CREATE OR REPLACE TABLE d AS SELECT * FROM ${table}`);
+    expect(await nodedWkb(50)).toBe(await nodedWkb(1e9));
+  }
+  await run("CREATE OR REPLACE TABLE d AS SELECT * FROM synthetic");
+  await nodedLines(conn, "x", "d", 50);
+  const pairs = await rows(
+    "SELECT left_fid, right_fid FROM x_lines WHERE right_fid IS NOT NULL ORDER BY ALL",
+  );
+  expect(pairs.map((r) => [Number(r.left_fid), Number(r.right_fid)])).toEqual([[1, 2]]);
+}, 120_000);
+
 test("a multi-part unit touching a neighbor and with a remote island", async () => {
   const found = await lines([
     ["A", "MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((100 70,100 80,110 80,110 70,100 70)))"],
