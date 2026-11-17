@@ -1,7 +1,8 @@
 import { beforeAll, beforeEach, expect, test } from "vitest";
-import { cleanForPackage, runPackage } from "$lib/tools/package/pipeline";
+import { SNAP_TOLERANCE } from "$lib/db/constants";
+import { preparePackageInput, restorePackageInput, runPackage } from "$lib/tools/package/pipeline";
 import { runValidate } from "$lib/tools/package/pipeline/validate";
-import { layer, ready, rows, run } from "./helpers";
+import { layer, ready, rows, run, scalar } from "./helpers";
 
 const SCHEMA = { nameField: "adm{n}_name", codeField: "adm{n}_pcode" };
 const DUPLICATE = `SELECT * REPLACE (CASE WHEN adm3_pcode = 'XY112' THEN 'XY111' ELSE adm3_pcode END AS adm3_pcode) FROM base`;
@@ -89,7 +90,7 @@ test("block off reports and packages", async () => {
 
 test("an overlap is cleaned before packaging", async () => {
   await layer(OVERLAP);
-  await cleanForPackage(conn);
+  await preparePackageInput(conn, true);
   const r = await runPackage(conn, SCHEMA, { stem: "in" });
   expect(r.validation.hasErrors).toBe(false);
   expect(r.outputs).not.toBeNull();
@@ -104,6 +105,19 @@ test("clean off skips topology and reports invalid edges", async () => {
   expect(await rows("SELECT DISTINCT kind FROM pp_issues_3 WHERE kind = 'invalid-edge'")).toEqual([
     { kind: "invalid-edge" },
   ]);
+});
+
+test("a rerun starts from the input, not the previous run's micro-polygon merge", async () => {
+  const sliver = SNAP_TOLERANCE / 10;
+  await layer(`SELECT * FROM base UNION ALL BY NAME
+    SELECT 'XY3' AS adm1_pcode, 'Region 3' AS adm1_name, 'XY33' AS adm2_pcode, 'District 33' AS adm2_name,
+           'XY334' AS adm3_pcode, 'Commune 334' AS adm3_name,
+           ST_MakeEnvelope(9, 0, ${9 + sliver}, 1) AS geom`);
+  await preparePackageInput(conn, false);
+  await runPackage(conn, SCHEMA, { stem: "in", clean: false, block: false });
+  expect(await scalar("SELECT count(*) FROM layer_01")).toBe(27);
+  await restorePackageInput(conn);
+  expect(await scalar("SELECT count(*) FROM layer_01")).toBe(28);
 });
 
 test.todo("a clean out of memory points to turning Clean off (needs an out-of-memory hook)");

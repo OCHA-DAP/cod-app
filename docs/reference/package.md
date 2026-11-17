@@ -5,8 +5,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention.
 ## Behavior
 
 - With Clean on (the default), `package` MUST coverage-clean the layer on
-  load when it has gaps or invalid edges, merging sliver gaps. An
-  out-of-memory clean MUST fail with a message to turn Clean off.
+  load when it has gaps or invalid edges, merging sliver gaps. A failed
+  clean MUST stop the load, and an out-of-memory clean MUST fail with a
+  message to turn Clean off.
 - Each run, `package` MUST run Schema Detect, Topology Detect, Code Detect
   and Name Detect on the loaded layer and count their findings by stage,
   kind and severity. Topology gaps MUST count as warnings and other
@@ -24,8 +25,10 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention.
   runs its own full pipeline.
 - The browser tool MUST run on load and on every valid template change,
   debounced, with the target schema templates, Clean, blocking and the
-  minimum level under Advanced options. A blocked run MUST show the checks
-  with a "Package anyway" action. The check summary and each stage's
+  minimum level under Advanced options. Each run MUST start from the
+  loaded (and cleaned) layer, not a previous run's output. A blocked run
+  MUST show the checks with a "Package anyway" action, which holds until a
+  setting changes. The check summary and each stage's
   report MUST be downloadable.
 - The browser tool MUST show either polygons or lines with point labels,
   never both. Polygons MUST be filled one level at a time, coloring each

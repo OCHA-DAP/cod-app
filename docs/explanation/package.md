@@ -8,10 +8,12 @@ composite pattern. Ported from topo-tools'
 
 ## Pipeline
 
-On load, `pipeline/index.ts`'s `cleanForPackage` coverage-cleans
+On load, `pipeline/index.ts`'s `preparePackageInput` coverage-cleans
 `layer_01` in place when it has gaps or invalid edges (`gatedCoverageClean`,
 including the sliver-gap merge), so the clean runs once per file, not on
-every template change. Each run, `runPackage` first calls
+every template change, and copies the result to `pkg_input`. The sub-tools
+merge micro-polygons into `layer_01` in place, so the app calls
+`restorePackageInput` before each run. Each run, `runPackage` first calls
 `pipeline/validate.ts`'s `runValidate`, which runs Schema Detect, Topology
 Detect, Code Detect and Name Detect and counts each one's findings by kind
 into `vd_summary`. An error row (a failed stage counts as one) stops the run

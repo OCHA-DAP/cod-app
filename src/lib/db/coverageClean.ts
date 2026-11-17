@@ -145,10 +145,10 @@ export async function gatedCoverageClean(
   opts: CoverageCleanOptions & {
     anyHole?: boolean;
     microIssuesTable?: string;
-    throwOnOutOfMemory?: boolean;
+    rethrow?: boolean;
   } = {},
 ): Promise<void> {
-  const { anyHole, throwOnOutOfMemory, ...cleanOpts } = opts;
+  const { anyHole, rethrow, ...cleanOpts } = opts;
   if (!(await needsCoverageClean(conn, table, anyHole))) return;
 
   const scratch = `${table}_cc_gated`;
@@ -156,7 +156,7 @@ export async function gatedCoverageClean(
     await buildCoverageClean(conn, table, scratch, { preserveOriginal: true, ...cleanOpts });
     await conn.query(`CREATE OR REPLACE TABLE ${table} AS SELECT * FROM ${scratch}`);
   } catch (e) {
-    if (throwOnOutOfMemory && isOutOfMemory(e)) throw e;
+    if (rethrow) throw e;
     console.warn(`CoverageClean failed on ${table}, leaving as-is:`, e);
   } finally {
     await conn.query(`DROP TABLE IF EXISTS ${scratch}`);
@@ -237,7 +237,9 @@ export async function checkValidTopology(
 ): Promise<void> {
   if (await hasInvalidEdges(conn, table)) throw new Error(`INVALID_EDGES: ${table}`);
   const gaps =
-    gapMaxWidth === 0 ? await hasAnyHole(conn, table) : await hasNoiseFloorGap(conn, table, gapMaxWidth);
+    gapMaxWidth === 0
+      ? await hasAnyHole(conn, table)
+      : await hasNoiseFloorGap(conn, table, gapMaxWidth);
   if (gaps) throw new Error(`GAPS: ${table}`);
   if (await hasMicroPolygons(conn, table)) throw new Error(`MICRO_POLYGONS: ${table}`);
 }
@@ -251,7 +253,9 @@ export async function coverageCleanRows(
   microIssuesTable: string,
 ): Promise<void> {
   const held = `${table}_held`;
-  await conn.query(`CREATE OR REPLACE TABLE ${held} AS SELECT * FROM ${table} WHERE NOT (${where})`);
+  await conn.query(
+    `CREATE OR REPLACE TABLE ${held} AS SELECT * FROM ${table} WHERE NOT (${where})`,
+  );
   await conn.query(`DELETE FROM ${table} WHERE NOT (${where})`);
   await mergeMicroPolygons(conn, table, table, microIssuesTable);
   await gatedCoverageClean(conn, table, { mergeSlivers: false });

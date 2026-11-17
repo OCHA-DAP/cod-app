@@ -43,20 +43,34 @@ export interface PackageOptions {
   stem?: string;
 }
 
-// Coverage-cleans layer_01 in place when it has gaps or invalid edges.
-export async function cleanForPackage(conn: AsyncDuckDBConnection): Promise<void> {
-  try {
-    await gatedCoverageClean(conn, "layer_01", { anyHole: true, throwOnOutOfMemory: true });
-  } catch (e) {
-    if (!isOutOfMemory(e)) throw e;
-    throw new Error(
-      `The coverage clean ran out of memory. Turn Clean off under Advanced options and try again. (${(e as Error).message})`,
-    );
+// Coverage-cleans layer_01 when clean is on, then keeps a copy for restorePackageInput.
+export async function preparePackageInput(
+  conn: AsyncDuckDBConnection,
+  clean: boolean,
+): Promise<void> {
+  if (clean) {
+    try {
+      await gatedCoverageClean(conn, "layer_01", { anyHole: true, rethrow: true });
+    } catch (e) {
+      if (!isOutOfMemory(e)) throw e;
+      throw new Error(
+        `The coverage clean ran out of memory. Turn Clean off under Advanced options and try again. (${(e as Error).message})`,
+      );
+    }
   }
+  await conn.query("CREATE OR REPLACE TABLE pkg_input AS SELECT * FROM layer_01");
+}
+
+// The sub-tools merge micro-polygons into layer_01 in place, so each rerun starts from the copy.
+export async function restorePackageInput(conn: AsyncDuckDBConnection): Promise<void> {
+  await conn.query("CREATE OR REPLACE TABLE layer_01 AS SELECT * FROM pkg_input");
 }
 
 // The finest level is the input itself; views give it the same export source as a dissolved level.
-async function exposeFinestLevel(conn: AsyncDuckDBConnection, level: number | undefined): Promise<void> {
+async function exposeFinestLevel(
+  conn: AsyncDuckDBConnection,
+  level: number | undefined,
+): Promise<void> {
   const views = await conn.query(
     `SELECT view_name FROM duckdb_views() WHERE regexp_full_match(view_name, 'pp_(geom|attr)_[0-9]+')`,
   );

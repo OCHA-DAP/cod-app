@@ -9,7 +9,8 @@
   import type { ExportSource } from "$lib/db/export";
   import { DEFAULT_DEPTH_COLUMN } from "$lib/tools/schema-fill/pipeline/index";
   import {
-    cleanForPackage,
+    preparePackageInput,
+    restorePackageInput,
     runPackage,
     type PackageResult,
     type TargetSchema,
@@ -43,6 +44,8 @@
   syncParam("code", textParam, () => codeField, (v) => (codeField = v));
   let clean = $state(true);
   let block = $state(true);
+  // Set by "Package anyway"; any settings change clears it.
+  let packageAnyway = false;
   let minLevel = $state(NaN);
   syncParam("clean", boolParam, () => clean, (v) => (clean = v));
   syncParam("block", boolParam, () => block, (v) => (block = v));
@@ -92,7 +95,7 @@
     try {
       await withDb(async (db, conn) => {
         await loadFile(db, conn, files);
-        if (clean) await cleanForPackage(conn);
+        await preparePackageInput(conn, clean);
         originalGeoJSON = await tableToGeoJSON(conn, "layer_01", null);
         loadedBounds = await layerBounds(conn);
       });
@@ -105,7 +108,7 @@
     }
   }
 
-  async function handleRun(packageAnyway = false): Promise<void> {
+  async function handleRun(): Promise<void> {
     error = null;
     running = true;
     result = null;
@@ -119,7 +122,10 @@
       stem: fileStem(files[0]),
     };
     try {
-      result = await withDb((_db, conn) => runPackage(conn, schema, options));
+      result = await withDb(async (_db, conn) => {
+        await restorePackageInput(conn);
+        return runPackage(conn, schema, options);
+      });
       if (result.outputs) {
         const n = result.outputs.polygons.levels.length;
         if (levelIndex < 0 || levelIndex >= n) levelIndex = n - 1;
@@ -154,6 +160,7 @@
   // Reads every setting so any change reruns; the debounce absorbs typing.
   $effect(() => {
     const _settings = [nameField, codeField, minLevel, block, loadedClean];
+    packageAnyway = false;
     if (!canRun) return;
     const timer = setTimeout(() => untrack(requestRun), 400);
     return () => clearTimeout(timer);
@@ -288,7 +295,10 @@
       <section class="step">
         <h2 class="step-heading">Checks</h2>
         <p class="field-hint">The checks found errors, so nothing was packaged. Fix them, or package anyway.</p>
-        <button class="run-btn" disabled={running} onclick={() => handleRun(true)}>
+        <button class="run-btn" disabled={running} onclick={() => {
+            packageAnyway = true;
+            requestRun();
+          }}>
           Package anyway
         </button>
       </section>
