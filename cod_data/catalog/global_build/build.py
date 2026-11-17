@@ -39,7 +39,7 @@ from cod_data.catalog.global_build.config import (
     WORKERS,
 )
 from cod_data.catalog.global_build.conform import depth, stage_sql
-from cod_data.shared.geoparquet import write_geoparquet
+from cod_data.shared.geoparquet import WORLD, write_geoparquet
 
 LEVEL_COLS = ("name", "name1", "name2", "name3", "pcode", "srcid", "type")
 LANG = ("lang", "lang1", "lang2", "lang3")
@@ -463,7 +463,7 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
 
 
 # Spatial order lets a reader skip row groups outside its area.
-HILBERT = "ST_Hilbert(geometry, ST_Extent(ST_MakeEnvelope(-180, -90, 180, 90)))"
+HILBERT = f"ST_Hilbert(geometry, ST_Extent({WORLD}))"
 
 
 def merge(out: Path, iso3s: list[str]) -> list[str]:
@@ -476,15 +476,16 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
         union = " UNION ALL BY NAME ".join(
             f"({polygons_sql(out / 'iso3' / i.lower(), n, valid_from)})" for i in iso3s
         )
-        write_geoparquet(con, f"SELECT * FROM ({union}) ORDER BY adm{n}_pcode", dest)
+        write_geoparquet(con, f"SELECT * FROM ({union})", dest, f"adm{n}_pcode")
         report += check(con, dest, n)
     for geom in ("points", "lines"):
         files = [str(out / "iso3" / i.lower() / f"{geom}.parquet") for i in iso3s]
         staged.append(out / f".{geom}.parquet")
         write_geoparquet(
             con,
-            f"SELECT * FROM read_parquet({files}, union_by_name = true) ORDER BY {HILBERT}",
+            f"SELECT * FROM read_parquet({files}, union_by_name = true)",
             staged[-1],
+            HILBERT,
         )
     con.close()
     # Replace the layers only once every one has passed check().
