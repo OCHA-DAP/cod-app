@@ -122,6 +122,12 @@ export async function mergeSliverGaps(
       }
     });
     await x(`--sql
+      CREATE OR REPLACE TABLE ${table} AS
+      SELECT t.* EXCLUDE (rnid, geom), coalesce(m.geom, t.geom) AS geom
+      FROM _sliver_rows t LEFT JOIN _sliver_new m USING (rnid)
+      ORDER BY t.rnid
+    `);
+    await x(`--sql
       CREATE OR REPLACE TABLE ${issuesTable} AS
       SELECT 'sliver-gap-' || d.gid AS key, 'sliver-gap' AS kind, d.fid AS unit_a,
              NULL::BIGINT AS unit_b, '${MICRO_MERGED_REASON}' AS reason,
@@ -129,12 +135,6 @@ export async function mergeSliverGaps(
              (ST_MaximumInscribedCircle(d.geom)).radius * 2 * ${degToM(1).toExponential()} AS max_width_m,
              TRUE AS fixed, d.geom, ${bboxColumnsSql("d.geom")}
       FROM _sliver_dest d SEMI JOIN _sliver_new USING (rnid) ORDER BY d.gid
-    `);
-    await x(`--sql
-      CREATE OR REPLACE TABLE ${table} AS
-      SELECT t.* EXCLUDE (rnid, geom), coalesce(m.geom, t.geom) AS geom
-      FROM _sliver_rows t LEFT JOIN _sliver_new m USING (rnid)
-      ORDER BY t.rnid
     `);
     return n(`SELECT count(*) AS n FROM ${issuesTable}`);
   } finally {
