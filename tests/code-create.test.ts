@@ -724,3 +724,12 @@ test.each([
     expect(combined).toContainEqual(["AAA Region 1", `AAA${delimiter}1`]);
   },
 );
+
+test("a root code column named root pads embedded integers", async () => {
+  const rs = unevenRootRows().map(({ iso3, ...r }) => ({ root: iso3, ...r }));
+  const schema = { nameField: "adm{n}_name", codeField: "adm{n}_pcode" };
+  const { out } = await codeCreate(rs, null, "", "1", "embed", schema, "root");
+  const codes = fetch(out, ["adm1_pcode"]).map(([c]) => c);
+  expect(codes).toContain("AAA1");
+  expect(codes).toContain("BBB01");
+});

@@ -187,9 +187,9 @@ async function fixWidth(
   if (integer) {
     await conn.query(`--sql
       UPDATE ${qTable}
-      SET ${qCode} = lpad(${qCode}, GREATEST(${widthFor(fmt, n) ?? 0}, w.len)::INTEGER, '0')
-      FROM (SELECT ${rootSql} AS root, max(length(${qCode})) AS len FROM ${qTable} GROUP BY 1) w
-      WHERE ${rootSql} = w.root
+      SET ${qCode} = lpad(${qCode}, GREATEST(${widthFor(fmt, n) ?? 0}, w.cc_len)::INTEGER, '0')
+      FROM (SELECT ${rootSql} AS cc_root, max(length(${qCode})) AS cc_len FROM ${qTable} GROUP BY 1) w
+      WHERE ${rootSql} = w.cc_root
     `);
   }
 }

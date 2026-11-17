@@ -95,6 +95,6 @@ shares with `code-update`.
   MUST NOT become a level itself. Each row's own value is its root code:
   level 1 is ranked and numbered under it, so each root's units number
   from 1 exactly as a separate run per root would. Under `auto`, each
-  level's width, and the zero-padding of embedded integer codes, MUST be
-  sized per root.
+  level's width MUST be sized per root, and the zero-padding of embedded
+  integer codes MUST be sized per root at every min width.
 - Source codes MUST be `replace` (default), `embed`, or `copy`.
