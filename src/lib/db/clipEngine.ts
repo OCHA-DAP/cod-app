@@ -21,7 +21,9 @@ export async function clipEngine(
 ): Promise<ClipEngineResult> {
   const x = (sql: string) => conn.query(sql);
   await x(`CREATE OR REPLACE TABLE ${tableOut} (fid BIGINT, geom ${GEOMETRY_TYPE})`);
-  await x(`CREATE OR REPLACE TABLE ${tableOut}_dropped (fid BIGINT, overlay_fid BIGINT, geom ${GEOMETRY_TYPE})`);
+  await x(
+    `CREATE OR REPLACE TABLE ${tableOut}_dropped (fid BIGINT, overlay_fid BIGINT, geom ${GEOMETRY_TYPE})`,
+  );
   await x(`CREATE OR REPLACE TABLE ${tableOut}_cover (overlay_fid BIGINT, area DOUBLE)`);
   const fids = (await x(`SELECT DISTINCT overlay_fid FROM ${tableIn} ORDER BY 1`))
     .toArray()
@@ -90,14 +92,15 @@ export async function clipEngine(
 export async function mergeClipDetached(
   conn: AsyncDuckDBConnection,
   overlayFid: number,
-  hasOriginal: boolean,
+  originalTable: string | null,
 ): Promise<{ merged: number; kept: number }> {
   const merged = await mergeDetachedParts(conn, "cl_clip", "cl_clip", {
     preClipSql:
       "SELECT c.fid, c.geom FROM input_layer_01 c JOIN cl_assign a ON a.input_fid = c.fid",
     overlaySql: `SELECT geom FROM overlay_layer_01 WHERE fid = ${overlayFid}`,
     overlayFid,
-    originalTable: hasOriginal ? "original_layer_01" : null,
+    originalTable,
+    originalOwner: originalTable ? "input_fid" : null,
     issuesTable: "cl_detached",
   });
   const r = await conn.query("SELECT COUNT(*) AS n FROM cl_detached");

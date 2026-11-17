@@ -11,6 +11,7 @@ const OWNED_TABLES = [
   "original_raw_layer",
   "original_layer_01",
   "original_layer_attr",
+  "original_paired",
   "cl_input_parts",
   "cl_overlay_parts",
   "cl_overlay_pieces",

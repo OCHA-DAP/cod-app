@@ -68,7 +68,10 @@ for example where the overlay edge crosses a thin tip. `mergeDetachedParts`
 original footprint, and merges a piece under 1% of it into the neighbour it
 shares the longest edge with, unless the original drew it that way. Mosaic
 needs the optional original layer (the input before extension) for that
-test, and without it only reports such pieces. See `docs/adr/0042` and
+test, and without it only reports such pieces. `pipeline/originals.ts`
+pairs each original row with the input feature sharing its finest-level
+code, so a neighbour's original land can't own a piece; rows without a
+matching code fall back to the interior-point test. See `docs/adr/0042` and
 topo-tools' ADR 0120.
 
 ## Code-based assignment override

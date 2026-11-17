@@ -74,7 +74,8 @@ export async function mergeSliverGaps(
   where = "TRUE",
 ): Promise<number> {
   const x = (sql: string) => conn.query(sql);
-  const n = async (sql: string) => Number((((await x(sql)).toArray()[0]) as { n: bigint | number }).n);
+  const n = async (sql: string) =>
+    Number(((await x(sql)).toArray()[0] as { n: bigint | number }).n);
   await emptyMicroIssues(conn, issuesTable);
   const tmp = ["_sliver_holes", "_sliver_gaps", "_sliver_rows", "_sliver_dest", "_sliver_new"];
   try {
@@ -86,7 +87,9 @@ export async function mergeSliverGaps(
       WHERE 2 * ST_Area(geom) * ST_NPoints(geom) / power(ST_Perimeter(geom), 2) <= ${SLIVER_GAP_MAX_RATIO}
     `);
     if ((await n("SELECT count(*) AS n FROM _sliver_gaps")) === 0) return 0;
-    await x(`CREATE OR REPLACE TABLE _sliver_rows AS SELECT row_number() OVER () AS rnid, * FROM ${table}`);
+    await x(
+      `CREATE OR REPLACE TABLE _sliver_rows AS SELECT row_number() OVER () AS rnid, * FROM ${table}`,
+    );
     await x(`--sql
       CREATE OR REPLACE TABLE _sliver_dest AS
       WITH r AS (
@@ -452,6 +455,8 @@ export interface DetachedPartsOptions {
   overlaySql: string; // SELECT geom: the one overlay feature they were clipped to
   overlayFid: number;
   originalTable: string | null; // pre-extension layer (fid, geom), when known
+  // originalTable's column pairing each row with one input fid; NULL rows fall back to a point test.
+  originalOwner?: string | null;
   issuesTable: string;
 }
 
@@ -502,6 +507,7 @@ export async function mergeDetachedParts(
   opts: DetachedPartsOptions,
 ): Promise<number> {
   const { preClipSql, overlaySql, overlayFid, originalTable, issuesTable } = opts;
+  const originalOwner = opts.originalOwner ?? null;
   const multi = await conn.query(
     `SELECT COUNT(*) AS n FROM ${tableIn} WHERE ST_NumGeometries(geom) > 1`,
   );
@@ -583,7 +589,13 @@ export async function mergeDetachedParts(
     if (originalTable === null) {
       await conn.query(`CREATE OR REPLACE TABLE ${group} AS SELECT *, TRUE AS on_src FROM ${q}`);
     } else {
-      await groupOnOriginal(conn, issuesTable, originalTable, { parts, pre, pts, q, group });
+      await groupOnOriginal(conn, issuesTable, originalTable, originalOwner, {
+        parts,
+        pre,
+        pts,
+        q,
+        group,
+      });
     }
     // Per pre-clip part, the largest piece on the original footprint is kept,
     // so an extension-only piece never outranks a unit's real footprint.
@@ -707,6 +719,7 @@ async function groupOnOriginal(
   conn: AsyncDuckDBConnection,
   prefix: string,
   originalTable: string,
+  originalOwner: string | null,
   tables: { parts: string; pre: string; pts: string; q: string; group: string },
 ): Promise<void> {
   const { parts, pre, pts, q, group } = tables;
@@ -725,7 +738,7 @@ async function groupOnOriginal(
       FROM ${parts} p JOIN ${q} q USING (pid)
       WHERE q.qid IN (SELECT qid FROM ${q} GROUP BY qid HAVING count(*) > 1)
     `);
-    await loadOwnedOriginal(conn, originalTable, split, pre, oparts);
+    await loadOwnedOriginal(conn, originalTable, originalOwner, split, pre, oparts);
     await conn.query(`--sql
       CREATE OR REPLACE TABLE ${onsrc} AS
       SELECT DISTINCT s.id AS pid
@@ -761,12 +774,12 @@ async function groupOnOriginal(
   }
 }
 
-// Writes `oparts` (id, fid, geom, bbox): original parts near a probe, each
-// owned by the pre-clip part holding its feature's interior point, so no key
-// column is shared with the input.
+// Writes `oparts` (id, fid, geom, bbox): original parts near a probe, each owned by
+// the pre-clip part holding its feature's interior point, limited to its originalOwner fid.
 async function loadOwnedOriginal(
   conn: AsyncDuckDBConnection,
   originalTable: string,
+  originalOwner: string | null,
   probeTable: string,
   pre: string,
   oparts: string,
@@ -774,9 +787,13 @@ async function loadOwnedOriginal(
   const tol = SNAP_TOLERANCE;
   await conn.query(`--sql
     CREATE OR REPLACE TABLE ${oparts} AS
-    WITH o AS (SELECT geom, ${bboxColumnsSql()} FROM ${originalTable} WHERE geom IS NOT NULL),
+    WITH o AS (
+      SELECT geom, ${originalOwner ? `"${originalOwner}"` : "NULL::BIGINT"} AS owner_fid,
+             ${bboxColumnsSql()}
+      FROM ${originalTable} WHERE geom IS NOT NULL
+    ),
     near AS (
-      SELECT row_number() OVER () AS oid, geom FROM o
+      SELECT row_number() OVER () AS oid, geom, owner_fid FROM o
       WHERE EXISTS (
         SELECT 1 FROM ${probeTable} p
         WHERE p.xmin - ${tol} <= o.xmax AND p.xmax + ${tol} >= o.xmin
@@ -784,13 +801,14 @@ async function loadOwnedOriginal(
       )
     ),
     pos AS (
-      SELECT oid, pt, ST_X(pt) AS px, ST_Y(pt) AS py
-      FROM (SELECT oid, (ST_MaximumInscribedCircle(geom)).center AS pt FROM near)
+      SELECT oid, owner_fid, pt, ST_X(pt) AS px, ST_Y(pt) AS py
+      FROM (SELECT oid, owner_fid, (ST_MaximumInscribedCircle(geom)).center AS pt FROM near)
     ),
     owner AS (
       SELECT f.oid, q.fid FROM pos f JOIN ${pre} q
         ON q.xmin <= f.px AND q.xmax >= f.px
        AND q.ymin <= f.py AND q.ymax >= f.py AND ST_Intersects(q.geom, f.pt)
+       AND (f.owner_fid IS NULL OR q.fid = f.owner_fid)
       QUALIFY row_number() OVER (PARTITION BY f.oid ORDER BY q.qid) = 1
     ),
     dumped AS (

@@ -148,16 +148,16 @@ export async function buildMosaicIssues(
   }>;
 
   const rows: MosaicIssueRow[] = meta.map((r) => ({
-      key: r.key,
-      kind: r.kind,
-      areaM2: r.area_m2,
-      maxWidthM: r.max_width_m,
-      thinnessRatio: r.thinness_ratio,
-      unitA: r.unit_a == null ? null : Number(r.unit_a),
-      unitB: r.unit_b == null ? null : Number(r.unit_b),
-      overlayFid: r.overlay_fid == null ? null : Number(r.overlay_fid),
-      reason: r.reason,
-      bbox: [r.xmin, r.ymin, r.xmax, r.ymax] as [number, number, number, number],
+    key: r.key,
+    kind: r.kind,
+    areaM2: r.area_m2,
+    maxWidthM: r.max_width_m,
+    thinnessRatio: r.thinness_ratio,
+    unitA: r.unit_a == null ? null : Number(r.unit_a),
+    unitB: r.unit_b == null ? null : Number(r.unit_b),
+    overlayFid: r.overlay_fid == null ? null : Number(r.overlay_fid),
+    reason: r.reason,
+    bbox: [r.xmin, r.ymin, r.xmax, r.ymax] as [number, number, number, number],
   }));
 
   const gj = await conn.query(`--sql

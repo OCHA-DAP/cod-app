@@ -28,6 +28,7 @@
   let originalFiles = $state<File[]>([]);
   let detachedMerged = $state(0);
   let detachedKept = $state(0);
+  let originalWarnings = $state<string[]>([]);
   let running = $state(false);
   let currentStage = $state(0); // 0=idle, 1-5=active stage, 6=done
   let errorStage = $state(0);
@@ -114,6 +115,7 @@
     resultBounds = null;
     detachedMerged = 0;
     detachedKept = 0;
+    originalWarnings = [];
     overlayFid = null;
     issues = [];
     issuesGeoJSON = null;
@@ -146,6 +148,7 @@
       resultBounds = result.bounds;
       detachedMerged = result.detachedMergedCount;
       detachedKept = result.detachedKeptCount;
+      originalWarnings = result.warnings;
       overlayFid = result.overlayFid;
       issues = result.issues;
       issuesGeoJSON = result.issuesGeoJSON;
@@ -294,6 +297,9 @@
         {#if microCount + detachedMerged + detachedKept > 0}
           <p class="info-line"><CleanupNote count={microCount + detachedMerged + detachedKept} /></p>
         {/if}
+        {#each originalWarnings as w (w)}
+          <p class="warn-line">{w}</p>
+        {/each}
         {#if invalidEdgeCount > 0}
           <p class="warn-line">
             {invalidEdgeCount} pair{invalidEdgeCount === 1 ? "" : "s"} of polygons

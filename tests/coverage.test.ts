@@ -227,10 +227,17 @@ describe("detached parts", () => {
     clipped: [number, string][],
     pre: [number, number, string][],
     original?: [number, string][],
+    owners?: Record<number, number | null>,
   ) {
     await geomTable("clipped", clipped);
     await table("pre", ["fid", "overlay_fid", "geom"], pre);
     if (original) await geomTable("original", original);
+    if (owners) {
+      await run("ALTER TABLE original ADD COLUMN input_fid BIGINT");
+      for (const [fid, owner] of Object.entries(owners)) {
+        await run(`UPDATE original SET input_fid = ${owner ?? "NULL"} WHERE fid = ${fid}`);
+      }
+    }
     await run(`CREATE OR REPLACE TABLE overlay AS
       SELECT p.overlay_fid AS fid, ST_Union_Agg(c.geom) AS geom
       FROM clipped c JOIN pre p USING (fid) GROUP BY p.overlay_fid`);
@@ -249,6 +256,7 @@ describe("detached parts", () => {
         overlaySql: `SELECT geom FROM overlay WHERE fid = ${o}`,
         overlayFid: o,
         originalTable: original ? "original" : null,
+        originalOwner: owners ? "input_fid" : null,
         issuesTable: "issues_o",
       });
       await run("INSERT INTO out SELECT * FROM out_o");
@@ -334,6 +342,40 @@ describe("detached parts", () => {
       out: { 1: 2, 2: 1 },
       issues: [[1, 2, "kept: matches original shape", false]],
     });
+  });
+
+  test.each([
+    [1, "kept: matches original shape"],
+    [99, "merged into neighbouring polygon"],
+    [null, "kept: matches original shape"],
+  ])("a detached piece follows only its own original (owner %s)", async (owner, reason) => {
+    const lobe = ring([
+      [0, 0],
+      [10, 0],
+      [10, 8],
+      [4e-4, 8],
+      [4e-4, 9],
+      [0.05, 9],
+      [0.05, 9.1],
+      [0, 9.1],
+      [0, 0],
+    ]);
+    const r = await detach(
+      [
+        [1, multi(MAIN_1, PIECE_1)],
+        [2, LEFT_2],
+      ],
+      [
+        [1, 1, PRE_1],
+        [2, 1, LEFT_2],
+      ],
+      [
+        [1, lobe],
+        [2, LEFT_2],
+      ],
+      { 1: owner, 2: 2 },
+    );
+    expect(r.issues.map((i) => i[2])).toEqual([reason]);
   });
 
   test("detached piece over ratio is kept and reported", async () => {

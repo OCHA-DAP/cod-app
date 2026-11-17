@@ -259,7 +259,9 @@ each clipped output before any micro-polygon merge.
 - A piece is on the original footprint when its interior point falls on an
   original part of the same polygon, or when at least
   `DETACHED_MAX_ORIGINAL_SHARE` (50%) of its area is original land. An
-  original polygon belongs to the pre-clip part holding its interior point.
+  original polygon belongs to the pre-clip part holding its interior point,
+  limited to its paired input fid when the original carries one
+  (`originalOwner`).
 - A piece under `DETACHED_MERGE_MAX_RATIO` (1%) of its kept piece's area
   MUST merge into the polygon, clipped to the same overlay polygon, it
   shares the longest edge with (ties to the lowest fid), when under 50% of

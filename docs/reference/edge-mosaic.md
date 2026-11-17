@@ -63,6 +63,14 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention, and
 ## Configuration
 
 - `edge-mosaic` MAY accept one original layer file (`original` URL param).
+  Each original row MUST pair with the input feature sharing its own
+  finest-level code (detected from the original), and a row whose code is
+  NULL or matches no input feature MUST fall back to the interior-point
+  test. With a one-feature input, an original with one row or no
+  detectable code column, an input lacking that code column, or no code
+  pairing, `edge-mosaic` MUST run without the original; each case but the
+  one-feature input MUST show a warning, as MUST originals whose codes
+  match no input feature.
 - `edge-mosaic` MAY accept a `matchColumn` name or an
   `overlayMatchColumn`/`inputMatchColumn` pair for the code-based
   assignment override (see `docs/adr/0029`).

@@ -29,26 +29,46 @@ const synthetic = (wkt: Row[], name: string) => {
   return write(`SELECT * FROM (VALUES ${values}) AS t(id, geom${code ? ", pcode" : ""})`, name);
 };
 
+// Rows with adm1_pcode/adm1_name codes from id ('C' || id), like topo-tools' tests;
+// an id of null gives a null code, and keepId false drops the id column.
+const coded = (wkt: [number | null, string][], name: string, keepId = true) => {
+  const values = wkt
+    .map(([id, w]) => `(${id ?? "NULL::INTEGER"}, ST_GeomFromText('${w}'))`)
+    .join(", ");
+  return write(
+    `SELECT ${keepId ? "id, " : ""}'C' || id AS adm1_pcode, 'N' || id AS adm1_name, geom
+    FROM (VALUES ${values}) AS t(id, geom)`,
+    name,
+  );
+};
+
 async function mosaic(
   inputs: Row[] = INPUT,
   overlays: Row[] = OVERLAY,
-  opts: { columns?: MatchColumnOptions; carry?: string[]; clean?: boolean } = {},
+  opts: {
+    columns?: MatchColumnOptions;
+    carry?: string[];
+    clean?: boolean;
+    inputFile?: File;
+    overlayFile?: File;
+    originalFile?: File;
+  } = {},
 ) {
   const { db: instance } = db();
   const result = await runMosaic(
     instance,
     conn,
-    [await synthetic(inputs, "input.parquet")],
-    [await synthetic(overlays, "overlay.parquet")],
-    [],
+    [opts.inputFile ?? (await synthetic(inputs, "input.parquet"))],
+    [opts.overlayFile ?? (await synthetic(overlays, "overlay.parquet"))],
+    opts.originalFile ? [opts.originalFile] : [],
     () => {},
     opts.columns ?? {},
     opts.carry ?? [],
     opts.clean ?? true,
   );
   const columns = await exportColumns("mosaic");
-  const ids = (await rows<{ id: number }>("SELECT id FROM '_export.parquet' ORDER BY id")).map((r) =>
-    Number(r.id),
+  const ids = (await rows<{ id: number }>("SELECT id FROM '_export.parquet' ORDER BY id")).map(
+    (r) => Number(r.id),
   );
   return { ...result, columns, ids };
 }
@@ -106,7 +126,10 @@ test("a code overrides spatial and reports the mismatch", async () => {
     ],
     { columns: { matchColumn: "pcode" } },
   );
-  expect(await scalar<number>("SELECT ST_Area(geometry) FROM '_export.parquet'")).toBeCloseTo(0.5, 6);
+  expect(await scalar<number>("SELECT ST_Area(geometry) FROM '_export.parquet'")).toBeCloseTo(
+    0.5,
+    6,
+  );
   expect(r.issues.map((i) => i.kind).sort()).toEqual([
     "clip-empty",
     "code-mismatch",
@@ -152,7 +175,7 @@ test.each([true, false])("reports overlay area no input covers (clean %s)", asyn
   expect(gaps.map((i) => [i.overlayFid, i.reason])).toEqual([
     [1, "overlay area no output row covers"],
   ]);
-  expect(gaps[0].areaM2! / (111319.49 ** 2)).toBeCloseTo(0.5, 1);
+  expect(gaps[0].areaM2! / 111319.49 ** 2).toBeCloseTo(0.5, 1);
 });
 
 const CLEAN_SQUARE: Row = [1, "POLYGON((0 0, 3 0, 3 3, 0 3, 0 0))"];
@@ -180,3 +203,83 @@ test.todo("gap-fill keeps an unmatched overlay (no TS counterpart)");
 test.todo("match and mosaic merge give identical results (multi-file)");
 test.todo("fill_schema and depth_column options (no TS counterpart)");
 test.todo("default output paths and steps (file output, no TS counterpart)");
+
+const pairInputs = () => coded(INPUT.slice(0, 2), "input.parquet");
+
+test("an original with unmatched codes warns and still pairs", async () => {
+  const originalFile = await coded(
+    [
+      [1, INPUT[0][1]],
+      [9, INPUT[1][1]],
+    ],
+    "original.parquet",
+    false,
+  );
+  const r = await mosaic(INPUT, OVERLAY, { inputFile: await pairInputs(), originalFile });
+  expect(r.warnings).toEqual(["1 original adm1_pcode codes match no input feature."]);
+});
+
+test("an original without a code column runs without it", async () => {
+  const originalFile = await synthetic(INPUT.slice(0, 2), "original.parquet");
+  const r = await mosaic(INPUT, OVERLAY, { inputFile: await pairInputs(), originalFile });
+  expect(r.warnings).toEqual([
+    "The original has no detectable code column, so it pairs with nothing.",
+  ]);
+});
+
+test("an original whose codes pair nothing runs without it", async () => {
+  const originalFile = await coded(
+    [
+      [8, INPUT[0][1]],
+      [9, INPUT[1][1]],
+    ],
+    "original.parquet",
+    false,
+  );
+  const r = await mosaic(INPUT, OVERLAY, { inputFile: await pairInputs(), originalFile });
+  expect(r.warnings).toEqual([
+    "The input runs without the original: none of its codes match the input.",
+  ]);
+});
+
+test("a one-feature input pairs no original, quietly", async () => {
+  const originalFile = await coded([[9, INPUT[0][1]]], "original.parquet");
+  const r = await mosaic(INPUT, OVERLAY, {
+    inputFile: await coded(INPUT.slice(0, 1), "input.parquet"),
+    originalFile,
+  });
+  expect(r.warnings).toEqual([]);
+});
+
+test.each([1, null, 9])("an original row keyed %s keeps its detached piece", async (oddId) => {
+  const notch =
+    "POLYGON((-0.01 0, 0.01 0, 0.01 0.008, 0 0.008, 0 0.009, 0.00005 0.009, 0.00005 0.0091, 0 0.0091, 0 0.01, -0.01 0.01, -0.01 0))";
+  const odd = "POLYGON((0 0, 0.01 0, 0.01 0.01, 0 0.01, 0 0))";
+  const even = "POLYGON((-0.005 0, 0 0, 0 0.01, -0.005 0.01, -0.005 0))";
+  const third = "POLYGON((-0.01 0, -0.005 0, -0.005 0.01, -0.01 0.01, -0.01 0))";
+  const oddOriginal =
+    "MULTIPOLYGON(((0 0, 0.01 0, 0.01 0.008, 0 0.008, 0 0)), ((0 0.009, 0.00005 0.009, 0.00005 0.0091, 0 0.0091, 0 0.009)))";
+  await mosaic(INPUT, OVERLAY, {
+    inputFile: await coded(
+      [
+        [1, odd],
+        [2, even],
+        [3, third],
+      ],
+      "input.parquet",
+    ),
+    overlayFile: await synthetic([[1, notch]], "overlay.parquet"),
+    originalFile: await coded(
+      [
+        [oddId, oddOriginal],
+        [2, even],
+        [3, third],
+      ],
+      "original.parquet",
+      false,
+    ),
+  });
+  expect(await rows("SELECT fixed, reason FROM ms_issues WHERE kind = 'detached-part'")).toEqual([
+    { fixed: false, reason: "kept: matches original shape" },
+  ]);
+});
