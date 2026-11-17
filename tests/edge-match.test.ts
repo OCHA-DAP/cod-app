@@ -308,3 +308,6 @@ test("clip retries a noding failure on the grid and keeps the overlay exact", as
   `);
   expect(overlayVertices).toBeGreaterThan(0);
 });
+
+// topo-tools #271 (--fill) waits on a port of py's --merge gap fill.
+test.todo("fill sets input columns on an unmatched overlay");

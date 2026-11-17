@@ -283,3 +283,7 @@ test.each([1, null, 9])("an original row keyed %s keeps its detached piece", asy
     { fixed: false, reason: "kept: matches original shape" },
   ]);
 });
+
+// topo-tools #271 (--fill) waits on a port of py's --merge gap fill.
+test.todo("fill sets input columns on an unmatched overlay");
+test.todo("fill errors on bad fill options");
