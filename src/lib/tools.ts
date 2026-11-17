@@ -183,11 +183,4 @@ export const tools: Tool[] = [
       url: toolsUrl("nld/demo/names/nld_admin2.parquet"),
     },
   },
-  {
-    slug: "validate",
-    name: "Validate",
-    tagline:
-      "Run the schema, topology, code and name checks on one layer and summarize their findings by kind, without changing anything.",
-    iconHref: "/icons/tools/validate.svg",
-  },
 ];

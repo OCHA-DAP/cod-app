@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-  <!-- Checklist -->
-  <rect x="10" y="6" width="44" height="52" rx="3" fill="currentColor" fill-opacity="0.12" />
-  <path d="M17 18 L20 21 L26 15" />
-  <path d="M17 32 L20 35 L26 29" />
-  <path d="M17 46 L20 49 L26 43" />
-  <path d="M32 18 L46 18 M32 32 L46 32 M32 46 L46 46" stroke-width="1.5" />
-</svg>

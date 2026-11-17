@@ -145,7 +145,7 @@ For boundaries, that meant getting the five agencies in a room. Over three days 
 
 ## A standard only works if it's easy to follow
 
-![Three boxes joined by arrows: Standard (P-code format and fields), Tools (Python CLI and web app), and Check (Validate checks schema, topology, codes and names)](/talk/standard-tools-check.svg)
+![Three boxes joined by arrows: Standard (P-code format and fields), Tools (Python CLI and web app), and Check (Package checks schema, topology, codes and names)](/talk/standard-tools-check.svg)
 
 - The tools were built alongside the standard and tested on real COD-ABs while it was still being agreed
 - Field teams run the same checks as HQ, so problems are caught before data is sent, with fewer round trips
