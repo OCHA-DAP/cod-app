@@ -2,6 +2,7 @@
 
 import shutil
 from importlib.metadata import version
+from pathlib import Path
 
 from cod_data.catalog.common import CATALOG, HOST, tile_parquet, write_yaml
 from cod_data.catalog.global_build.config import BUILD
@@ -43,6 +44,10 @@ def built() -> list[str]:
     ]
 
 
+def newer(path: Path, than: Path) -> bool:
+    return path.exists() and path.stat().st_mtime >= than.stat().st_mtime
+
+
 def stage(adm0: str) -> None:
     """Copy each layer in when the build is newer, tile it, and write its metadata."""
     write_yaml(
@@ -70,11 +75,16 @@ def stage(adm0: str) -> None:
             BUILD / adm0 / f"{source}.parquet",
             collection / f"{name}.parquet",
         )
-        if not parquet.exists() or parquet.stat().st_mtime < src.stat().st_mtime:
-            shutil.copy2(src, parquet)
         pmtiles = parquet.with_suffix(".pmtiles")
-        if not pmtiles.exists() or pmtiles.stat().st_mtime < parquet.stat().st_mtime:
-            tile_parquet(parquet, pmtiles, name)
+        # Hidden copies move in only once whole, tiles first, so a failed run redoes them.
+        staged = parquet if newer(parquet, src) else collection / f".{name}.parquet"
+        if staged != parquet:
+            shutil.copy2(src, staged)
+        if staged != parquet or not newer(pmtiles, parquet):
+            tiles = collection / f".{name}.pmtiles"
+            tile_parquet(staged, tiles, name)
+            tiles.replace(pmtiles)
+        staged.replace(parquet)
         title, description = DESCRIPTIONS[layer]
         write_yaml(
             collection / ".portolan" / "metadata.yaml",
