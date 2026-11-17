@@ -4,7 +4,7 @@ import { referenceUrl } from "$lib/utils/data";
 
 export type Bbox = [number, number, number, number];
 
-// Per-country fit bboxes from scripts/catalog/explorer/bbox.py: antimeridian-aware, so xmax may
+// Per-country fit bboxes from cod_data/catalog/explorer/bbox.py: antimeridian-aware, so xmax may
 // exceed 180 near the dateline and goes to map.fitBounds as is.
 async function loadBboxMap(file: string): Promise<Map<string, Bbox>> {
   const url = referenceUrl(file);

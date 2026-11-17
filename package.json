@@ -11,7 +11,7 @@
     "prebuild": "npm run sync:assets",
     "build": "astro build",
     "preview": "astro preview",
-    "fetch:status": "uv run scripts/status/m49.py && uv run scripts/status/gis.py && uv run scripts/status/plans.py && uv run scripts/status/regions.py && uv run scripts/status/offices.py && uv run scripts/status/cod_metadata.py && uv run scripts/status/hdx.py && (uv run scripts/status/cod_ps.py || echo '::warning::cod_ps.py failed, COD-PS columns will be empty') && uv run scripts/status/jira.py && date -u +%Y-%m-%dT%H:%M:%SZ > public/status/data/last_updated.txt",
+    "fetch:status": "uv run -m cod_data.status.m49 && uv run -m cod_data.status.gis && uv run -m cod_data.status.plans && uv run -m cod_data.status.regions && uv run -m cod_data.status.offices && uv run -m cod_data.status.cod_metadata && uv run -m cod_data.status.hdx && (uv run -m cod_data.status.cod_ps || echo '::warning::cod_ps.py failed, COD-PS columns will be empty') && uv run -m cod_data.status.jira && date -u +%Y-%m-%dT%H:%M:%SZ > public/status/data/last_updated.txt",
     "check": "astro check",
     "lint": "eslint .",
     "format": "prettier --write .",

@@ -9,6 +9,9 @@ export const ADMIN_SOURCES = [
     nameField: "adm{level}_name",
     codeField: "adm{level}_pcode",
     countryCodeField: "iso3",
+    // LBN's adm3 border slivers, coded 0 with no parent unit.
+    junkNameField: "adm{level}_name",
+    junkNameValues: ["Conflict"],
   },
   {
     id: "wfp",

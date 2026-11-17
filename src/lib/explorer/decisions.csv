@@ -168,7 +168,7 @@ NIU,unicef,false,UNICEF only source
 NLD,erm,true,"EuroRegionalMap, from the national mapping agency"
 NOR,erm,true,"EuroRegionalMap, from the national mapping agency"
 NPL,ocha,false,"All similar sources, defaulting to OCHA. Note WFP has ADM4 but source is offset"
-NRO,unhcr,false,UNHCR matches Mapbox most closely
+NRU,unhcr,false,UNHCR matches Mapbox most closely
 NZL,fao,false,FAO uses govt data
 OMN,unhcr,false,UNHCR matches Mapbox most closely
 PAK,wfp,false,OCHA is known to be needing an update
