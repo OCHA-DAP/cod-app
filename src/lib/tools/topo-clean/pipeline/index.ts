@@ -8,7 +8,6 @@ import {
   buildIssues,
   buildOverlapRegions,
   checkFixedIssues,
-  measureThinFillM,
   resolveGapFillWidths,
   syncOutputMicroIssues,
   type IssueKind,
@@ -35,7 +34,7 @@ export class PipelineError extends Error {
   }
 }
 
-export type GapMode = "minimal" | "thin" | "all" | "manual";
+export type GapMode = "minimal" | "all" | "manual";
 
 export interface CleanOptions {
   mode: GapMode;
@@ -46,7 +45,6 @@ export interface CleanOptions {
 function fillWidthDeg(opts: CleanOptions, issues: IssueRow[]): number {
   if (opts.mode === "all") return GAP_MAXIMUM_WIDTH_ALL_DEG;
   if (opts.mode === "manual") return metersToDegrees(opts.gapWidthM);
-  if (opts.mode === "thin") return metersToDegrees(cachedThinFillM);
   return metersToDegrees(resolveGapFillWidths(issues).minimalFillM);
 }
 
@@ -54,7 +52,6 @@ export interface AnalysisResult {
   originalGeoJSON: string;
   issues: IssueRow[];
   issuesGeoJSON: string;
-  thinFillM: number;
   bounds: [number, number, number, number] | null;
   totalCount: number;
   // Kinds whose detection query failed (even after retry) and was degraded to
@@ -90,7 +87,6 @@ export interface RecleanResult {
 let totalCount = 0;
 let cachedIssues: IssueRow[] = [];
 let cachedIssuesGeoJSON = "";
-let cachedThinFillM = 0;
 let cachedFailedKinds = new Set<IssueKind>();
 // The clean's source table is static per load, so its violations check (see clean.ts's
 // buildClean skip-gate) is computed once in runFromLoaded and reused by every
@@ -171,7 +167,6 @@ export async function runFromLoaded(
     cachedFailedKinds = issuesRes.failedKinds;
     cachedIssues = issuesRes.rows;
     cachedIssuesGeoJSON = issuesRes.geojson;
-    cachedThinFillM = await measureThinFillM(conn, source);
   } catch (e) {
     throw new PipelineError(e instanceof Error ? e.message : String(e), 4);
   }
@@ -179,7 +174,6 @@ export async function runFromLoaded(
     originalGeoJSON,
     issues: cachedIssues,
     issuesGeoJSON: cachedIssuesGeoJSON,
-    thinFillM: cachedThinFillM,
     bounds,
     totalCount,
     detectionFailed: cachedFailedKinds,
@@ -209,7 +203,6 @@ export async function runFromLoaded(
     modifiedGeoJSON: modified,
     issues: cachedIssues,
     issuesGeoJSON: cachedIssuesGeoJSON,
-    thinFillM: cachedThinFillM,
     bounds,
     totalCount,
     collapsedCount,

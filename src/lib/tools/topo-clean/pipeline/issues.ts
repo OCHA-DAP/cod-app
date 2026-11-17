@@ -17,22 +17,6 @@ import { niceNum } from "./units";
 
 export type { IssueKind, IssueRow, IssuesResult } from "$lib/db/issues";
 
-// Polsby-Popper compactness cutoff (4·π·Area / Perimeter², 1.0 = circle,
-// →0 = elongated crack) below which a gap is treated as a digitization
-// sliver rather than a real feature. Same formula and cutoff guidance
-// ArcGIS Pro's "Polygon Sliver" data-quality check uses. Not user-tunable —
-// see measureThinFillM.
-const DEFAULT_THINNESS_RATIO = 0.3;
-
-// Headroom over the widest qualifying gap's width in Thin mode, so that gap
-// reliably clears ST_CoverageClean's internal <= width comparison — just
-// enough, not "2x and round," to avoid also sweeping in a wider, non-thin
-// gap Thin wasn't meant to touch (ST_CoverageClean only understands width,
-// not thinness). Matches topo-tools' current tuning
-// (AUTO_GAP_WIDTH_EPSILON_FACTOR, widened from 1.001 to 1.01 after real-data
-// testing).
-const AUTO_GAP_WIDTH_EPSILON_FACTOR = 1.01;
-
 const NEW_GAP_PREFIX = "gap-new-";
 
 // A discrete topology problem in the *input* coverage, surfaced in the issues
@@ -40,7 +24,7 @@ const NEW_GAP_PREFIX = "gap-new-";
 // at load (a property of the input). Region detection + issue-row assembly are
 // shared with detect (see $lib/db/issues) — this file adds only what's
 // specific to a reclean loop: persisted fixed-status tracking and the
-// gap-fill-mode width resolution the Minimal/Thin/All UI needs.
+// gap-fill-mode width resolution the Minimal/All UI needs.
 
 export async function buildGapRegions(conn: AsyncDuckDBConnection): Promise<boolean> {
   return sharedBuildGapRegions(conn, "tc_gap_regions", "layer_01");
@@ -230,12 +214,10 @@ export async function checkFixedIssues(
   return fixed;
 }
 
-// Derive the gap-fill widths the UI's Minimal/Thin/All modes need.
+// Derive the gap-fill widths the UI's Minimal/All modes need.
 //
-// Minimal (the default) only considers gaps at or below SNAP_TOLERANCE —
-// floating-point-noise scale, never a real feature — and fills them at
-// exactly that width. Matches topo-tools' own default (no shape
-// heuristic; ADR-0033/0034).
+// Minimal (the default) fills at SNAP_TOLERANCE whenever any gap is detected,
+// so the clean runs and merges sliver gaps, as topo-tools' default does.
 //
 // sliderCeilingM ("2x the widest detected gap, rounded up to a nice number")
 // is UI-only: it sizes the Manual slider's max/step and All mode's display
@@ -257,31 +239,8 @@ export function resolveGapFillWidths(rows: IssueRow[]): {
       )
       .map((r) => r.maxWidthM);
   const allWidths = widthsOf(() => true);
-  const snapToleranceM = degToM(SNAP_TOLERANCE);
-  const hasNoiseScaleGap = widthsOf((r) => r.maxWidthM <= snapToleranceM).length > 0;
   return {
     sliderCeilingM: allWidths.length ? niceNum(Math.max(...allWidths) * 2) : 0,
-    minimalFillM: hasNoiseScaleGap ? snapToleranceM : 0,
+    minimalFillM: allWidths.length ? degToM(SNAP_TOLERANCE) : 0,
   };
-}
-
-// Thin mode's fill width, 0 with no thin gap. Measured on the table the clean
-// starts from, since closing notches reshapes gaps.
-export async function measureThinFillM(
-  conn: AsyncDuckDBConnection,
-  sourceTable: string,
-): Promise<number> {
-  const regions = sourceTable === "layer_01" ? "tc_gap_regions" : "tc_source_gap_regions";
-  if (sourceTable !== "layer_01") await sharedBuildGapRegions(conn, regions, sourceTable);
-  try {
-    const r = await conn.query(`--sql
-      SELECT MAX(max_width_m) AS width FROM (${gapIssuesSql(regions)})
-      WHERE thinness_ratio <= ${DEFAULT_THINNESS_RATIO}
-    `);
-    return (
-      ((r.toArray()[0] as { width: number | null }).width ?? 0) * AUTO_GAP_WIDTH_EPSILON_FACTOR
-    );
-  } finally {
-    await conn.query("DROP TABLE IF EXISTS tc_source_gap_regions");
-  }
 }

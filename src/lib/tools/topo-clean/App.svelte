@@ -32,24 +32,23 @@
   let loading = $state(false);
   let loadError = $state<string | null>(null);
 
-  // Gap-fill mode: minimal (default, noise-scale gaps only), thin
-  // (sliver-shaped gaps only), all (every detected gap), or manual (exact
-  // width via the slider below).
+  // Gap-fill mode: minimal (default, noise-scale gaps and sliver gaps), all
+  // (every detected gap), or manual (exact width via the slider below).
   let mode = $state<GapMode>("minimal");
 
   // Manual-mode slider (meters). Only read when mode === "manual".
   let gapWidthM = $state(0);
 
-  // `gap` URL param: "thin", "all", or a Manual width in meters; absent means Minimal.
+  // `gap` URL param: "all" or a Manual width in meters; absent (or "thin") means Minimal.
   syncParam(
     "gap",
     {
-      parse: (raw) => (raw === "thin" || raw === "all" || (raw.trim() !== "" && Number(raw) >= 0) ? raw : undefined),
+      parse: (raw) => (raw === "all" || (raw.trim() !== "" && Number(raw) >= 0) ? raw : undefined),
       format: (value) => value,
     },
     () => (mode === "manual" ? String(Number(gapWidthM.toPrecision(6))) : mode),
     (value) => {
-      if (value === "thin" || value === "all") mode = value;
+      if (value === "all") mode = value;
       else {
         mode = "manual";
         gapWidthM = Number(value);
@@ -68,7 +67,7 @@
   // sliderCeilingM: 2× the widest detected gap (Manual slider's ceiling, and
   // All mode's display estimate — its actual fill width is a fixed sentinel,
   // see pipeline/index.ts). minimalFillM: SNAP_TOLERANCE, only when
-  // a noise-scale gap exists (Minimal mode, the default). Any can be 0,
+  // a gap exists (Minimal mode, the default). Either can be 0,
   // meaning "fill nothing."
   const { sliderCeilingM, minimalFillM } = $derived(resolveGapFillWidths(issues));
 
@@ -82,9 +81,7 @@
       ? gapWidthM
       : mode === "all"
         ? sliderCeilingM
-        : mode === "thin"
-          ? thinFillM
-          : minimalFillM,
+        : minimalFillM,
   );
 
   function setMode(next: GapMode): void {
@@ -123,7 +120,6 @@
   let modifiedGeoJSON = $state<string | null>(null);
   let issuesGeoJSON = $state<string | null>(null);
   let issues = $state<IssueRow[]>([]);
-  let thinFillM = $state(0);
   let fixedKeys = $state<Set<string>>(new Set());
   let detectionFailed = $state<Set<IssueKind>>(new Set());
   let exportCheck = $state<ExportCheck | null>(null);
@@ -172,7 +168,6 @@
     modifiedGeoJSON = null;
     issuesGeoJSON = null;
     issues = [];
-    thinFillM = 0;
     fixedKeys = new Set();
     detectionFailed = new Set();
     exportCheck = null;
@@ -231,7 +226,6 @@
       modifiedGeoJSON = result.modifiedGeoJSON;
       issuesGeoJSON = result.issuesGeoJSON;
       issues = result.issues;
-      thinFillM = result.thinFillM;
       fixedKeys = result.fixedKeys;
       detectionFailed = result.detectionFailed;
       exportCheck = result.exportCheck;
@@ -251,7 +245,6 @@
         originalGeoJSON = analysis.originalGeoJSON;
         issuesGeoJSON = analysis.issuesGeoJSON;
         issues = analysis.issues;
-        thinFillM = analysis.thinFillM;
         detectionFailed = analysis.detectionFailed;
         bounds = analysis.bounds;
         totalCount = analysis.totalCount;
@@ -371,12 +364,6 @@
           >
           <button
             class="tc-mode-btn"
-            class:active={mode === "thin"}
-            disabled={running}
-            onclick={() => setMode("thin")}>Thin</button
-          >
-          <button
-            class="tc-mode-btn"
             class:active={mode === "all"}
             disabled={running}
             onclick={() => setMode("all")}>All</button
@@ -410,12 +397,9 @@
               No gaps will be filled.
             {/if}
             {#if mode === "minimal"}
-              Only gaps at the scale of floating-point noise are filled — real enclosed features
-              (a pond, a missing unit) are left alone.
-            {:else if mode === "thin"}
-              Fills every gap up to the width of the widest sliver-shaped gap. A long, narrow lake
-              can count as a sliver, so real water may be filled too; use Manual to set the width
-              yourself.
+              Gaps at the scale of floating-point noise are filled, and sliver gaps (much narrower
+              than the edges drawn around them) merge into a neighbour. Real enclosed features (a
+              pond, a missing unit) are left alone.
             {:else}
               Every detected gap is filled.
             {/if}
