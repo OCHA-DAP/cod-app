@@ -1,4 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import { checkGenericNames } from "$lib/db/adminColumns";
 import { checkNoOverlaps, mergeMicroPolygons } from "$lib/db/coverage";
 import { tableToGeoJSON } from "$lib/db/geojson";
 import { setCentroidLat } from "$lib/db/units";
@@ -45,6 +46,7 @@ async function buildLevelOutput(
   sourceTable: string,
   plan: LevelPlan,
   depthColumn: string,
+  schema: TargetSchema | null,
 ): Promise<LevelOutput> {
   const dissolveTable = `pkpt_dissolved_${plan.level}`;
   const keep = new Set([...plan.groupBy, ...plan.rename.keys(), "fid", "geom"]);
@@ -54,6 +56,7 @@ async function buildLevelOutput(
   await runDissolveCore(conn, sourceTable, dissolveTable, {
     groupBy: plan.groupBy,
     exclude: columns.map((r) => r.column_name).filter((c) => !keep.has(c)),
+    targetSchema: schema ?? undefined,
   });
 
   const expected = await distinctTupleCount(conn, sourceTable, plan.groupBy);
@@ -64,7 +67,15 @@ async function buildLevelOutput(
     );
   }
 
-  const selectCols = [...plan.rename].map(([col, generic]) => `"${col}" AS "${generic}", `);
+  // Dissolve drops a column that varies within a group; only survivors are written.
+  const dissolved = new Set(
+    ((await conn.query(`DESCRIBE ${dissolveTable}`)).toArray() as Array<{ column_name: string }>).map(
+      (r) => r.column_name,
+    ),
+  );
+  const rename = [...plan.rename].filter(([col]) => dissolved.has(col));
+  checkGenericNames(rename, ["fid", "geom", "geometry", depthColumn]);
+  const selectCols = rename.map(([col, generic]) => `"${col}" AS "${generic}", `);
   const geomTable = `pkpt_geom_${plan.level}`;
   const attrTable = `pkpt_attr_${plan.level}`;
   await conn.query(`--sql
@@ -125,7 +136,7 @@ export async function runPackagePoints(
   }
   const outputs: LevelOutput[] = [];
   for (const plan of [...plans].sort((a, b) => a.level - b.level)) {
-    outputs.push(await buildLevelOutput(conn, "pkpt_input", plan, depthColumn));
+    outputs.push(await buildLevelOutput(conn, "pkpt_input", plan, depthColumn, schema));
   }
   await conn.query(`DROP TABLE IF EXISTS pkpt_input`);
   await conn.query("DROP VIEW IF EXISTS pkpt_layer_attr");

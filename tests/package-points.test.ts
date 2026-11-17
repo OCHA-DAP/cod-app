@@ -180,6 +180,15 @@ test("an unanchored level writes generic code and name", async () => {
   ]);
 });
 
+test("a name varying within a unit is left out, not a crash", async () => {
+  await points(`SELECT adm1_pcode, adm2_pcode, CASE adm2_pcode WHEN 'A2' THEN 'B' ELSE 'A' END AS adm1_name,
+    adm2_pcode AS adm2_name, geom FROM (${BASE})`);
+  expect(await out("pcode", "WHERE adm_lvl = 1 ORDER BY pcode")).toEqual([
+    { pcode: "P1" },
+    { pcode: "P2" },
+  ]);
+});
+
 test("a min level above every level throws", async () => {
   await layer(BASE);
   await expect(runPackagePoints(conn, SCHEMA, undefined, 9)).rejects.toThrow(

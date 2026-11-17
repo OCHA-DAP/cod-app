@@ -1,5 +1,5 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { checkGenericNames, genericFamilies } from "$lib/db/adminColumns";
+import { genericFamilies } from "$lib/db/adminColumns";
 import {
   detectLevelsWithRoot,
   fallbackFamilies,
@@ -97,7 +97,6 @@ export async function resolvePointLevelPlans(
     const code = groupBy.length ? groupBy[0] : (codes.get(n) ?? null);
     const renames = levelFamilyNames(families, n, code);
     const rename = new Map(own.map((c): [string, string] => [c, renames.get(c) ?? c]));
-    checkGenericNames([...rename], reserved);
     plans.push({ level: n, groupBy, rename, isRoot: !!levelColumns?.get(n)?.isRoot });
   }
   return plans;
