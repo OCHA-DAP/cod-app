@@ -312,10 +312,21 @@ def _copy_adm0(con: duckdb.DuckDBPyConnection, parents: Path, work: Path) -> Non
 def job(
     iso3: str, source: str | None, parents_all: Path, out: Path
 ) -> tuple[str, float, int]:
-    t0 = time.perf_counter()
-    work = out / "iso3" / iso3.lower()
+    """Build one location in a hidden folder, replacing its last build only on success."""
+    final = out / "iso3" / iso3.lower()
+    work = final.with_name(f".{final.name}")
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
+    result = _build(iso3, source, parents_all, work)
+    shutil.rmtree(final, ignore_errors=True)
+    work.rename(final)
+    return result
+
+
+def _build(
+    iso3: str, source: str | None, parents_all: Path, work: Path
+) -> tuple[str, float, int]:
+    t0 = time.perf_counter()
     con = connect()
     con.execute(f"SET threads = {THREADS}")
     parents = work / "parent.parquet"
