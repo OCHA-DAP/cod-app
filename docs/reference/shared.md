@@ -43,7 +43,7 @@ name instead of repeating them.
   | Tool | Parameters |
   | --- | --- |
   | `change` | `match`, `same`, `by` (`geometry`/`identity`), `link` (`either`/`both`) |
-  | `code-create` | `root`, `delim` (a character, or `none`), `width`, `source` (`replace`/`embed`/`copy`), `name`, `code` |
+  | `code-create` | `root`, `rootfield` (a root code column, chosen over `root`), `delim` (a character, or `none`), `width`, `source` (`replace`/`embed`/`copy`), `name`, `code` |
   | `code-update` | `root`, `delim` (absent = detect, `none`, or a character), `width`, `name-a`, `code-a`, `name-b`, `code-b`, `code-col-a`, `code-col-b`, `name-col-a`, `name-col-b`, `match`, `same`, `by-code`, `by-name`, `link` |
   | `edge-match` | `match` (`auto`/`one`/`many`), `passthrough` |
   | `package`, `package-polygons`, `package-points`, `package-lines` | `name`, `code` |
@@ -372,7 +372,8 @@ Shared by `code-create` (cold-start) and `code-update` (reconcile
 against an already-coded OLD layer).
 
 - A `CodeFormat` (`rootCode`, `delimiter`, `minWidth`) MUST be validated
-  via `resolveCodeFormat`: `rootCode` non-empty, `delimiter` exactly one
+  via `resolveCodeFormat`: `rootCode` non-empty, or null when each row's
+  root comes from a column, `delimiter` exactly one
   character, or empty when the caller allows no delimiter. No field has
   a default.
 - `minWidth` MUST be one positive width (`3`), one positive width per
@@ -381,14 +382,16 @@ against an already-coded OLD layer).
   level (`checkLevelCount`), else throw.
 - `parseCode` MUST split on `delimiter`, or, with an empty delimiter,
   strip `rootCode` and cut each level's tail at that level's width,
-  throwing when the code doesn't start with the root or can't be cut.
+  throwing when the code doesn't start with the root or can't be cut, or
+  when `rootCode` is null.
 - `assignNewCodes` MUST rank rows per parent group by their given sort
   columns and format each as `parentCode || delimiter || lpad(tail,
   width, '0')`, starting above every integer the parent's direct
   children use in `existingCodes`. It MUST NOT reuse a raw source value
   as-is.
 - Under `auto`, every new tail at a level MUST pad to the widest tail
-  that level needs, `existingCodes` included.
+  that level needs, `existingCodes` included, per `widthGroupColumn`
+  value when one is given.
 - With an empty delimiter and a fixed width, when the next number doesn't
   fit the width, numbering MUST continue above the parent's highest used
   number below the top 10% of the range (`9 * 10 ** (width - 1)`), and

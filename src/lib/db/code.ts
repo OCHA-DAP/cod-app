@@ -7,7 +7,8 @@ import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 export type MinWidth = number | number[] | "auto";
 
 export interface CodeFormat {
-  rootCode: string;
+  // Null when each row's root comes from a column.
+  rootCode: string | null;
   delimiter: string;
   minWidth: MinWidth;
 }
@@ -16,7 +17,7 @@ export function quoteIdent(name: string): string {
   return '"' + name.replace(/"/g, '""') + '"';
 }
 
-function quoteLiteral(value: string): string {
+export function quoteLiteral(value: string): string {
   return "'" + value.replace(/'/g, "''") + "'";
 }
 
@@ -61,12 +62,12 @@ export function parseMinWidth(value: string | number): MinWidth {
 }
 
 export function resolveCodeFormat(
-  rootCode: string,
+  rootCode: string | null,
   delimiter: string,
   minWidth: string | number,
   { allowEmptyDelimiter = false }: { allowEmptyDelimiter?: boolean } = {},
 ): CodeFormat {
-  if (!rootCode) throw new Error("root code must be a non-empty string");
+  if (rootCode !== null && !rootCode) throw new Error("root code must be a non-empty string");
   if (!(allowEmptyDelimiter && delimiter === "") && [...delimiter].length !== 1) {
     throw new Error(`delimiter must be a single character, got ${JSON.stringify(delimiter)}`);
   }
@@ -76,6 +77,8 @@ export function resolveCodeFormat(
 // Components, root first; split by per-level width when there is no delimiter.
 export function parseCode(code: string, fmt: CodeFormat): string[] {
   if (fmt.delimiter) return code.split(fmt.delimiter);
+  if (fmt.rootCode === null)
+    throw new Error("splitting a code without a delimiter needs a root code");
   if (!code.startsWith(fmt.rootCode)) {
     throw new Error(
       `code ${JSON.stringify(code)} does not start with root ${JSON.stringify(fmt.rootCode)}`,
@@ -152,6 +155,8 @@ export interface AssignNewCodesOptions {
   fmt: CodeFormat;
   level: number;
   existingCodes?: string[];
+  // Under auto width, rows sharing this column's value share one width.
+  widthGroupColumn?: string;
 }
 
 // Ranks each row into a fresh sequential code per parent group. Without a
@@ -210,11 +215,12 @@ export async function assignNewCodes(
       1,
       ...existingCodes.map((c) => (fmt.delimiter ? c.split(fmt.delimiter).pop()! : c).length),
     );
-    widthSql = `GREATEST(${existingWidth}, MAX(LENGTH(tail)) OVER ())`;
+    widthSql = `GREATEST(${existingWidth}, MAX(LENGTH(tail)) OVER (PARTITION BY width_group))`;
   } else {
     widthSql = String(width);
   }
 
+  const groupSql = opts.widthGroupColumn ? `src.${quoteIdent(opts.widthGroupColumn)}` : "NULL";
   const orderSql = sortColumns.map((c) => `${quoteIdent(c)} NULLS LAST`).join(", ");
   const rankedTable = quoteIdent(`${table}_code_ranked`);
   await conn.query(`--sql
@@ -223,6 +229,7 @@ export async function assignNewCodes(
       SELECT
         src.${qId} AS id_value,
         src.${qParent} AS parent_code,
+        ${groupSql} AS width_group,
         CAST(
           base.base_n - 1 + ROW_NUMBER() OVER (
             PARTITION BY src.${qParent} ORDER BY ${orderSql}
@@ -293,19 +300,18 @@ async function insertColumnAfter(
   );
 }
 
-// Sets column to rootCode on every row, adding it after `after` if missing.
+// Sets column to the rootSql expression on every row, adding it after `after` if missing.
 export async function writeRootCode(
   conn: AsyncDuckDBConnection,
   table: string,
   column: string,
-  rootCode: string,
+  rootSql: string,
   after: Array<string | null | undefined>,
 ): Promise<void> {
   if (!(await describeColumns(conn, table)).includes(column)) {
     await insertColumnAfter(conn, table, column, "NULL::VARCHAR", after);
   }
-  const literal = "'" + rootCode.replace(/'/g, "''") + "'";
-  await conn.query(`UPDATE ${quoteIdent(table)} SET ${quoteIdent(column)} = ${literal}`);
+  await conn.query(`UPDATE ${quoteIdent(table)} SET ${quoteIdent(column)} = (${rootSql})::VARCHAR`);
 }
 
 // Throws if two rows share a name under one parent, so seeding would merge them.

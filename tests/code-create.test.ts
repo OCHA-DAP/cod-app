@@ -1,5 +1,9 @@
 import { beforeAll, expect, test } from "vitest";
-import { runCodeCreate, type SourceCodes, type TargetSchema } from "$lib/tools/code-create/pipeline";
+import {
+  runCodeCreate,
+  type SourceCodes,
+  type TargetSchema,
+} from "$lib/tools/code-create/pipeline";
 import { exportColumns, layer, ready, rows } from "./helpers";
 
 type Row = Record<string, string | number | null>;
@@ -23,14 +27,23 @@ const strip = (i: number) => `POLYGON((${i} 0, ${i + 1} 0, ${i + 1} 1, ${i} 1, $
 
 async function codeCreate(
   rs: Row[],
-  rootCode: string,
+  rootCode: string | null,
   delimiter: string,
   minWidth: string,
   sourceCodes: SourceCodes = "replace",
   schema: TargetSchema | null = null,
+  rootCodeField: string | null = null,
 ) {
   await layer(synthetic(rs));
-  const result = await runCodeCreate(conn, rootCode, delimiter, minWidth, sourceCodes, schema);
+  const result = await runCodeCreate(
+    conn,
+    rootCode,
+    delimiter,
+    minWidth,
+    sourceCodes,
+    schema,
+    rootCodeField,
+  );
   const columns = (await exportColumns("code_create")).filter((c) => c !== "geometry");
   const out = await rows<Row>("SELECT * EXCLUDE (geometry) FROM '_export.parquet'");
   return { ...result, columns, out };
@@ -102,8 +115,20 @@ test("word-per-level naming", async () => {
 test("an explicit code/name field overrides ambiguous auto-detection", async () => {
   const { out } = await codeCreate(
     [
-      { adm0_code: "AFG", adm1_code: "NAT-01", adm1_pcode: "PC-01", adm1_name: "Badakhshan", wkt: strip(0) },
-      { adm0_code: "AFG", adm1_code: "NAT-02", adm1_pcode: "PC-02", adm1_name: "Badghis", wkt: strip(1) },
+      {
+        adm0_code: "AFG",
+        adm1_code: "NAT-01",
+        adm1_pcode: "PC-01",
+        adm1_name: "Badakhshan",
+        wkt: strip(0),
+      },
+      {
+        adm0_code: "AFG",
+        adm1_code: "NAT-02",
+        adm1_pcode: "PC-02",
+        adm1_name: "Badghis",
+        wkt: strip(1),
+      },
     ],
     "AFG",
     ".",
@@ -571,3 +596,131 @@ test.todo("name_field and code_field must be given together (API arguments, no T
 test.todo("the issues CSV starts with a BOM (export shape)");
 test.todo("default output path (file output, no TS counterpart)");
 test.todo("each step runs standalone (no TS counterpart)");
+
+function twoRootRows(): Row[] {
+  const rs: Row[] = [];
+  ["AAA", "BBB"].forEach((root, x) => {
+    for (let a = 0; a < 2; a++) {
+      for (let b = 0; b < 2; b++) {
+        rs.push({
+          iso3: root,
+          adm1_pcode: `${root}${a}`,
+          adm1_name: `${root} Region ${a}`,
+          adm2_pcode: `${root}${a}${b}`,
+          adm2_name: `${root} District ${a}${b}`,
+          wkt: strip(x * 4 + a * 2 + b),
+        });
+      }
+    }
+  });
+  return rs;
+}
+
+test("a root code column numbers each root apart", async () => {
+  const cols = ["iso3", "adm1_pcode", "adm2_pcode"];
+  const { out } = await codeCreate(twoRootRows(), null, ".", "2", "replace", null, "iso3");
+  const combined = fetch(out, cols, ["adm2_name"]);
+  const separate = [];
+  for (const root of ["AAA", "BBB"]) {
+    const one = await codeCreate(
+      twoRootRows().filter((r) => r.iso3 === root),
+      root,
+      ".",
+      "2",
+    );
+    separate.push(...fetch(one.out, cols, ["adm2_name"]));
+  }
+  expect(combined).toEqual(separate);
+  expect(combined).toContainEqual(["BBB", "BBB.01", "BBB.01.01"]);
+});
+
+test("a root code column with templates keeps the level 0 column", async () => {
+  const rs = twoRootRows().map(({ iso3, ...r }) => ({ adm0_pcode: iso3, ...r }));
+  const { out } = await codeCreate(
+    rs,
+    null,
+    ".",
+    "2",
+    "replace",
+    { nameField: "adm{n}_name", codeField: "adm{n}_pcode" },
+    "adm0_pcode",
+  );
+  const pairs = [...new Set(out.map((r) => `${r.adm0_pcode} ${r.adm1_pcode}`))].sort();
+  expect(pairs).toEqual(["AAA AAA.01", "AAA AAA.02", "BBB BBB.01", "BBB BBB.02"]);
+});
+
+test.each([
+  [null, null, "exactly one"],
+  ["X", "iso3", "exactly one"],
+  [null, "missing", "not found"],
+])("root %s and root column %s raise %s", async (rootCode, rootCodeField, match) => {
+  await expect(
+    codeCreate(twoRootRows(), rootCode, ".", "2", "replace", null, rootCodeField),
+  ).rejects.toThrow(match);
+});
+
+test("a blank root code column raises", async () => {
+  const rs = twoRootRows();
+  rs[0].iso3 = " ";
+  await expect(codeCreate(rs, null, ".", "2", "replace", null, "iso3")).rejects.toThrow(
+    "blank on 1 row",
+  );
+});
+
+function unevenRootRows(): Row[] {
+  const rs: Row[] = [];
+  for (const [root, count] of [
+    ["AAA", 2],
+    ["BBB", 12],
+  ] as const) {
+    for (let a = 1; a <= count; a++) {
+      rs.push({
+        iso3: root,
+        adm1_pcode: a,
+        adm1_name: `${root} Region ${a}`,
+        wkt: strip(rs.length),
+      });
+    }
+  }
+  return rs;
+}
+
+test.each([
+  [".", "replace"],
+  ["", "embed"],
+] as const)(
+  "a root code column sizes auto width per root (delimiter %j, %s)",
+  async (delimiter, source) => {
+    const schema = { nameField: "adm{n}_name", codeField: "adm{n}_pcode" };
+    const cols = ["adm1_name", "adm1_pcode"];
+    const { out } = await codeCreate(
+      unevenRootRows(),
+      null,
+      delimiter,
+      "auto",
+      source,
+      schema,
+      "iso3",
+    );
+    const combined = fetch(out, cols);
+    const separate = [];
+    for (const root of ["AAA", "BBB"]) {
+      const one = await codeCreate(
+        unevenRootRows().filter((r) => r.iso3 === root),
+        root,
+        delimiter,
+        "auto",
+        source,
+        schema,
+      );
+      separate.push(...fetch(one.out, cols));
+    }
+    expect(combined).toEqual(
+      fetch(
+        separate.map(([n, c]) => ({ adm1_name: n, adm1_pcode: c })),
+        cols,
+      ),
+    );
+    expect(combined).toContainEqual(["AAA Region 1", `AAA${delimiter}1`]);
+  },
+);

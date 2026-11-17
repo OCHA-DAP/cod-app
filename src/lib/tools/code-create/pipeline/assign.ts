@@ -5,6 +5,7 @@ import {
   checkLevelCount,
   checkUniqueNames,
   quoteIdent,
+  quoteLiteral,
   seedCodeFromNames,
   widthFor,
   writeRootCode,
@@ -14,8 +15,6 @@ import type { Level } from "./levels";
 
 export const SOURCE_CODES = ["replace", "embed", "copy"] as const;
 export type SourceCodes = (typeof SOURCE_CODES)[number];
-
-const sqlStr = (s: string): string => "'" + s.replace(/'/g, "''") + "'";
 
 const INTEGER_TYPES = new Set([
   "TINYINT",
@@ -75,6 +74,7 @@ async function stripParentPrefixes(
   levels: Map<number, Level>,
   fmt: CodeFormat,
   integers: Set<number>,
+  rootSql: string,
 ): Promise<void> {
   const numbered = ascending(levels).filter((n) => n >= 1);
   // Finest first, so each parent column still holds its own source code.
@@ -82,7 +82,7 @@ async function stripParentPrefixes(
     const level = levels.get(n)!;
     if (level.seeded) continue;
     let prefixSql: string;
-    if (n === numbered[0]) prefixSql = sqlStr(fmt.rootCode);
+    if (n === numbered[0]) prefixSql = `${rootSql}::VARCHAR`;
     else if (levels.get(n - 1)!.seeded) continue;
     else prefixSql = `${quoteIdent(levels.get(n - 1)!.code)}::VARCHAR`;
     const codeSql = `${quoteIdent(level.code)}::VARCHAR`;
@@ -156,7 +156,7 @@ async function prepareSourceCodes(
   return integers;
 }
 
-// Without a delimiter, zero-pads integer codes to one width; throws if text codes are mixed.
+// Without a delimiter, zero-pads integer codes per root; throws if text codes are mixed.
 async function fixWidth(
   conn: AsyncDuckDBConnection,
   table: string,
@@ -164,27 +164,33 @@ async function fixWidth(
   level: Level,
   fmt: CodeFormat,
   integer: boolean,
+  rootSql: string,
 ): Promise<void> {
   if (fmt.delimiter !== "") return;
-  const lengths = (
-    (
-      await conn.query(
-        `SELECT DISTINCT length(${quoteIdent(level.code)}) AS l FROM ${quoteIdent(table)}`,
-      )
-    ).toArray() as Array<{ l: number | bigint | null }>
-  )
-    .filter((r) => r.l !== null)
-    .map((r) => Number(r.l))
-    .sort((a, b) => a - b);
-  if (lengths.length > 1 && !integer) {
-    throw new Error(
-      `level ${n} (${JSON.stringify(level.code)}) source codes vary in length ${JSON.stringify(lengths)}; without a delimiter the code can't be split`,
-    );
+  const qTable = quoteIdent(table);
+  const qCode = quoteIdent(level.code);
+  const perRoot = (
+    await conn.query(`--sql
+      SELECT array_to_string(list_sort(list(DISTINCT length(${qCode}))
+        FILTER (WHERE ${qCode} IS NOT NULL)), ',') AS l
+      FROM ${qTable} GROUP BY ${rootSql}
+    `)
+  ).toArray() as Array<{ l: string | null }>;
+  for (const { l } of perRoot) {
+    const lengths = l ? l.split(",").map(Number) : [];
+    if (lengths.length > 1 && !integer) {
+      throw new Error(
+        `level ${n} (${JSON.stringify(level.code)}) source codes vary in length ${JSON.stringify(lengths)}; without a delimiter the code can't be split`,
+      );
+    }
   }
-  if (integer && lengths.length > 0) {
-    const width = Math.max(widthFor(fmt, n) ?? 0, lengths[lengths.length - 1]);
-    const qCode = quoteIdent(level.code);
-    await conn.query(`UPDATE ${quoteIdent(table)} SET ${qCode} = lpad(${qCode}, ${width}, '0')`);
+  if (integer) {
+    await conn.query(`--sql
+      UPDATE ${qTable}
+      SET ${qCode} = lpad(${qCode}, GREATEST(${widthFor(fmt, n) ?? 0}, w.len)::INTEGER, '0')
+      FROM (SELECT ${rootSql} AS root, max(length(${qCode})) AS len FROM ${qTable} GROUP BY 1) w
+      WHERE ${rootSql} = w.root
+    `);
   }
 }
 
@@ -195,6 +201,8 @@ export async function assignCreateCodes(
   levels: Map<number, Level>,
   fmt: CodeFormat,
   sourceCodes: SourceCodes,
+  rootSql: string,
+  rootColumn: string | null = null,
 ): Promise<void> {
   if (!SOURCE_CODES.includes(sourceCodes)) {
     throw new Error(
@@ -218,23 +226,25 @@ export async function assignCreateCodes(
       await checkUniqueNames(conn, table, n, level.code, present ? parent : null);
     }
   }
-  if (sourceCodes === "embed") await stripParentPrefixes(conn, table, levels, fmt, integers);
-  if (levels.has(0)) {
+  if (sourceCodes === "embed") {
+    await stripParentPrefixes(conn, table, levels, fmt, integers, rootSql);
+  }
+  if (levels.has(0) && levels.get(0)!.code !== rootColumn) {
     const root = levels.get(0)!;
     const top = levels.get(1);
     const after = root.name ? [root.name] : [top?.name, top?.code];
-    await writeRootCode(conn, table, root.code, fmt.rootCode, after);
+    await writeRootCode(conn, table, root.code, rootSql, after);
   }
 
-  let parentSql = sqlStr(fmt.rootCode);
-  let parentColumn: string | null = null;
+  let parentSql = rootSql;
+  let parentColumn = rootColumn;
   for (const n of order.filter((l) => l >= 1)) {
     const level = levels.get(n)!;
     const qCode = quoteIdent(level.code);
     if (sourceCodes === "embed" && !level.seeded) {
-      await fixWidth(conn, table, n, level, fmt, integers.has(n));
+      await fixWidth(conn, table, n, level, fmt, integers.has(n), rootSql);
       await conn.query(
-        `UPDATE ${qTable} SET ${qCode} = ${parentSql} || ${sqlStr(fmt.delimiter)} || ${qCode}::VARCHAR`,
+        `UPDATE ${qTable} SET ${qCode} = ${parentSql} || ${quoteLiteral(fmt.delimiter)} || ${qCode}::VARCHAR`,
       );
       parentSql = qCode;
       parentColumn = level.code;
@@ -244,8 +254,12 @@ export async function assignCreateCodes(
     const staging = quoteIdent(stagingName);
     await conn.query(`--sql
       CREATE OR REPLACE TEMP TABLE ${staging} AS
-      SELECT ROW_NUMBER() OVER () AS row_id, orig_code, orig_code AS code_val, parent_code
-      FROM (SELECT DISTINCT ${qCode} AS orig_code, ${parentSql} AS parent_code FROM ${qTable}) d
+      SELECT ROW_NUMBER() OVER () AS row_id, orig_code, orig_code AS code_val, parent_code,
+        root_code
+      FROM (
+        SELECT DISTINCT ${qCode} AS orig_code, ${parentSql} AS parent_code, ${rootSql} AS root_code
+        FROM ${qTable}
+      ) d
     `);
     await assignNewCodes(conn, stagingName, {
       idColumn: "row_id",
@@ -254,13 +268,14 @@ export async function assignCreateCodes(
       codeColumn: "code_val",
       fmt,
       level: n,
+      widthGroupColumn: "root_code",
     });
     // A raw value MAY repeat across parents; match on parent too so this
     // never collides with, or drops, the same value/NULL elsewhere.
     const parentMatch =
       parentColumn === null
         ? "TRUE"
-        : `t.${quoteIdent(parentColumn)} IS NOT DISTINCT FROM s.parent_code`;
+        : `t.${quoteIdent(parentColumn)}::VARCHAR IS NOT DISTINCT FROM s.parent_code`;
     await conn.query(`--sql
       UPDATE ${qTable} t
       SET ${qCode} = s.code_val
