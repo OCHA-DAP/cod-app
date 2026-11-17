@@ -98,8 +98,14 @@ def add_all() -> None:
         if (demo / ".portolan").is_dir():
             add(demo, DEMO_DATETIME)
     add(TOOLS / "sources", SOURCES_DATETIME)
-    for collection in collections(CATALOG / "global"):
-        add(collection, download_date(collection))
+    from cod_data.catalog.global_build.publish import GLOBAL, PUBLISH
+
+    for collection in collections(GLOBAL):
+        if (
+            collection.parent.name in PUBLISH
+            and (collection / f"{collection.name}.parquet").exists()
+        ):
+            add(collection, download_date(collection))
 
 
 def main() -> None:
