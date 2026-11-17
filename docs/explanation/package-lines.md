@@ -9,56 +9,49 @@ international vs. sub-national boundaries from this one layer, instead of
 drawing every level's own polygon outline on top of each other. Ported
 from topo-tools' `package-lines`.
 
-## Why not a shared-paths function
+## Why a noded network
 
-PostGIS exposes `ST_SharedPaths` for exactly this shared-boundary
-extraction. DuckDB WASM's spatial extension has neither `ST_SharedPaths`
-nor `ST_Relate` (see `docs/adr/0032`). `package-lines` instead builds
-shared boundaries from `ST_Boundary` plus `ST_Intersection` plus
-`ST_CollectionExtract`.
+Extracting each touching pair's shared boundary (`ST_Touches`, then
+`ST_Intersection` of the two boundaries) misses pairs that overlap by a
+sliver or meet at a T-junction vertex just off the other's segment, as an
+Edge Mosaic output with its final clean skipped does at every clip seam.
+Such a border came out as two exterior lines. Noding every boundary into
+one line network and labelling each edge by its nearby units recovers it
+(see [`0059`](../adr/0059-package-lines-builds-a-noded-boundary-network.md)).
 
 ## Pipeline (`pipeline/boundaries.ts`'s `buildBoundaries`)
 
 1. Dissolve the input once, at the finest detected level only (via
    `package-polygons/pipeline/dissolveCore.ts`'s `runDissolveCore`); every
    coarser boundary is already contained in the finest level's own
-   adjacency, so no per-level repeat is needed.
-2. Build a part-exploded bbox table (`UNNEST(ST_Dump(geom))`, bbox columns
-   from `$lib/db/bbox.ts`'s `bboxColumnsSql`, precomputed in a CTE rather
-   than called inline inside a `JOIN`'s `ON` clause), so a multi-part fid
-   with a remote exclave doesn't make every candidate-pair bbox comparison
-   span the whole fid's extent.
-3. Find candidate touching fid pairs from bbox overlap at the part level
-   (`DISTINCT`, `a.fid < b.fid`), then confirm real adjacency with
-   `ST_Touches` against each pair's whole-fid geometry.
-4. For each touching pair, compute the shared segment as
-   `ST_LineMerge(ST_Union_Agg(ST_CollectionExtract(ST_Intersection(boundary_part_a,
-boundary_part_b), 2)))`, filtering out `NULL`/empty results; a
-   corner-only touch has `ST_Touches` true but an empty intersection, and
-   produces zero shared rows for that pair. The outer `ST_LineMerge` is
-   required even when both sides' vertices exactly coincide along the
-   shared edge: `ST_Intersection` on two boundary parts returns one
-   fragment per matching edge segment, not one merged line (see
-   `docs/adr/0032`).
-5. Union each fid's own shared segments via `ST_Union_Agg`, then compute
-   its exterior as `ST_LineMerge(ST_Difference(boundary_part,
-COALESCE(own_shared_union, empty_multilinestring)))`, dumped to atomic
-   `LineString` rows.
+   adjacency.
+2. `nodedLines` clips every unit's `ST_Boundary` to its 1° tiles
+   (`TILE_DEG`) plus a `TILE_MARGIN_DEG` overlap, so a line cut at a tile
+   edge still meets its node, then nodes each tile with
+   `ST_LineMerge(ST_Union_Agg(...))`.
+3. `snapEnds` moves each endpoint onto the least other endpoint within
+   `10 * SNAP_TOLERANCE` and drops zero-length lines, so two border copies
+   ending a rounding error apart at a junction don't form a loop.
+4. Each edge, normalised with `ST_Normalize`, is labelled by the units
+   whose boundary lies within the tolerance of its midpoint
+   (`ST_LineInterpolatePoint(geom, 0.5)`): one unit is exterior, two are
+   shared, more keep the two nearest. Candidates are paired on bbox
+   columns first, keeping geometry out of the join's hash table.
+5. The two copies of a shared border in one tile are snapped onto each
+   other (`ST_Snap`), clipped back to the exact tile, endpoint-snapped
+   again, and line-merged per unit pair with an ordered `ST_Union_Agg`.
+   Every aggregate after noding is ordered, so row order never changes the
+   output.
 6. Classify every row: a shared row's depth is the coarsest detected level
-   at which its two sides' own code columns first differ (walking
-   coarsest to finest); an exterior row's depth is `min(levels) - 1`, one
-   level coarser than the coarsest detected level, not hardcoded `0`,
-   since `levels` can include a genuine level 0 for a multi-country file
-   whose admin0 codes vary.
-7. Raise if any finest-level fid is absent from every output row (as
-   `left_fid` or `right_fid`), catching a fid silently dropped somewhere
-   in the pipeline (`checkEveryFidPresent`).
-8. Resolve each side's `fid` to the finest level's own detected identity
-   families (`groupFamiliesByLevel`/`levelFamilyNames`, the same
-   naming-anchor mechanism `package-points` uses, or an explicit schema's
-   fixed `code`/`name`), one column pair per family under `a_*`/`b_*`
-   (e.g. `a_pcode`/`b_pcode`), then drop `left_fid`/`right_fid` from the
-   final output.
+   at which its two sides' own code columns first differ (a
+   whole-table-constant root never separates two units); an exterior
+   row's depth is the coarsest level when that level has one unit (its
+   outline), else one coarser.
+7. Label each side at the row's depth with the detected levels' identity
+   families (`genericNamesByFamily`, or `genericFamilies` for an explicit
+   schema) under `a_*`/`b_*`, raise if any finest-level unit is absent
+   from every row (`checkEveryFidPresent`), then drop `left_fid` and
+   `right_fid`, and rows below `minLevel`.
 
 `depthColumn` is checked up front against the tool's own fixed output
 column names (`left_fid`, `right_fid`, `geom`), raising before any query

@@ -95,6 +95,6 @@ export async function runPackage(
   const polygons = await runPackagePolygons(conn, schema, minLevel, clean);
   await exposeFinestLevel(conn, polygons.levels.find((l) => !l.exportable)?.level);
   const points = await runPackagePoints(conn, schema, undefined, minLevel, clean);
-  const lines = await runPackageLines(conn, schema, undefined, clean);
+  const lines = await runPackageLines(conn, schema, undefined, minLevel, clean);
   return { validation, outputs: { polygons, points, lines } };
 }

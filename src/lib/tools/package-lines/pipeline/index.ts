@@ -4,7 +4,7 @@ import { tableToGeoJSON } from "$lib/db/geojson";
 import { setCentroidLat } from "$lib/db/units";
 import { DEFAULT_DEPTH_COLUMN } from "$lib/tools/schema-fill/pipeline/index";
 import { detectLevels } from "$lib/tools/schema-fill/pipeline/levels";
-import { detectLevelColumnsOrSingle } from "$lib/tools/schema-map/pipeline/levelColumns";
+import { detectLevelsWithRoot } from "$lib/tools/schema-map/pipeline/levelColumns";
 import type { TargetSchema } from "$lib/tools/schema-map/pipeline/targetSchema";
 import { buildBoundaries } from "./boundaries";
 import { layerBounds } from "$lib/db/layerView";
@@ -22,6 +22,7 @@ export async function runPackageLines(
   conn: AsyncDuckDBConnection,
   schema: TargetSchema | null,
   depthColumn: string = DEFAULT_DEPTH_COLUMN,
+  minLevel: number | null = null,
   checkTopology = true,
 ): Promise<PackageLinesResult> {
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pl_micro");
@@ -35,13 +36,13 @@ export async function runPackageLines(
 
   const levels =
     schema !== null
-      ? await detectLevels(conn, "layer_attr", schema)
-      : [...(await detectLevelColumnsOrSingle(conn, "layer_attr")).keys()].sort((a, b) => a - b);
+      ? await detectLevels(conn, "pl_input", schema)
+      : [...(await detectLevelsWithRoot(conn, "pl_input")).keys()].sort((a, b) => a - b);
   if (levels.length === 0) {
     throw new Error("no admin hierarchy level detected");
   }
 
-  await buildBoundaries(conn, "pl_input", "pl_lines", levels, schema, depthColumn);
+  await buildBoundaries(conn, "pl_input", "pl_lines", levels, schema, depthColumn, minLevel);
   await conn.query(`DROP TABLE IF EXISTS pl_input`);
 
   await conn.query(`--sql

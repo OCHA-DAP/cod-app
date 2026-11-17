@@ -121,7 +121,7 @@ The site hosts several COD-AB portals: `/` is the home page linking to each, `/a
 - `docs/explanation/package.md`: thin package-polygons/points/lines orchestrator, no table-name collisions
 - `docs/explanation/package-polygons.md`: per-level group-by dissolve, auto column keep/sum/drop, gap-only issues report
 - `docs/explanation/package-points.md`: one representative point per level, generalizable-columns gate
-- `docs/explanation/package-lines.md`: shared/exterior boundary extraction, coarsest-divergence classification
+- `docs/explanation/package-lines.md`: noded shared/exterior boundary network, coarsest-divergence classification
 - `docs/explanation/schema-map.md`: one page over infer, in-table edit, and apply, geometry drawn once; structural admin-hierarchy inference, no name/vocabulary matching
 - `docs/explanation/schema-refactor.md`: Schema Map's apply step, crosswalk-driven column rename/drop, no geometry touch
 - `docs/explanation/schema-join.md`: QGIS-style join by location (largest overlap), copies join-layer hierarchy columns, conflicting values as numbered siblings
