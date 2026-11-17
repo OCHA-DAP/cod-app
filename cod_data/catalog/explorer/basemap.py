@@ -25,8 +25,9 @@ for name, layer, columns, where in (
     write_geoparquet(
         con,
         f"SELECT {columns}, geometry FROM read_parquet('{BASEMAP_DIR / f'{layer}.parquet'}') "
-        f"WHERE {where} ORDER BY objectid",
+        f"WHERE {where}",
         out,
+        "objectid" if "objectid" in columns else "",
     )
     con.close()
     tile_parquet(out, path_of(name, "pmtiles"), name)

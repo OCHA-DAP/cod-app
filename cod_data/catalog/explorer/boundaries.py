@@ -56,6 +56,7 @@ def write_boundary(
             con,
             f"SELECT {', '.join(cols)}{extra}, {geom} AS geometry FROM raw",
             tmp,
+            "hover_id" if hover_id else "",
         )
         tmp.replace(out)
     finally:
