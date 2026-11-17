@@ -19,7 +19,6 @@ from topo_tools.api import (
     edge_extend,
     edge_mosaic,
     package,
-    schema_fill,
     topo_clean,
     topo_detect,
 )
@@ -270,6 +269,46 @@ def _stage(
     return originals
 
 
+def _copy_adm0(con: duckdb.DuckDBPyConnection, parents: Path, work: Path) -> None:
+    """Write package's outputs for a location with no subnational units: every level is its ADM0."""
+    adm0 = f"""
+        SELECT {MATCH_KEY}, adm0_pcode, adm0_name, ST_Union_Agg(geometry) AS geometry
+        FROM '{parents}' GROUP BY ALL
+    """
+    for n in range(1, MAX_LVL + 1):
+        cols = [
+            f"adm0_{c} AS adm{k}_{c}"
+            if c in ("name", "pcode")
+            else f"NULL::VARCHAR AS adm{k}_{c}"
+            for k in range(n + 1)
+            for c in LEVEL_COLS
+        ]
+        lang = [f"NULL::VARCHAR AS {c}" for c in (*LANG, "src_lvl")]
+        select = ["geometry", MATCH_KEY, *cols, *lang, "0 AS adm_lvl"]
+        write_geoparquet(
+            con, f"SELECT {', '.join(select)} FROM ({adm0})", work / f"admin{n}.parquet"
+        )
+    point = [
+        f"adm0_{c} AS {c}" if c in ("name", "pcode") else f"NULL::VARCHAR AS {c}"
+        for c in LEVEL_COLS
+    ]
+    write_geoparquet(
+        con,
+        f"""WITH p AS MATERIALIZED (
+            SELECT *, (ST_MaximumInscribedCircle(geometry)).center AS center FROM ({adm0})
+        )
+        SELECT center AS geometry, {", ".join(point)}, n::INTEGER AS adm_lvl
+        FROM p, range(1, {MAX_LVL + 1}) AS r(n)""",
+        work / "points.parquet",
+    )
+    sides = [f"NULL::VARCHAR AS {s}_{c}" for s in ("a", "b") for c in LEVEL_COLS]
+    write_geoparquet(
+        con,
+        f"SELECT NULL::GEOMETRY AS geometry, {', '.join(sides)}, 0 AS adm_lvl WHERE false",
+        work / "lines.parquet",
+    )
+
+
 def job(
     iso3: str, source: str | None, parents_all: Path, out: Path
 ) -> tuple[str, float, int]:
@@ -322,24 +361,9 @@ def job(
             tmp_dir=work,
         )
     else:
-        rows = work / "rows.parquet"
-        cols = [
-            f"{FILL[c]} AS {c}"
-            if c in FILL
-            else c
-            if c in (MATCH_KEY, "geometry")
-            else f"NULL::VARCHAR AS {c}"
-            for c in staged_columns()
-        ]
-        write_geoparquet(con, f"SELECT {', '.join(cols)} FROM '{parents}'", rows)
-        schema_fill(
-            rows,
-            filled,
-            name_field=NAME_FIELD,
-            code_field=CODE_FIELD,
-            threads=THREADS,
-            tmp_dir=work,
-        )
+        _copy_adm0(con, parents, work)
+        con.close()
+        return iso3, time.perf_counter() - t0, lvl
     package(
         filled,
         work / "{x}.parquet",

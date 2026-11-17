@@ -7,7 +7,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
 
 - The build MUST take each location's source from
   `src/lib/explorer/decisions.csv`. A location picked `none`, or with no
-  pick, MUST be ADM0 fill only.
+  pick, MUST be ADM0 fill only: each level's polygon MUST be the ADM0
+  polygon with the ADM0 name and code, written without schema-fill or
+  package, with one point per level and no boundary lines.
 - The build MUST read the ADM0 layer named by `--adm0` (`gaul`, `improved`
   or `fieldmaps`) from the adm0-app catalog (`ADM0_CATALOG`), and source
   layers from the explorer catalog.
