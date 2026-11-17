@@ -78,10 +78,10 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   and null names. It MUST replace the layers only after every layer
   passes.
 - Each location MUST build in a temporary folder that replaces its last
-  build only on success. A location that fails MUST fall back to ADM0
-  fill, built in the main process after the pool, MUST keep its last
-  successful build when the fill fails too, MUST be listed before the
-  merge, and MUST make the run exit non-zero.
+  build only on success. A location that fails MUST keep its last
+  successful build, or with none MUST fall back to ADM0 fill, built in
+  the main process after the pool. It MUST be listed before the merge,
+  and MUST make the run exit non-zero.
 - The merge MUST include only locations with `admin1`, `points` and
   `lines` outputs, listing the others.
 - `--only` MUST rebuild only the listed locations and merge every location

@@ -541,20 +541,24 @@ def main() -> None:
                 f"{iso3} ({picks.get(iso3)}, adm{lvl}) {secs:.0f}s ({done}/{len(jobs)})",
                 flush=True,
             )
+    files = ("admin1.parquet", "points.parquet", "lines.parquet")
+
+    def is_built(iso3: str) -> bool:
+        return all((out / "iso3" / iso3.lower() / f).exists() for f in files)
+
     # In this process, so a crashed worker that broke the pool still gets its fill.
     for iso3 in failed:
+        if is_built(iso3):
+            failed[iso3] += "; kept the last build"
+            continue
         try:
             job(iso3, None, parents, out)
+            failed[iso3] += "; ADM0 fill"
         except Exception as e:  # noqa: BLE001 (report every location before exiting)
             failed[iso3] += f"; ADM0 fill also failed: {type(e).__name__}: {e}"
     for iso3, error in failed.items():
-        print(f"ADM0 fill after a failed {picks.get(iso3)} build: {iso3} {error}")
-    files = ("admin1.parquet", "points.parquet", "lines.parquet")
-    built = [
-        i
-        for i in all_iso3s
-        if all((out / "iso3" / i.lower() / f).exists() for f in files)
-    ]
+        print(f"failed {picks.get(iso3)} build: {iso3} {error}")
+    built = [i for i in all_iso3s if is_built(i)]
     print("not built yet, left out of the merge:", sorted(set(all_iso3s) - set(built)))
     for line in merge(out, built):
         print(line)
