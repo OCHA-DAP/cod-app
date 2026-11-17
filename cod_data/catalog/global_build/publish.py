@@ -4,7 +4,14 @@ import shutil
 from importlib.metadata import version
 from pathlib import Path
 
-from cod_data.catalog.common import CATALOG, HOST, tile_parquet, write_yaml
+from cod_data.catalog.common import (
+    CATALOG,
+    HOST,
+    PRODUCER_TERMS,
+    TILE_MAX_ZOOM,
+    tile_parquet,
+    write_yaml,
+)
 from cod_data.catalog.global_build.config import BUILD
 
 GLOBAL = CATALOG / "global"
@@ -92,8 +99,7 @@ def stage(adm0: str) -> None:
                 "title": title,
                 "description": description,
                 "providers": [PROVIDER],
-                "processing_notes": f"Built with topo-tools {version('topo-tools')}. Each location's picked source is cleaned, extended and edge-matched to the {adm0} ADM0 layer, coded to the COD-AB Specification, then tiled with tylertoo to zoom 11 with every feature kept at every zoom.",
-                "license": "other",
-                "license_url": "../../TERMS.md",
+                "processing_notes": f"Built with topo-tools {version('topo-tools')}. Each location's picked source is cleaned, extended and edge-matched to the {adm0} ADM0 layer, coded to the COD-AB Specification, then tiled with tylertoo to zoom {TILE_MAX_ZOOM} with every feature kept at every zoom.",
+                **PRODUCER_TERMS,
             },
         )

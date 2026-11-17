@@ -7,6 +7,7 @@ from cod_data.catalog.common import (
     CONTACT,
     HOST,
     PARTNERS,
+    PRODUCER_TERMS,
     SELF_PUBLISHED,
     public_url,
     write_yaml,
@@ -17,7 +18,6 @@ CC_BY = {
     "license": "CC-BY-4.0",
     "license_url": "https://creativecommons.org/licenses/by/4.0/",
 }
-PRODUCER_TERMS = {"license": "other", "license_url": "../../TERMS.md"}
 REFERENCE = {
     "m49": "UN M49 codes, names and regions for each country or area, from the UN Statistics Division.",
     "iso3166": "ISO 3166-2 subdivision counts per location, from Debian's iso-codes.",
