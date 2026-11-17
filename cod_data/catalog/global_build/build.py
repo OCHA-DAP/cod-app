@@ -272,8 +272,9 @@ def _stage(
 def _copy_adm0(con: duckdb.DuckDBPyConnection, parents: Path, work: Path) -> None:
     """Write package's outputs for a location with no subnational units: every level is its ADM0."""
     adm0 = f"""
-        SELECT {MATCH_KEY}, adm0_pcode, adm0_name, ST_Union_Agg(geometry) AS geometry
-        FROM '{parents}' GROUP BY ALL
+        SELECT min({MATCH_KEY}) AS {MATCH_KEY}, adm0_pcode, adm0_name,
+            ST_Union_Agg(geometry) AS geometry
+        FROM '{parents}' GROUP BY adm0_pcode, adm0_name
     """
     for n in range(1, MAX_LVL + 1):
         cols = [
