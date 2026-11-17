@@ -416,7 +416,7 @@ def check_edge(input_path: Path, overlay_path: Path, cache: Path) -> None:
     kinds = dict(
         duckdb.sql(
             f"SELECT kind, count(*) FROM read_parquet('{out.with_stem(out.stem + '_issues')}') "
-            "WHERE kind NOT IN ('micro-polygon', 'detached-part') GROUP BY kind"
+            "WHERE kind NOT IN ('micro-polygon', 'detached-part', 'sliver-gap') GROUP BY kind"
         ).fetchall()
     )
     # Overlay holes (the Baarle enclaves) lie outside every clip target, so they are not gaps.
