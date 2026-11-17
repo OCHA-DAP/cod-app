@@ -494,6 +494,19 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
     return report
 
 
+def same_parent(parents: Path, built: Path, iso3: str) -> bool:
+    """Whether the build in built was edge-matched to the current ADM0 rows of iso3."""
+    wkb = "SELECT * REPLACE (ST_AsWKB(geometry) AS geometry) FROM read_parquet"
+    con = connect()
+    a = f"{wkb}('{parents}') WHERE adm0_pcode = '{iso3}'"
+    b = f"{wkb}('{built / 'parent.parquet'}')"
+    diff = con.execute(
+        f"SELECT count(*) FROM (({a} EXCEPT ALL {b}) UNION ALL ({b} EXCEPT ALL {a}))"
+    ).fetchall()[0][0]
+    con.close()
+    return diff == 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--adm0", choices=ADM0_LAYERS, required=True)
@@ -549,7 +562,7 @@ def main() -> None:
 
     # In this process, so a crashed worker that broke the pool still gets its fill.
     for iso3 in failed:
-        if is_built(iso3):
+        if is_built(iso3) and same_parent(parents, out / "iso3" / iso3.lower(), iso3):
             failed[iso3] += "; kept the last build"
             continue
         try:
