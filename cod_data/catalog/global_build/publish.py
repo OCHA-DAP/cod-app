@@ -1,7 +1,6 @@
 """Stage each built global layer set in catalog/global/<adm0>/ as one collection per layer, with tiles."""
 
 import shutil
-from importlib.metadata import version
 from pathlib import Path
 
 from cod_data.catalog.common import (
@@ -12,7 +11,7 @@ from cod_data.catalog.common import (
     tile_parquet,
     write_yaml,
 )
-from cod_data.catalog.global_build.config import BUILD
+from cod_data.catalog.global_build.config import BUILD, VERSION_FILE
 
 GLOBAL = CATALOG / "global"
 # ADM0 layers whose global build the catalog publishes.
@@ -57,6 +56,8 @@ def newer(path: Path, than: Path) -> bool:
 
 def stage(adm0: str) -> None:
     """Copy each layer in when the build is newer, tile it, and write its metadata."""
+    record = BUILD / adm0 / VERSION_FILE
+    built_with = f" {record.read_text()}" if record.exists() else ""
     write_yaml(
         GLOBAL / ".portolan" / "metadata.yaml",
         {
@@ -99,7 +100,7 @@ def stage(adm0: str) -> None:
                 "title": title,
                 "description": description,
                 "providers": [PROVIDER],
-                "processing_notes": f"Built with topo-tools {version('topo-tools')}. Each location's picked source is cleaned, extended and edge-matched to the {adm0} ADM0 layer, coded to the COD-AB Specification, then tiled with tylertoo to zoom {TILE_MAX_ZOOM} with every feature kept at every zoom.",
+                "processing_notes": f"Built with topo-tools{built_with}. Each location's picked source is cleaned, extended and edge-matched to the {adm0} ADM0 layer, coded to the COD-AB Specification, then tiled with tylertoo to zoom {TILE_MAX_ZOOM} with every feature kept at every zoom.",
                 **PRODUCER_TERMS,
             },
         )

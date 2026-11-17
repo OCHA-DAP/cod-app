@@ -36,6 +36,7 @@ from cod_data.catalog.global_build.config import (
     NAME_FIELD,
     PARTS,
     THREADS,
+    VERSION_FILE,
     WORKERS,
 )
 from cod_data.catalog.global_build.conform import depth, stage_sql
@@ -319,6 +320,7 @@ def job(
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     result = _build(iso3, source, parents_all, work)
+    (work / VERSION_FILE).write_text(version("topo-tools"))
     shutil.rmtree(final, ignore_errors=True)
     work.rename(final)
     return result
@@ -491,6 +493,11 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
     # Replace the layers only once every one has passed check().
     for path in staged:
         path.replace(out / path.name.removeprefix("."))
+    built = [out / "iso3" / i.lower() / VERSION_FILE for i in iso3s]
+    (out / VERSION_FILE).unlink(missing_ok=True)
+    if all(v.exists() for v in built):
+        versions = sorted({v.read_text() for v in built})
+        (out / VERSION_FILE).write_text(", ".join(versions))
     return report
 
 
