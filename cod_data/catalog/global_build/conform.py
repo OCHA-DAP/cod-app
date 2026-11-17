@@ -163,7 +163,12 @@ def depth(con: duckdb.DuckDBPyConnection, source: str, iso3: str) -> int:
 def _key(alias: str) -> str:
     """Spec sort cascade as one text key: srcid (digit-only by value), name, name1..3, nulls last, then id."""
     s = f"{alias}.srcid"
-    padded = f"CASE WHEN regexp_full_match({s}, '[0-9]+') THEN lpad({s}, greatest(20, length({s}))::INT, '0') ELSE {s} END"
+    # Digit-only first, then by digit count and value, so any length sorts numerically.
+    value = f"coalesce(nullif(ltrim({s}, '0'), ''), '0')"
+    padded = (
+        f"CASE WHEN regexp_full_match({s}, '[0-9]+') "
+        f"THEN '0' || lpad(length({value})::VARCHAR, 5, '0') || {value} ELSE '1' || {s} END"
+    )
     parts = [
         f"(({v}) IS NULL)::INT::VARCHAR || coalesce({v}, '')"
         for v in (
