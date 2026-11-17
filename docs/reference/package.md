@@ -25,3 +25,5 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention.
 - `package` MUST process exactly one input file per run.
 - `nameField`/`codeField`, when supplied, MUST be passed through
   unchanged to all three sub-calls.
+- `minLevel`, when supplied, MUST be passed through to `package-polygons`
+  and `package-points`.

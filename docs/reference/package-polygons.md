@@ -16,6 +16,12 @@ tools.
   an explicit `nameField`/`codeField` pair, each containing a `{n}`
   placeholder, given together or not at all. `package-polygons` MUST
   raise if no level is found.
+- With auto-detection, a whole-table-constant column family named like the
+  detected levels MUST be its own coarsest (root) level, dissolved to one
+  row and numbered by its own anchor digit when that is coarser than every
+  detected level, else one above the coarsest.
+- `minLevel`, if given, MUST leave out every level whose depth is below
+  it, and MUST raise if no level is at or above it.
 
 ## Dissolving
 

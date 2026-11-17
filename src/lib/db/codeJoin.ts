@@ -105,15 +105,17 @@ export interface AssignmentOutcome {
 
 // Code wins whenever a match exists, even disagreeing with spatial;
 // spatial is the fallback when no code match exists (docs/adr/0045).
+// A code overlay tied for the top spatial vote (topOverlayFids) agrees with it.
 export function resolveAssignment(
   codeOverlayFid: number | null,
   spatialOverlayFid: number,
+  topOverlayFids: number[] = [spatialOverlayFid],
 ): AssignmentOutcome {
   if (codeOverlayFid != null) {
     return {
       overlayFid: codeOverlayFid,
       assignmentMethod: "code",
-      spatialAgrees: codeOverlayFid === spatialOverlayFid,
+      spatialAgrees: topOverlayFids.includes(codeOverlayFid),
     };
   }
   return {

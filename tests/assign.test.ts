@@ -103,12 +103,13 @@ test("carry column already on the input layer throws", async () => {
 
 test("assign_one: code join precedence and fallback, per file", async () => {
   await overlays();
-  // fileA: both children mostly overlap P1 but code agrees on P2, which both also overlap
+  // fileA: P1 wins the spatial vote 3 to 2 but code agrees on P2, which two children also overlap
   await inputs(
     ["pcode", "source_file"],
     [
       [10, "POLYGON((1 0, 10.5 0, 10.5 1, 1 1, 1 0))", "P2", "fileA"],
       [11, "POLYGON((1 1, 10.5 1, 10.5 2, 1 2, 1 1))", "P2", "fileA"],
+      [12, "POLYGON((0.2 2.2, 0.8 2.2, 0.8 2.8, 0.2 2.8, 0.2 2.2))", "P2", "fileA"],
     ],
   );
   expect(await assignOne(conn, { matchColumn: "pcode" })).toMatchObject({
@@ -125,6 +126,16 @@ test("assign_one: code join precedence and fallback, per file", async () => {
     overlayFid: 1,
     assignmentMethod: "spatial_fallback",
     spatialAgrees: null,
+  });
+  // fileC: P1 and P2 tie the spatial vote, code picks P2, so they agree
+  await inputs(
+    ["pcode", "source_file"],
+    [[30, "POLYGON((1 0, 10.5 0, 10.5 1, 1 1, 1 0))", "P2", "fileC"]],
+  );
+  expect(await assignOne(conn, { matchColumn: "pcode" })).toMatchObject({
+    overlayFid: 2,
+    assignmentMethod: "code",
+    spatialAgrees: true,
   });
 });
 

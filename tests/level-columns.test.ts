@@ -7,6 +7,7 @@ import {
   isLevelIdentityColumn,
   verifyFunctionalCluster,
   type LevelColumns,
+  levelCodeColumns,
 } from "$lib/tools/schema-map/pipeline/levelColumns";
 import { ready, run } from "./helpers";
 
@@ -230,8 +231,86 @@ test("detectRootLevel, digit-anchored", async () => {
     FROM (VALUES ('P1', 'A1'), ('P1', 'A2'), ('P2', 'B1')) AS v(adm1_pcode, adm2_pcode)`);
   const root = await detectRootLevel(conn, "t_01", await detectLevelColumns(conn, "t_01"));
   expect(root).not.toBeNull();
-  expect(set(root!.identityColumns)).toEqual(set(["adm0_pcode", "adm0_name"]));
-  expect(root!.groupBy).toEqual([]);
+  expect(root![0]).toBe(0);
+  expect(set(root![1].identityColumns)).toEqual(set(["adm0_pcode", "adm0_name"]));
+  expect(root![1].groupBy).toEqual([]);
+  expect(root![1].isRoot).toBe(true);
+});
+
+test("detectRootLevel ignores a constant depth column", async () => {
+  await t01(`SELECT row_number() OVER () AS fid, 'C0' AS adm0, 2 AS adm_lvl, *
+    FROM (VALUES ('C01', 'C0101'), ('C01', 'C0102'), ('C02', 'C0201'), ('C02', 'C0202')) AS v(adm1, adm2)`);
+  const root = await detectRootLevel(conn, "t_01", await detectLevelColumns(conn, "t_01"));
+  expect(root![0]).toBe(0);
+  expect(root![1].identityColumns).toEqual(["adm0"]);
+});
+
+test.each([false, true])(
+  "detectRootLevel skips an empty finer level (adm0 %s)",
+  async (withAdm0) => {
+    await t01(`SELECT row_number() OVER () AS fid, ${withAdm0 ? "'C0' AS adm0_pcode, " : ""}*,
+      NULL::VARCHAR AS adm3_pcode, NULL::VARCHAR AS adm3_name
+    FROM (VALUES ('C01', 'C0101'), ('C01', 'C0102'), ('C02', 'C0201'), ('C02', 'C0202'))
+      AS v(adm1_pcode, adm2_pcode)`);
+    const root = await detectRootLevel(conn, "t_01", await detectLevelColumns(conn, "t_01"));
+    if (withAdm0) {
+      expect(root![0]).toBe(0);
+      expect(root![1].identityColumns).toEqual(["adm0_pcode"]);
+    } else {
+      expect(root).toBeNull();
+    }
+  },
+);
+
+test("levelCodeColumns gives a root the next level's code, not its name", () => {
+  const levelColumns = new Map([
+    [
+      0,
+      {
+        groupBy: [],
+        identityColumns: ["adm0", "adm0_name"],
+        hasCode: true,
+        nameColumn: null,
+        isRoot: true,
+      },
+    ],
+    [
+      1,
+      {
+        groupBy: ["adm1_name", "adm1"],
+        identityColumns: ["adm1_name", "adm1"],
+        hasCode: true,
+        nameColumn: "adm1_name",
+      },
+    ],
+  ]);
+  const families = new Map([
+    [
+      "",
+      new Map([
+        [0, "adm0"],
+        [1, "adm1"],
+      ]),
+    ],
+    [
+      "_name",
+      new Map([
+        [0, "adm0_name"],
+        [1, "adm1_name"],
+      ]),
+    ],
+  ]);
+  expect(levelCodeColumns(levelColumns, families, [0, 1])[0]).toBe("adm0");
+});
+
+test.each([
+  ["adm1", 1],
+  ["adm0", 0],
+])("detectRootLevel numbers a %s root by its own digit", async (root, expected) => {
+  await t01(`SELECT row_number() OVER () AS fid, 'C0' AS ${root}_pcode, *
+    FROM (VALUES ('P1', 'A1'), ('P1', 'A2'), ('P2', 'B1')) AS v(adm2_pcode, adm3_pcode)`);
+  const r = await detectRootLevel(conn, "t_01", await detectLevelColumns(conn, "t_01"));
+  expect(r![0]).toBe(expected);
 });
 
 test("detectRootLevel, word-anchored", async () => {
@@ -239,7 +318,8 @@ test("detectRootLevel, word-anchored", async () => {
     FROM (VALUES ('P1', 'A1'), ('P1', 'A2'), ('P2', 'B1')) AS v(state_code, county_code)`);
   const root = await detectRootLevel(conn, "t_01", await detectLevelColumns(conn, "t_01"));
   expect(root).not.toBeNull();
-  expect(set(root!.identityColumns)).toEqual(set(["country_code", "country_name"]));
+  expect(root![0]).toBe(0);
+  expect(set(root![1].identityColumns)).toEqual(set(["country_code", "country_name"]));
 });
 
 test("finds a trailing name-only leaf", async () => {

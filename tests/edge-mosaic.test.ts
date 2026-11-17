@@ -96,7 +96,10 @@ test("all unassigned raises", async () => {
 
 test("a code overrides spatial and reports the mismatch", async () => {
   const r = await mosaic(
-    [[1, "POLYGON((1 0, 10.5 0, 10.5 1, 1 1, 1 0))", "P2"]],
+    [
+      [1, "POLYGON((1 0, 10.5 0, 10.5 1, 3 1, 1 1, 1 0))", "P2"],
+      [2, "POLYGON((1 1, 3 1, 3 2, 1 2, 1 1))", "P2"],
+    ],
     [
       [1, OVERLAY[0][1], "P1"],
       [2, OVERLAY[1][1], "P2"],
@@ -104,7 +107,12 @@ test("a code overrides spatial and reports the mismatch", async () => {
     { columns: { matchColumn: "pcode" } },
   );
   expect(await scalar<number>("SELECT ST_Area(geometry) FROM '_export.parquet'")).toBeCloseTo(0.5, 6);
-  expect(r.issues.map((i) => i.kind).sort()).toEqual(["code-mismatch", "gap"]);
+  expect(r.issues.map((i) => i.kind).sort()).toEqual([
+    "clip-empty",
+    "code-mismatch",
+    "code-mismatch",
+    "gap",
+  ]);
 });
 
 test("falls back to spatial when the code is unmatched", async () => {
@@ -159,9 +167,13 @@ test.each([
 });
 
 test.todo("never invokes extend's Voronoi pipeline (monkeypatch guard, no TS counterpart)");
-test.todo("multi-file inputs: unassigned file warning, file majority vote, source_file, detached keys, column order, zero-overlap file, code-join fid (the loader reads one dataset per drop)");
+test.todo(
+  "multi-file inputs: unassigned file warning, file majority vote, source_file, detached keys, column order, zero-overlap file, code-join fid (the loader reads one dataset per drop)",
+);
 test.todo("passthrough files that overlap each other stay whole (multi-file)");
-test.todo("cross-border inputs have no invalid edges, and without the clean report seams (multi-file)");
+test.todo(
+  "cross-border inputs have no invalid edges, and without the clean report seams (multi-file)",
+);
 test.todo("raises on overlapping files with one overlay polygon (multi-file)");
 test.todo("bare merge, input_exclude, prefer and narrowing-flag checks (no TS counterpart)");
 test.todo("gap-fill keeps an unmatched overlay (no TS counterpart)");

@@ -6,6 +6,8 @@ export const SEVERITY = {
   "level-skipped": "error",
   "multiple-parents": "error",
   "orphan-child": "error",
+  "varying-column": "error",
+  "unusable-column-name": "error",
   "supplemental-column": "warn",
   "column-naming": "warn",
   "column-set-mismatch": "warn",

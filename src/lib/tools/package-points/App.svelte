@@ -31,7 +31,7 @@
   let resultGeoJSON = $state<string | null>(null);
   let resultBounds = $state<[number, number, number, number] | null>(null);
   let levels = $state<number[]>([]);
-  let rootInjected = $state(false);
+  let rootLevel = $state<number | null>(null);
 
   let clearMap: (() => void) | undefined;
 
@@ -54,7 +54,7 @@
     resultGeoJSON = null;
     resultBounds = null;
     levels = [];
-    rootInjected = false;
+    rootLevel = null;
   }
 
   async function handleLoad(): Promise<void> {
@@ -86,7 +86,7 @@
     resultGeoJSON = null;
     resultBounds = null;
     levels = [];
-    rootInjected = false;
+    rootLevel = null;
 
     const schema: TargetSchema | null =
       nameField.trim() === "" && codeField.trim() === "" ? null : { nameField, codeField };
@@ -95,7 +95,7 @@
       resultGeoJSON = result.resultGeoJSON;
       resultBounds = result.bounds;
       levels = result.levels;
-      rootInjected = result.rootInjected;
+      rootLevel = result.rootLevel;
       ran = true;
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
@@ -173,8 +173,8 @@
       <section class="step">
         <h2 class="step-heading">Result</h2>
         <p class="summary-line">
-          Level{levels.length === 1 ? "" : "s"} {levels.join(", ")}{rootInjected
-            ? " (level 0 auto-detected as a whole-table root)"
+          Level{levels.length === 1 ? "" : "s"} {levels.join(", ")}{rootLevel !== null
+            ? ` (level ${rootLevel} auto-detected as a whole-table root)`
             : ""}.
         </p>
       </section>

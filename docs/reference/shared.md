@@ -352,7 +352,8 @@ Shared by `edge-match` and `edge-mosaic` for overlay assignment.
   the spatial result (see `docs/adr/0029`).
 - The outcome MUST be recorded as `assignmentMethod: 'code' | 'spatial_fallback'`
   and `spatialAgrees: boolean | null` (`true`/`false` when the method is
-  `'code'`, `null` when it's `'spatial_fallback'`).
+  `'code'`, `null` when it's `'spatial_fallback'`). For assign-one, a code
+  overlay tied for the top spatial vote MUST count as agreeing.
 - A disagreement or fallback MUST surface as an issues row: `kind='code-mismatch'`
   when the code match won but disagreed with the spatial result, or
   `kind='code-fallback'` when no code match existed, with `reason`

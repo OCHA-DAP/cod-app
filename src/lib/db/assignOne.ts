@@ -100,8 +100,8 @@ export async function assignOne(
     await conn.query(`--sql
       SELECT overlay_fid, COUNT(DISTINCT input_fid) AS n_inputs
       FROM cl_pairs GROUP BY overlay_fid
-      ORDER BY n_inputs DESC, overlay_fid ASC
-      LIMIT 1
+      QUALIFY n_inputs = max(n_inputs) OVER ()
+      ORDER BY overlay_fid ASC
     `)
   ).toArray() as Array<{ overlay_fid: bigint | number; n_inputs: bigint | number }>;
 
@@ -129,7 +129,11 @@ export async function assignOne(
       pairsOverlayCol: "overlay_fid",
       columns: resolvedCols,
     });
-    const outcome = resolveAssignment(codeOverlayFid, spatialOverlayFid);
+    const outcome = resolveAssignment(
+      codeOverlayFid,
+      spatialOverlayFid,
+      votes.map((v) => Number(v.overlay_fid)),
+    );
     overlayFid = outcome.overlayFid;
     assignmentMethod = outcome.assignmentMethod;
     spatialAgrees = outcome.spatialAgrees;

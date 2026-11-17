@@ -41,11 +41,12 @@ async function exposeFinestLevel(conn: AsyncDuckDBConnection, level: number | un
 export async function runPackage(
   conn: AsyncDuckDBConnection,
   schema: TargetSchema | null,
+  minLevel: number | null = null,
 ): Promise<PackageResult> {
   await exposeFinestLevel(conn, undefined);
-  const polygons = await runPackagePolygons(conn, schema);
+  const polygons = await runPackagePolygons(conn, schema, minLevel);
   await exposeFinestLevel(conn, polygons.levels.find((l) => !l.exportable)?.level);
-  const points = await runPackagePoints(conn, schema);
+  const points = await runPackagePoints(conn, schema, undefined, minLevel);
   const lines = await runPackageLines(conn, schema);
   return { polygons, points, lines };
 }

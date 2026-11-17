@@ -62,9 +62,9 @@ test("a family at one level is not a mismatch", async () => {
 });
 
 test("level skipped", async () => {
-  expect(await kinds("SELECT * EXCLUDE (adm2_pcode, adm2_name, adm2_name1) FROM base")).toContain(
-    "level-skipped|error|2|null",
-  );
+  const found = await kinds("SELECT * EXCLUDE (adm2_pcode, adm2_name, adm2_name1) FROM base");
+  expect(found).toContain("level-skipped|error|2|null");
+  expect([...found].some((k) => k.startsWith("unusable-column-name"))).toBe(false);
 });
 
 test("multiple parents", async () => {
@@ -75,6 +75,43 @@ test("multiple parents", async () => {
 test("orphan child", async () => {
   const select = `SELECT * REPLACE (CASE WHEN adm2_pcode = 'XY11' THEN NULL ELSE adm1_pcode END AS adm1_pcode) FROM base`;
   expect(await kinds(select)).toEqual(new Set(["orphan-child|error|2|adm2_pcode"]));
+});
+
+test.each(MODES)("varying column (%s)", async (_, schema) => {
+  const select = "SELECT *, 'en' AS lang, adm3_pcode AS valid_on, hash(adm3_pcode) AS n FROM base";
+  expect(await kinds(select, schema)).toEqual(new Set(["varying-column|error|0|valid_on"]));
+});
+
+test("varying column skips a blank coarsest code", async () => {
+  const select = `SELECT * REPLACE (CASE WHEN adm2_pcode = 'XY11' THEN NULL ELSE adm0_pcode END AS adm0_pcode),
+    CASE WHEN adm2_pcode = 'XY11' THEN adm3_pcode ELSE 'x' END AS "it's 100%" FROM base`;
+  const found = [...(await kinds(select))].map((k) => k.split("|")[0]);
+  expect(found.filter((k) => k === "varying-column" || k === "check-failed")).toEqual([]);
+});
+
+test("varying column, single level", async () => {
+  const select = `SELECT adm2_pcode AS adm1_pcode, adm2_name AS adm1_name, adm3_pcode AS note, geom
+    FROM base`;
+  expect(await kinds(select)).toEqual(new Set(["varying-column|error|1|note"]));
+});
+
+test("unusable column name, explicit", async () => {
+  const select = `SELECT *, adm0_pcode AS adm0, adm1_pcode AS adm1, adm2_pcode AS adm2,
+    adm3_pcode AS adm3 FROM base`;
+  expect(await kinds(select)).toContain("unusable-column-name|error|null|null");
+});
+
+test("a bare constant-root code is usable", async () => {
+  const select = `SELECT adm0_pcode AS adm0, adm0_name, adm1_pcode AS adm1, adm1_name,
+    adm2_pcode AS adm2, adm2_name, adm3_pcode AS adm3, adm3_name, geom FROM base`;
+  const found = [...(await kinds(select, null))].map((k) => k.split("|")[0]);
+  expect(found).not.toContain("unusable-column-name");
+});
+
+test("unusable column name, structural", async () => {
+  const select = `SELECT *, adm0_name AS adm0name, adm1_name AS adm1name, adm2_name AS adm2name,
+    adm3_name AS adm3name FROM base`;
+  expect(await kinds(select, null)).toContain("unusable-column-name|error|null|null");
 });
 
 test("undetected levels are reported, not thrown", async () => {
