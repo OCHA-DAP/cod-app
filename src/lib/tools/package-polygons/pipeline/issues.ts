@@ -1,13 +1,14 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { buildGapTable } from "$lib/db/coverage";
 import { gapIssuesSql } from "$lib/db/issues";
+import { invalidEdgeIssues } from "$lib/db/invalidEdges";
 
 // Gap issues report per level table (a plain GROUP BY dissolve cannot itself
 // produce an overlap), plus the input's micro-polygon rows at the finest level.
 
 export interface PolygonIssueRow {
   key: string;
-  kind: "gap" | "micro-polygon";
+  kind: "gap" | "micro-polygon" | "invalid-edge";
   areaM2: number;
   maxWidthM: number;
   thinnessRatio: number;
@@ -24,16 +25,19 @@ export async function buildPolygonIssues(
   sourceTable: string,
   level: number,
   microTable: string | null = null,
+  checkTopology = true,
 ): Promise<PolygonIssuesResult> {
   const gapTable = `pp_gap_regions_${level}`;
   const issuesTable = `pp_issues_${level}`;
-  await buildGapTable(conn, gapTable, sourceTable);
+  // Unchecked topology: gaps need a union, which fails on unmatched edges.
+  if (checkTopology) await buildGapTable(conn, gapTable, sourceTable);
+  else await invalidEdgeIssues(conn, sourceTable, gapTable);
 
   await conn.query(`--sql
     CREATE OR REPLACE TABLE ${issuesTable} AS
     SELECT key, kind, area_m2, max_width_m, thinness_ratio, fixed, unit_a, unit_b,
            geom, xmin, ymin, xmax, ymax
-    FROM (${gapIssuesSql(gapTable)})
+    FROM (${checkTopology ? gapIssuesSql(gapTable) : `SELECT * FROM ${gapTable}`})
     ${
       microTable
         ? `UNION ALL
@@ -51,7 +55,7 @@ export async function buildPolygonIssues(
   const rows: PolygonIssueRow[] = (
     meta.toArray() as Array<{
       key: string;
-      kind: "gap" | "micro-polygon";
+      kind: PolygonIssueRow["kind"];
       area_m2: number | null;
       max_width_m: number | null;
       thinness_ratio: number | null;

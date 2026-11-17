@@ -139,7 +139,7 @@ test("schema fill and package polygons derive the provinces", async () => {
 
 test("package produces the full bundle", async () => {
   await load((await pipeline()).coded);
-  await runPackage(conn, SCHEMA);
+  expect((await runPackage(conn, SCHEMA)).outputs).not.toBeNull();
   await exportColumns("package_polygons_level_1");
   await exportColumns("package_polygons_level_2");
   await exportColumns("package_points");

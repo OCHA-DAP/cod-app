@@ -22,9 +22,10 @@ export async function runPackageLines(
   conn: AsyncDuckDBConnection,
   schema: TargetSchema | null,
   depthColumn: string = DEFAULT_DEPTH_COLUMN,
+  checkTopology = true,
 ): Promise<PackageLinesResult> {
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pl_micro");
-  await checkNoOverlaps(conn, "layer_01");
+  if (checkTopology) await checkNoOverlaps(conn, "layer_01");
   await conn.query("DROP TABLE IF EXISTS pl_micro");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE pl_input AS

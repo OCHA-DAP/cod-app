@@ -142,9 +142,13 @@ export async function needsCoverageClean(
 export async function gatedCoverageClean(
   conn: AsyncDuckDBConnection,
   table: string,
-  opts: CoverageCleanOptions & { anyHole?: boolean; microIssuesTable?: string } = {},
+  opts: CoverageCleanOptions & {
+    anyHole?: boolean;
+    microIssuesTable?: string;
+    throwOnOutOfMemory?: boolean;
+  } = {},
 ): Promise<void> {
-  const { anyHole, ...cleanOpts } = opts;
+  const { anyHole, throwOnOutOfMemory, ...cleanOpts } = opts;
   if (!(await needsCoverageClean(conn, table, anyHole))) return;
 
   const scratch = `${table}_cc_gated`;
@@ -152,6 +156,7 @@ export async function gatedCoverageClean(
     await buildCoverageClean(conn, table, scratch, { preserveOriginal: true, ...cleanOpts });
     await conn.query(`CREATE OR REPLACE TABLE ${table} AS SELECT * FROM ${scratch}`);
   } catch (e) {
+    if (throwOnOutOfMemory && isOutOfMemory(e)) throw e;
     console.warn(`CoverageClean failed on ${table}, leaving as-is:`, e);
   } finally {
     await conn.query(`DROP TABLE IF EXISTS ${scratch}`);

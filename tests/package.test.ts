@@ -31,7 +31,7 @@ const shape = (r: { levels: unknown[]; resultGeoJSON: string }) => ({
 
 test("the combined run matches calling each tool separately", async () => {
   await load(ROWS);
-  const combined = await runPackage(conn, SCHEMA);
+  const combined = (await runPackage(conn, SCHEMA, { block: false })).outputs!;
   await load(ROWS);
   const polygons = await runPackagePolygons(conn, SCHEMA);
   await load(ROWS);

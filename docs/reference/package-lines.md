@@ -8,7 +8,8 @@ tools.
 
 - `package-lines` MUST read the input via the shared loader, then merge
   its micro-polygons (see `docs/reference/shared.md`), logging the count,
-  and MUST raise if the input overlaps itself.
+  and MUST raise if the input overlaps itself, unless called with
+  `checkTopology: false` (Package with Clean off).
 - `package-lines` MUST detect every admin level present, either
   structurally or via an explicit `nameField`/`codeField` pair, raising if
   no level is found.

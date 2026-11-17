@@ -1,10 +1,10 @@
 <script lang="ts">
   import CheckApp from "$lib/components/CheckApp.svelte";
   import { findingInfo } from "$lib/components/MapPopup.svelte";
-  import { runValidate, type ValidateResult } from "./pipeline/index";
-  import SummaryTable from "./SummaryTable.svelte";
+  import { runValidate, type ValidateResult } from "$lib/tools/package/pipeline/validate";
+  import SummaryTable from "$lib/tools/package/SummaryTable.svelte";
   import type { ExportSource } from "$lib/db/export";
-  import type { Stage } from "./pipeline/index";
+  import type { Stage } from "$lib/tools/package/pipeline/validate";
 
   const REPORTS: Record<Stage, { label: string; source: ExportSource }> = {
     schema: { label: "Download Schema Issues", source: "schema_detect_issues" },

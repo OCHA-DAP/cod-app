@@ -108,6 +108,7 @@ export async function runPackagePoints(
   schema: TargetSchema | null,
   depthColumn: string = DEFAULT_DEPTH_COLUMN,
   minLevel: number | null = null,
+  checkTopology = true,
 ): Promise<PackagePointsResult> {
   const attrCols = await conn.query(`DESCRIBE layer_attr`);
   const hasDepthColumn = (attrCols.toArray() as Array<{ column_name: string }>).some(
@@ -122,7 +123,7 @@ export async function runPackagePoints(
   }
 
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pkpt_micro");
-  await checkNoOverlaps(conn, "layer_01");
+  if (checkTopology) await checkNoOverlaps(conn, "layer_01");
   await conn.query("DROP TABLE IF EXISTS pkpt_micro");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE pkpt_input AS

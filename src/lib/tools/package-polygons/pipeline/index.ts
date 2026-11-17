@@ -103,9 +103,10 @@ export async function runPackagePolygons(
   conn: AsyncDuckDBConnection,
   schema: TargetSchema | null,
   minLevel: number | null = null,
+  checkTopology = true,
 ): Promise<PackagePolygonsResult> {
   await mergeMicroPolygons(conn, "layer_01", "layer_01", "pp_micro");
-  await checkNoOverlaps(conn, "layer_01");
+  if (checkTopology) await checkNoOverlaps(conn, "layer_01");
   await conn.query(`--sql
     CREATE OR REPLACE TABLE pp_input AS
     SELECT a.fid, a.geom, b.* EXCLUDE (fid)
@@ -160,6 +161,7 @@ export async function runPackagePolygons(
       geomTable,
       plan.level,
       exportable ? null : "pp_micro",
+      checkTopology,
     );
 
     levels.push({

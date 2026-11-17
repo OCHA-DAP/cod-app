@@ -9,7 +9,9 @@ tools.
 - `package-polygons` MUST read the input via the shared loader (see
   `docs/reference/shared.md`), then merge its micro-polygons, and MUST
   raise if the input overlaps itself (see `docs/reference/shared.md`,
-  Coverage-topology checks).
+  Coverage-topology checks). Called with `checkTopology: false` (Package
+  with Clean off), it MUST skip that check, and each level's issues MUST
+  hold `invalid-edge` rows in place of gap rows.
 - `package-polygons` MUST detect every admin level present, either
   structurally (`schema-map`'s cardinality/containment matcher, no naming
   convention assumed, the default when a target schema is omitted) or via
