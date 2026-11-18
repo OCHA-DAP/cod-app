@@ -10,9 +10,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   pick, MUST be ADM0 fill only: each level's polygon MUST be the ADM0
   polygon with the ADM0 name and code, written without schema-fill or
   package, with one point per level and no boundary lines.
-- The build MUST read the ADM0 layer named by `--adm0` (`gaul`, `improved`
-  or `fieldmaps`) from the adm0-app catalog (`ADM0_CATALOG`), and source
-  layers from the explorer catalog.
+- The build MUST read the ADM0 layer named by `--adm0` (`improved` by
+  default, `gaul` or `fieldmaps`) from the adm0-app catalog
+  (`ADM0_CATALOG`), and source layers from the explorer catalog.
 - The build MUST NOT write to the cod-ab catalog (`COD_AB_CATALOG`) or the
   adm0-app catalog.
 
@@ -93,9 +93,24 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   including ADM0 fill builds and OCHA picks whose geometry comes from the
   cod-ab catalog. The global collections MUST name the merged locations'
   versions only when every one of them has a record.
-- The catalog's `global` step MUST copy each ADM0 layer in `PUBLISH` that
-  has a merged build into `catalog/global/<adm0>/<adm0>_<layer>/`, one
-  collection per layer, as a single GeoParquet with PMTiles, and MUST name
-  each ADM0 layer in `PUBLISH` without one. It MUST write the portolan
-  `metadata.yaml` for `global/`, each `global/<adm0>/` and each collection,
-  and `global/TERMS.md`.
+- The catalog's `global` step MUST publish only the `improved` build, and
+  MUST skip the step with a message when it has no merged build. It MUST
+  write `catalog/global/adm{n}-{geom}/adm{n}_{geom}.parquet` for levels 1
+  to 4 and `polygons`, `points` and `lines`, each with PMTiles named after
+  the file: `polygons` the merged layer, `points` the level-`n` points with
+  their polygon's `level`, `lines` every line with `adm_lvl <= n` and
+  `adm_lvl` written as `level`.
+- It MUST write the same twelve layers for each merged location to
+  `catalog/global/iso3/<iso3>/`, polygons cut from the merged layer by
+  `adm0_pcode` and points and lines from the location's build, and MUST
+  remove the folder of a location the merge no longer has.
+- Every published GeoParquet MUST be in Hilbert order, with row groups of
+  at most 32 MB in the global layers and 8 MB per location. A layer MUST
+  be rewritten only when its merged source is newer, and tiled only when
+  its tiles are missing or older.
+- Each level's points MUST pair 1:1 with its polygons by P-code, or the
+  step MUST fail.
+- It MUST write the portolan `metadata.yaml` for `global/`,
+  `global/iso3/`, each collection and each location (titled with its
+  `adm0_name`, naming its picked source's provider), and
+  `global/TERMS.md`.

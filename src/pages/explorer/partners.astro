@@ -1,0 +1,11 @@
+---
+import App from "$lib/explorer/App.svelte";
+import ExplorerLayout from "../../layouts/ExplorerLayout.astro";
+---
+
+<ExplorerLayout
+  title="Partner boundaries | Boundaries Explorer"
+  description="Compare administrative boundaries from OCHA and partner agencies, location by location, and see which source each location uses."
+>
+  <App client:only="svelte" />
+</ExplorerLayout>

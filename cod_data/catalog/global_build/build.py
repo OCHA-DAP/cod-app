@@ -41,7 +41,7 @@ from cod_data.catalog.global_build.config import (
     WORKERS,
 )
 from cod_data.catalog.global_build.conform import depth, stage_sql
-from cod_data.shared.geoparquet import WORLD, write_geoparquet
+from cod_data.shared.geoparquet import HILBERT, write_geoparquet
 
 LEVEL_COLS = ("name", "name1", "name2", "name3", "pcode", "srcid", "type")
 LANG = ("lang", "lang1", "lang2", "lang3")
@@ -465,10 +465,6 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
     ]
 
 
-# Spatial order lets a reader skip row groups outside its area.
-HILBERT = f"ST_Hilbert(geometry, ST_Extent({WORLD}))"
-
-
 def merge(out: Path, iso3s: list[str]) -> list[str]:
     valid_from = date.today().isoformat()
     con = connect()
@@ -527,7 +523,7 @@ def same_parent(parents: Path, built: Path, iso3: str) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--adm0", choices=ADM0_LAYERS, required=True)
+    parser.add_argument("--adm0", choices=ADM0_LAYERS, default="improved")
     parser.add_argument("--only", help="Comma-separated iso3s")
     args = parser.parse_args()
     out = BUILD / args.adm0
