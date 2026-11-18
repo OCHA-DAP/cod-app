@@ -14,6 +14,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 import duckdb
+from packaging.version import Version
 from topo_tools.api import (
     code_create,
     edge_extend,
@@ -496,7 +497,7 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
     built = [out / "iso3" / i.lower() / VERSION_FILE for i in iso3s]
     (out / VERSION_FILE).unlink(missing_ok=True)
     if all(v.exists() for v in built):
-        versions = sorted({v.read_text() for v in built})
+        versions = sorted({v.read_text() for v in built}, key=Version)
         (out / VERSION_FILE).write_text(", ".join(versions))
     return report
 
