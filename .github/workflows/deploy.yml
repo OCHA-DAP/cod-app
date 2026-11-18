@@ -16,11 +16,12 @@ concurrency:
 
 jobs:
   build:
-    # Fork PRs get no secrets, so they can't fetch status data or deploy.
+    # Fork and Dependabot PRs get no secrets, so they can't fetch status data or deploy.
     if: >-
       github.event_name != 'pull_request' ||
       (github.event.action != 'closed' &&
-       github.event.pull_request.head.repo.full_name == github.repository)
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.user.login != 'dependabot[bot]')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -109,7 +110,8 @@ jobs:
   close-preview:
     if: >-
       github.event_name == 'pull_request' && github.event.action == 'closed' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: Azure/static-web-apps-deploy@v1
