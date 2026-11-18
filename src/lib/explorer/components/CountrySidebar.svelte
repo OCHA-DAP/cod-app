@@ -10,8 +10,11 @@
   import { base } from "$lib/utils/paths";
   import { onMount, tick } from "svelte";
   import { get } from "svelte/store";
+  import ExplorerTabs from "./ExplorerTabs.svelte";
   import OfficeTypeBadge from "./OfficeTypeBadge.svelte";
   import RelevanceBadge from "./RelevanceBadge.svelte";
+
+  let { view = "partners" }: { view?: "cod-ab" | "partners" } = $props();
 
   interface Row {
     iso3: string;
@@ -106,10 +109,12 @@
 
   function selectRow(iso3: string) {
     skipNextCenter = true;
-    selectCountry(get(mapStore), iso3);
+    if (view === "partners") selectCountry(get(mapStore), iso3);
+    else selectedIso3.set(iso3);
   }
 
   function onKeydown(e: KeyboardEvent) {
+    if (view !== "partners") return;
     if (e.target instanceof HTMLInputElement && e.target.type !== "checkbox") return;
     if (e.key !== "[" && e.key !== "]") return;
 
@@ -126,9 +131,15 @@
 
 <aside class="sidebar">
   <ToolHeader title="Boundaries Explorer" back={{ href: base, label: "Home" }}>
-    Compare administrative boundaries from OCHA and partner agencies, country by country, and see
-    which source each country uses.
+    {#if view === "partners"}
+      Compare boundaries from OCHA and partner agencies for each location, and see which one the
+      global layers use.
+    {:else}
+      See the current boundaries for each location, download them from HDX, and drop in your own
+      version to see what changed.
+    {/if}
   </ToolHeader>
+  <ExplorerTabs current={view} iso3={$selectedIso3} />
 
   <div class="toolbar">
     <input type="text" placeholder="Filter by name or ISO3…" bind:value={filter} />

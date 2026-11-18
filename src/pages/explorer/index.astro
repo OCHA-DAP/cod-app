@@ -1,0 +1,11 @@
+---
+import App from "$lib/explorer/current/App.svelte";
+import ExplorerLayout from "../../layouts/ExplorerLayout.astro";
+---
+
+<ExplorerLayout
+  title="Boundaries Explorer"
+  description="See the current administrative boundaries for each location, download them from HDX, and compare your own version against them."
+>
+  <App client:only="svelte" />
+</ExplorerLayout>
