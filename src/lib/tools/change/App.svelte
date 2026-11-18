@@ -7,7 +7,7 @@
   import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { layerBounds } from "$lib/db/layerView";
   import { choiceParam, numberParam, syncParam, textParam } from "$lib/utils/syncParam.svelte";
-  import { onMount, untrack } from "svelte";
+  import { onMount, untrack, type Snippet } from "svelte";
   import ResultView from "./ResultView.svelte";
   import {
     PipelineError,
@@ -28,6 +28,27 @@
     "Classify clusters",
     "Render result",
   ];
+
+  // A preset Version A replaces its drop zone and column pickers (the explorer's current
+  // boundaries); it loads only once a Version B is dropped.
+  interface PresetA {
+    load: () => Promise<File[]>;
+    label: string;
+    code: string;
+    name: string;
+  }
+  let {
+    presetA,
+    header,
+    placeholder,
+    downloads = true,
+  }: {
+    presetA?: PresetA | null;
+    header?: Snippet;
+    placeholder?: Snippet;
+    downloads?: boolean;
+  } = $props();
+  const hasPreset = untrack(() => presetA !== undefined);
 
   // Input state
   let filesA = $state<File[]>([]);
@@ -54,8 +75,10 @@
       return c && get() === guess(c) ? "" : (get() ?? "");
     }, set);
   }
-  syncColumn("code-a", () => colsA, (c) => c.code ?? null, () => aCodeCol, (v) => (aCodeCol = v));
-  syncColumn("name-a", () => colsA, (c) => c.name, () => aNameCol, (v) => (aNameCol = v));
+  if (!hasPreset) {
+    syncColumn("code-a", () => colsA, (c) => c.code ?? null, () => aCodeCol, (v) => (aCodeCol = v));
+    syncColumn("name-a", () => colsA, (c) => c.name, () => aNameCol, (v) => (aNameCol = v));
+  }
   syncColumn("code-b", () => colsB, (c) => c.code ?? null, () => bCodeCol, (v) => (bCodeCol = v));
   syncColumn("name-b", () => colsB, (c) => c.name, () => bNameCol, (v) => (bNameCol = v));
   const pick = (cols: ColumnGuess, prior: string | null, guess: string | null) =>
@@ -115,6 +138,19 @@
     if (!a || !b) return;
     untrack(() => {
       if (!running) handleRun();
+    });
+  });
+
+  $effect(() => {
+    const preset = presetA;
+    if (!preset || filesB.length === 0) return;
+    untrack(() => {
+      preset
+        .load()
+        .then((files) => {
+          if (presetA === preset) filesA = files;
+        })
+        .catch((e) => (loadError = e instanceof Error ? e.message : String(e)));
     });
   });
 
@@ -178,8 +214,8 @@
         return { ...(await detectColumns(conn, table)), ...(await detectUnitColumns(conn, table)) };
       });
       if (side === "a") {
-        aCodeCol = pick(cols, aCodeCol, cols.code ?? null);
-        aNameCol = pick(cols, aNameCol, cols.name);
+        aCodeCol = presetA ? presetA.code : pick(cols, aCodeCol, cols.code ?? null);
+        aNameCol = presetA ? presetA.name : pick(cols, aNameCol, cols.name);
         colsA = cols;
         loadedA = true;
       } else {
@@ -390,9 +426,13 @@
 
 <div class="cw-layout">
   <aside class="cw-sidebar">
-    <ToolHeader title="Changelog" demo="change">
-      Compare two versions of a polygon layer (e.g. ADM2 across census rounds) and classify each unit as unchanged, modified, merged, split, created, or removed. Drop both versions; the tool overlays them, scores coverage per pair, and groups related polygons into clusters.
-    </ToolHeader>
+    {#if header}
+      {@render header()}
+    {:else}
+      <ToolHeader title="Changelog" demo="change">
+        Compare two versions of a polygon layer (e.g. ADM2 across census rounds) and classify each unit as unchanged, modified, merged, split, created, or removed. Drop both versions; the tool overlays them, scores coverage per pair, and groups related polygons into clusters.
+      </ToolHeader>
+    {/if}
 
     {#if duckdbState.initError}
       <div class="cw-error">
@@ -401,17 +441,19 @@
       </div>
     {/if}
 
-    <InputStep title="Layers" collapsed={ran} detail={[filesA[0]?.name, filesB[0]?.name].filter(Boolean).join(", ")}>
+    <InputStep title={hasPreset ? "Compare a version" : "Layers"} collapsed={ran} detail={[filesA[0]?.name, filesB[0]?.name].filter(Boolean).join(", ")}>
       <div class="cw-dropzones">
-        <div data-testid="dropzone-a">
-          <label class="cw-zone-label">Version A</label>
-          <DropZone
-            bind:files={filesA}
-            urlParam="old"
-            disabled={running || loading.a}
-            helpText="Older version. Polygon layer in any supported format."
-          />
-        </div>
+        {#if !hasPreset}
+          <div data-testid="dropzone-a">
+            <label class="cw-zone-label">Version A</label>
+            <DropZone
+              bind:files={filesA}
+              urlParam="old"
+              disabled={running || loading.a}
+              helpText="Older version. Polygon layer in any supported format."
+            />
+          </div>
+        {/if}
         <div data-testid="dropzone-b">
           <label class="cw-zone-label">Version B</label>
           <DropZone
@@ -422,7 +464,7 @@
           />
         </div>
       </div>
-      {#if loading.a}<p class="cw-status">Loading Version A…</p>{/if}
+      {#if loading.a}<p class="cw-status">Loading {presetA?.label ?? "Version A"}…</p>{/if}
       {#if loading.b}<p class="cw-status">Loading Version B…</p>{/if}
       {#if loadError}<div class="cw-error">{loadError}</div>{/if}
     </InputStep>
@@ -504,7 +546,7 @@
     <section class="cw-step">
       <h2 class="cw-step-heading">Pick code &amp; name columns</h2>
         <div class="cw-cols">
-          {#if colsA}
+          {#if colsA && !hasPreset}
             <fieldset class="cw-fieldset">
               <legend>Version A</legend>
               <label class="cw-field">
@@ -565,7 +607,7 @@
     {/if}
     {#if error}<div class="cw-error">{error}</div>{/if}
 
-    {#if overlayGeoJSON}
+    {#if overlayGeoJSON && downloads}
       <section class="cw-step">
         <h2 class="cw-step-heading">Download</h2>
         <div class="cw-downloads">
@@ -581,7 +623,11 @@
     <PrivacyNote />
   </aside>
 
+  {#if placeholder && !overlayGeoJSON && !(loadedA && loadedB) && !running}
+    {@render placeholder()}
+  {:else}
   <ResultView
+    sideLabels={[presetA?.label ?? "Version A", "Version B"]}
     overlayGeojson={overlayGeoJSON}
     outlineAGeojson={outlineAGeoJSON}
     outlineBGeojson={outlineBGeoJSON}
@@ -591,6 +637,7 @@
     bind:showSide
     bind:selectedClusterId
   />
+  {/if}
 </div>
 
 <style>
