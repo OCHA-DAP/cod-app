@@ -503,14 +503,22 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
 
 def same_parent(parents: Path, built: Path, iso3: str) -> bool:
     """Whether the build in built was edge-matched to the current ADM0 rows of iso3."""
-    wkb = "SELECT * REPLACE (ST_AsWKB(geometry) AS geometry) FROM read_parquet"
     con = connect()
-    a = f"{wkb}('{parents}') WHERE adm0_pcode = '{iso3}'"
-    b = f"{wkb}('{built / 'parent.parquet'}')"
-    diff = con.execute(
-        f"SELECT count(*) FROM (({a} EXCEPT ALL {b}) UNION ALL ({b} EXCEPT ALL {a}))"
-    ).fetchall()[0][0]
-    con.close()
+    try:
+        names = [r[0] for r in con.execute(f"DESCRIBE FROM '{parents}'").fetchall()]
+        cols = ", ".join(
+            "ST_AsWKB(geometry)" if c == "geometry" else f'"{c}"' for c in names
+        )
+        a = f"SELECT {cols} FROM '{parents}' WHERE adm0_pcode = '{iso3}'"
+        b = f"SELECT {cols} FROM '{built / 'parent.parquet'}'"
+        diff = con.execute(
+            f"SELECT count(*) FROM (({a} EXCEPT ALL {b}) UNION ALL ({b} EXCEPT ALL {a}))"
+        ).fetchall()[0][0]
+    # A schema the current ADM0 layer can't match counts as changed.
+    except duckdb.Error:
+        return False
+    finally:
+        con.close()
     return diff == 0
 
 
