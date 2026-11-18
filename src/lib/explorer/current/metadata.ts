@@ -33,6 +33,7 @@ export function codAbOnHdx(): Promise<Map<string, CodMetadata>> {
       return new Map(meta.filter((r) => onHdx.has(r.country_iso3)).map((r) => [r.country_iso3, r]));
     },
   );
+  metadataPromise.catch(() => (metadataPromise = null));
   return metadataPromise;
 }
 

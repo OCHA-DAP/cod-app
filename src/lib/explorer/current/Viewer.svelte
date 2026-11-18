@@ -39,16 +39,19 @@
 
   onMount(() => {
     let cancelled = false;
+    let created: MaplibreMap | undefined;
     loadMaplibre().then(async (maplibregl) => {
       if (cancelled) return;
       pmtilesProtocol(maplibregl);
-      const m = new maplibregl.Map({
+      const style = await loadStyle();
+      if (cancelled) return;
+      const m = (created = new maplibregl.Map({
         container,
-        style: await loadStyle(),
+        style,
         center: [20, 5],
         zoom: 2,
         attributionControl: { compact: true, customAttribution: MAP_DISCLAIMER },
-      });
+      }));
       popup = new maplibregl.Popup({ closeButton: false, className: "feature-tooltip" });
       m.on("mousemove", "units-fill", (e) => {
         const p = e.features?.[0]?.properties;
@@ -70,7 +73,7 @@
     });
     return () => {
       cancelled = true;
-      map?.remove();
+      created?.remove();
     };
   });
 

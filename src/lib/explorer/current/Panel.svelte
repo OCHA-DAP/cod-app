@@ -42,7 +42,7 @@
         hdxDownloads(i)
           .catch(() => [])
           .then((d) => i === iso3 && (downloads = d));
-    });
+    }).catch(() => {});
     getProvenanceForCountry(i).then((rows) => {
       if (i !== iso3) return;
       provider = rows.find((r) => r.source === getDecision(i)?.selectedSource) ?? null;
