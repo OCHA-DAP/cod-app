@@ -7,12 +7,12 @@
   import { PMTiles } from "pmtiles";
   import { pmtilesProtocol, prefetchDirectories } from "$lib/utils/pmtiles";
   import { base } from "$lib/utils/paths";
-  import { codAbUrl } from "$lib/utils/data";
+  import { globalUrl } from "$lib/utils/data";
 
   const LEVELS = [1, 2, 3, 4] as const;
   type Level = (typeof LEVELS)[number];
 
-  const archiveUrl = (n: Level) => codAbUrl(`global/admin${n}/admin${n}.pmtiles`);
+  const archiveUrl = (n: Level) => globalUrl(`adm${n}-polygons/adm${n}_polygons.pmtiles`);
   const DEGREES_PER_SECOND = 3;
   // The spin-in slows from SPIN_IN_PEAK to cruising speed over SPIN_IN_MS, passing SETTLE_LNG as it ends.
   const SPIN_IN_PEAK = 60;
@@ -52,7 +52,7 @@
       id: `adm${n}-line`,
       type: "line",
       source: `adm${n}`,
-      "source-layer": `admin${n}`,
+      "source-layer": `adm${n}_polygons`,
       paint: { "line-color": LINE, "line-width": 0.4, "line-opacity": 0 },
     });
   }
