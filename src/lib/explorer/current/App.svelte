@@ -22,7 +22,11 @@
 
   $effect(() => {
     const iso3 = $selectedIso3;
-    if (iso3) history.replaceState(history.state, "", `?iso3=${iso3}&level=${level}`);
+    if (!iso3) return;
+    const params = new URLSearchParams(location.search);
+    params.set("iso3", iso3);
+    params.set("level", String(level));
+    history.replaceState(history.state, "", `?${params}`);
   });
 
   // Version A is the location's current boundaries at the shown level.
@@ -31,6 +35,7 @@
     const n = level;
     if (!iso3) return null;
     return {
+      key: iso3,
       label: "Current",
       code: `adm${n}_pcode`,
       name: `adm${n}_name`,

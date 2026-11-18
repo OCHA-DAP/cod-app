@@ -30,8 +30,9 @@
   ];
 
   // A preset Version A replaces its drop zone and column pickers (the explorer's current
-  // boundaries); it loads only once a Version B is dropped.
+  // boundaries); it loads only once a Version B is dropped, and a new key clears Version B.
   interface PresetA {
+    key: string;
     load: () => Promise<File[]>;
     label: string;
     code: string;
@@ -132,23 +133,41 @@
 
   // Auto-run when both sides are loaded. Re-dropping a file resets loadedA/B
   // to false then true again, which re-triggers the run.
+  let runPending = false;
   $effect(() => {
     const a = loadedA;
     const b = loadedB;
     if (!a || !b) return;
     untrack(() => {
-      if (!running) handleRun();
+      if (running) runPending = true;
+      else handleRun();
     });
   });
 
+  // The preset that produced filesA, read when A loads so its columns match its files.
+  let presetOfA: PresetA | null = null;
+  let presetKey: string | null = null;
   $effect(() => {
     const preset = presetA;
+    const key = preset?.key ?? null;
+    untrack(() => {
+      if (presetKey !== null && key !== presetKey && filesB.length > 0) {
+        filesA = [];
+        filesB = [];
+        colsA = colsB = null;
+        loadedA = loadedB = false;
+        resetResults();
+      }
+      presetKey = key;
+    });
     if (!preset || filesB.length === 0) return;
     untrack(() => {
       preset
         .load()
         .then((files) => {
-          if (presetA === preset) filesA = files;
+          if (presetA !== preset) return;
+          presetOfA = preset;
+          filesA = files;
         })
         .catch((e) => (loadError = e instanceof Error ? e.message : String(e)));
     });
@@ -207,15 +226,26 @@
     loadError = null;
     loading[side] = true;
     try {
-      const files = side === "a" ? filesA : filesB;
       const table = `cw_${side}_layer_attr`;
-      const cols = await withDb(async (db, conn) => {
-        await loadSide(db, conn, side, files);
-        return { ...(await detectColumns(conn, table)), ...(await detectUnitColumns(conn, table)) };
-      });
+      const current = () => (side === "a" ? filesA : filesB);
+      // Files dropped or preset during a load are picked up by loading again.
+      let files: File[];
+      let preset: PresetA | null;
+      let cols: Awaited<ReturnType<typeof detectColumns>> &
+        Awaited<ReturnType<typeof detectUnitColumns>>;
+      do {
+        files = current();
+        preset = presetOfA;
+        const loadFiles = files;
+        cols = await withDb(async (db, conn) => {
+          await loadSide(db, conn, side, loadFiles);
+          return { ...(await detectColumns(conn, table)), ...(await detectUnitColumns(conn, table)) };
+        });
+      } while (current() !== files);
+      if (current().length === 0) return;
       if (side === "a") {
-        aCodeCol = presetA ? presetA.code : pick(cols, aCodeCol, cols.code ?? null);
-        aNameCol = presetA ? presetA.name : pick(cols, aNameCol, cols.name);
+        aCodeCol = preset ? preset.code : pick(cols, aCodeCol, cols.code ?? null);
+        aNameCol = preset ? preset.name : pick(cols, aNameCol, cols.name);
         colsA = cols;
         loadedA = true;
       } else {
@@ -267,6 +297,8 @@
           stageLabel = label;
         },
       ));
+      // A side reloaded during the run; its own run follows.
+      if (!loadedA || !loadedB) return;
       overlayGeoJSON = result.overlayGeoJSON;
       outlineAGeoJSON = result.outlineAGeoJSON;
       outlineBGeoJSON = result.outlineBGeoJSON;
@@ -282,6 +314,10 @@
       currentStage = 0;
     } finally {
       running = false;
+      if (runPending) {
+        runPending = false;
+        if (loadedA && loadedB) handleRun();
+      }
     }
   }
 
@@ -315,6 +351,7 @@
           linkMode,
         });
       });
+      if (!loadedA || !loadedB) return;
       overlayGeoJSON = result.overlayGeoJSON;
       outlineAGeoJSON = result.outlineAGeoJSON;
       outlineBGeoJSON = result.outlineBGeoJSON;
@@ -323,6 +360,10 @@
       error = e instanceof Error ? e.message : String(e);
     } finally {
       running = false;
+      if (runPending) {
+        runPending = false;
+        if (loadedA && loadedB) handleRun();
+      }
     }
   }
 
