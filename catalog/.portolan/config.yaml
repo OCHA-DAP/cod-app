@@ -9,3 +9,5 @@ conversion:
     sort: none
 tabular:
   enabled: true
+partitioning:
+  enabled: false

@@ -70,7 +70,7 @@ def write_parents(con: duckdb.DuckDBPyConnection, layer: str, out: Path) -> None
         UNION ALL
         SELECT part, iso3, any_value(n.name), ST_Union_Agg(geometry)
         FROM piece_parts JOIN names n USING (iso3) GROUP BY part, iso3
-        ORDER BY 1
     """,
         out,
+        MATCH_KEY,
     )

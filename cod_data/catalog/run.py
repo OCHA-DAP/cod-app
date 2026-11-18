@@ -30,7 +30,7 @@ EXPLORER_STEPS = [
     "comparison",
     "bbox",
 ]
-STEPS = [*EXPLORER_STEPS, "tools"]
+STEPS = [*EXPLORER_STEPS, "tools", "global"]
 TOOLS = CATALOG / "tools"
 CACHE = Path("tmp/catalog/cache")
 DEMO_DATETIME = "2025-01-01"
@@ -98,6 +98,14 @@ def add_all() -> None:
         if (demo / ".portolan").is_dir():
             add(demo, DEMO_DATETIME)
     add(TOOLS / "sources", SOURCES_DATETIME)
+    from cod_data.catalog.global_build.publish import GLOBAL, PUBLISH
+
+    for collection in collections(GLOBAL):
+        if (
+            collection.parent.name in PUBLISH
+            and (collection / f"{collection.name}.parquet").exists()
+        ):
+            add(collection, download_date(collection))
 
 
 def main() -> None:
@@ -129,6 +137,14 @@ def main() -> None:
             run_explorer_step(step)
     if "tools" in steps:
         build_tools(refetch=args.refetch, detect=args.detect)
+    if "global" in steps:
+        from cod_data.catalog.global_build import publish
+
+        ready = publish.built()
+        for adm0 in sorted(set(publish.PUBLISH) - set(ready)):
+            print(f"global: no merged build for {adm0}, skipping it")
+        for adm0 in ready:
+            publish.stage(adm0)
 
     from cod_data.catalog.tools.annotate_nld import annotate_catalog
 

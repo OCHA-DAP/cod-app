@@ -14,6 +14,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 import duckdb
+from packaging.version import Version
 from topo_tools.api import (
     code_create,
     edge_extend,
@@ -36,10 +37,11 @@ from cod_data.catalog.global_build.config import (
     NAME_FIELD,
     PARTS,
     THREADS,
+    VERSION_FILE,
     WORKERS,
 )
 from cod_data.catalog.global_build.conform import depth, stage_sql
-from cod_data.shared.geoparquet import write_geoparquet
+from cod_data.shared.geoparquet import WORLD, write_geoparquet
 
 LEVEL_COLS = ("name", "name1", "name2", "name3", "pcode", "srcid", "type")
 LANG = ("lang", "lang1", "lang2", "lang3")
@@ -319,6 +321,7 @@ def job(
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     result = _build(iso3, source, parents_all, work)
+    (work / VERSION_FILE).write_text(version("topo-tools"))
     shutil.rmtree(final, ignore_errors=True)
     work.rename(final)
     return result
@@ -462,6 +465,10 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
     ]
 
 
+# Spatial order lets a reader skip row groups outside its area.
+HILBERT = f"ST_Hilbert(geometry, ST_Extent({WORLD}))"
+
+
 def merge(out: Path, iso3s: list[str]) -> list[str]:
     valid_from = date.today().isoformat()
     con = connect()
@@ -472,7 +479,7 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
         union = " UNION ALL BY NAME ".join(
             f"({polygons_sql(out / 'iso3' / i.lower(), n, valid_from)})" for i in iso3s
         )
-        write_geoparquet(con, f"SELECT * FROM ({union}) ORDER BY adm{n}_pcode", dest)
+        write_geoparquet(con, f"SELECT * FROM ({union})", dest, f"adm{n}_pcode")
         report += check(con, dest, n)
     for geom in ("points", "lines"):
         files = [str(out / "iso3" / i.lower() / f"{geom}.parquet") for i in iso3s]
@@ -481,12 +488,41 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
             con,
             f"SELECT * FROM read_parquet({files}, union_by_name = true)",
             staged[-1],
+            HILBERT,
         )
     con.close()
-    # Replace the layers only once every one has passed check().
+    built = [out / "iso3" / i.lower() / VERSION_FILE for i in iso3s]
+    if all(v.exists() for v in built):
+        versions = sorted({v.read_text() for v in built}, key=Version)
+        staged.append(out / f".{VERSION_FILE}")
+        staged[-1].write_text(", ".join(versions))
+    # Replace the layers only once every one has passed check(), dropping the old
+    # version record first so a crash leaves none rather than a wrong one.
+    (out / VERSION_FILE).unlink(missing_ok=True)
     for path in staged:
         path.replace(out / path.name.removeprefix("."))
     return report
+
+
+def same_parent(parents: Path, built: Path, iso3: str) -> bool:
+    """Whether the build in built was edge-matched to the current ADM0 rows of iso3."""
+    con = connect()
+    try:
+        names = [r[0] for r in con.execute(f"DESCRIBE FROM '{parents}'").fetchall()]
+        cols = ", ".join(
+            "ST_AsWKB(geometry)" if c == "geometry" else f'"{c}"' for c in names
+        )
+        a = f"SELECT {cols} FROM '{parents}' WHERE adm0_pcode = '{iso3}'"
+        b = f"SELECT {cols} FROM '{built / 'parent.parquet'}'"
+        diff = con.execute(
+            f"SELECT count(*) FROM (({a} EXCEPT ALL {b}) UNION ALL ({b} EXCEPT ALL {a}))"
+        ).fetchall()[0][0]
+    # A schema the current ADM0 layer can't match counts as changed.
+    except duckdb.Error:
+        return False
+    finally:
+        con.close()
+    return diff == 0
 
 
 def main() -> None:
@@ -537,20 +573,24 @@ def main() -> None:
                 f"{iso3} ({picks.get(iso3)}, adm{lvl}) {secs:.0f}s ({done}/{len(jobs)})",
                 flush=True,
             )
+    files = ("admin1.parquet", "points.parquet", "lines.parquet")
+
+    def is_built(iso3: str) -> bool:
+        return all((out / "iso3" / iso3.lower() / f).exists() for f in files)
+
     # In this process, so a crashed worker that broke the pool still gets its fill.
     for iso3 in failed:
+        if is_built(iso3) and same_parent(parents, out / "iso3" / iso3.lower(), iso3):
+            failed[iso3] += "; kept the last build"
+            continue
         try:
             job(iso3, None, parents, out)
+            failed[iso3] += "; ADM0 fill"
         except Exception as e:  # noqa: BLE001 (report every location before exiting)
             failed[iso3] += f"; ADM0 fill also failed: {type(e).__name__}: {e}"
     for iso3, error in failed.items():
-        print(f"ADM0 fill after a failed {picks.get(iso3)} build: {iso3} {error}")
-    files = ("admin1.parquet", "points.parquet", "lines.parquet")
-    built = [
-        i
-        for i in all_iso3s
-        if all((out / "iso3" / i.lower() / f).exists() for f in files)
-    ]
+        print(f"failed {picks.get(iso3)} build: {iso3} {error}")
+    built = [i for i in all_iso3s if is_built(i)]
     print("not built yet, left out of the merge:", sorted(set(all_iso3s) - set(built)))
     for line in merge(out, built):
         print(line)

@@ -28,11 +28,17 @@ def world_clip(col: str = "geometry") -> str:
         END"""
 
 
-def write_geoparquet(con: duckdb.DuckDBPyConnection, query: str, out: Path) -> None:
+def write_geoparquet(
+    con: duckdb.DuckDBPyConnection, query: str, out: Path, order_by: str = ""
+) -> None:
     """COPY query (geometry column named geometry) to out, world-clipped in CRS84, then check it."""
+    # The clip's subquery reorders rows, so order_by (on the unclipped columns) sorts after it.
+    key, order = (order_by, "ORDER BY _order") if order_by else ("NULL", "")
     con.execute(f"""
-        COPY (SELECT * REPLACE (ST_SetCRS({world_clip()}, '{CRS}') AS geometry) FROM ({query}))
-        TO '{out}' {GEO_OPTIONS}
+        COPY (
+            SELECT * EXCLUDE (_order) REPLACE (ST_SetCRS({world_clip()}, '{CRS}') AS geometry)
+            FROM (SELECT *, {key} AS _order FROM ({query})) {order}
+        ) TO '{out}' {GEO_OPTIONS}
     """)
     n, crs, xmin, ymin, xmax, ymax = con.execute(f"""
         SELECT count(*), any_value(ST_CRS(geometry)), min(ST_XMin(geometry)),

@@ -31,6 +31,7 @@ COD_AB_CACHE = Path("tmp/catalog/cache/cod-ab")
 DUCKDB_TMP = Path("tmp/catalog/duckdb-tmp")
 BASEMAP_BUILD = Path("tmp/catalog/basemap")
 TILE_MAX_ZOOM = 11
+PRODUCER_TERMS = {"license": "other", "license_url": "../../TERMS.md"}
 CONTACT = {"name": "HDX Data Systems Team", "email": "hdx@un.org"}
 HOST = {
     "name": "OCHA Centre for Humanitarian Data",
