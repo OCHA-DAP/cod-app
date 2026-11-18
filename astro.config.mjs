@@ -31,6 +31,7 @@ function localCatalog() {
 
 export default defineConfig({
   site: "https://cod.unocha.org",
+  scopedStyleStrategy: "where",
   integrations: [
     starlight({
       title: "Tools",

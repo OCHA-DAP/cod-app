@@ -31,6 +31,30 @@ const { title, description } = Astro.props;
 </html>
 
 <style is:global>
+  @layer reset {
+    * {
+      margin: 0;
+    }
+    body {
+      line-height: 1.75;
+    }
+    input,
+    button,
+    textarea,
+    select {
+      font: inherit;
+    }
+    p,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    code {
+      overflow-wrap: break-word;
+    }
+  }
   *,
   *::before,
   *::after {
