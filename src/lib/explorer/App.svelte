@@ -46,7 +46,7 @@
   // Mirrors the selection into the query string so any view can be shared as a link.
   $effect(() => {
     const iso3 = $selectedIso3;
-    const params = `country=${iso3}&source=${$selectedSource}&level=${$selectedAdmin}`;
+    const params = `iso3=${iso3}&source=${$selectedSource}&level=${$selectedAdmin}`;
     if (!iso3 || kiosk) return;
     history.replaceState(history.state, "", `?${params}`);
   });

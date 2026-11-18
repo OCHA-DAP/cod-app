@@ -45,7 +45,7 @@
   });
 
   // Scrolls the selected country's row to the middle of the list whenever the
-  // selection changes — covers the initial URL view load (?country= or #country=) and
+  // selection changes — covers the initial URL view load (?iso3= or #iso3=) and
   // clicking a country directly on the map. Skipped when the selection change
   // came from clicking a row in this list itself (skipNextCenter), since the
   // row is already in view and re-centering it under the user's cursor is

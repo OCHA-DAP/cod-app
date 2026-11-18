@@ -156,10 +156,10 @@ export function selectSourceLevel(
 // Applies a URL view (see $lib/explorer/urlState): a new country goes through
 // selectCountry, the same country only switches source/level.
 export async function applyView(map: maplibregl.Map | null, view: ViewState): Promise<void> {
-  if (!view.country) return;
-  if (view.country !== get(selectedIso3)) return selectCountry(map, view.country, view);
-  if (view.source && view.level) selectSourceLevel(map, view.country, view.source, view.level);
-  else if (view.source) await selectSource(map, view.country, view.source);
+  if (!view.iso3) return;
+  if (view.iso3 !== get(selectedIso3)) return selectCountry(map, view.iso3, view);
+  if (view.source && view.level) selectSourceLevel(map, view.iso3, view.source, view.level);
+  else if (view.source) await selectSource(map, view.iso3, view.source);
 }
 
 let cancelPendingHide: (() => void) | null = null;

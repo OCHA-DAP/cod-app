@@ -1,7 +1,7 @@
 import { ADMIN_SOURCES } from "$lib/explorer/sources";
 
 export interface ViewState {
-  country: string;
+  iso3: string;
   source?: string;
   level?: number;
   kiosk: boolean;
@@ -11,7 +11,7 @@ function parseView(params: URLSearchParams): ViewState {
   const source = params.get("source") ?? "";
   const level = Number(params.get("level"));
   return {
-    country: (params.get("country") ?? "").toUpperCase(),
+    iso3: (params.get("iso3") ?? "").toUpperCase(),
     source: ADMIN_SOURCES.some((s) => s.id === source) ? source : undefined,
     level: Number.isInteger(level) && level > 0 ? level : undefined,
     kiosk: params.has("kiosk"),
