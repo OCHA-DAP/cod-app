@@ -27,6 +27,9 @@ GEOMS = ("polygons", "points", "lines")
 LAYERS = list(product(range(1, MAX_LVL + 1), GEOMS))
 GLOBAL_ROW_GROUP = "32MB"
 ISO3_ROW_GROUP = "8MB"
+# A location's layers follow the Hilbert curve over its own extent, which splits small
+# locations into compact row groups where the world curve can straddle them.
+LOCAL_HILBERT = "ST_Hilbert(geometry, ST_Extent(ST_Extent_Agg(geometry) OVER ()))"
 PROVIDER = {**HOST, "roles": ["producer", "processor", "host"]}
 TERMS = "Each producer's terms of use apply to its locations. Check them before reusing the data."
 DESCRIPTIONS = {
@@ -62,11 +65,11 @@ def layer_sql(n: int, geom: str, polygons: str, points: str, lines: str) -> str:
 
 
 def write(
-    con: duckdb.DuckDBPyConnection, query: str, out: Path, row_group: str
+    con: duckdb.DuckDBPyConnection, query: str, out: Path, order: str, row_group: str
 ) -> None:
-    """Write query to out in Hilbert order, through a hidden copy so a failed run leaves no half file."""
+    """Write query to out in order, through a hidden copy so a failed run leaves no half file."""
     tmp = out.with_name(f".{out.name}")
-    write_geoparquet(con, query, tmp, HILBERT, row_group)
+    write_geoparquet(con, query, tmp, order, row_group)
     tmp.replace(out)
 
 
@@ -111,7 +114,7 @@ def stage_global(con: duckdb.DuckDBPyConnection, notes: str) -> None:
             query = layer_sql(
                 n, geom, polygons, f"'{src}/points.parquet'", f"'{src}/lines.parquet'"
             )
-            write(con, query, parquet, GLOBAL_ROW_GROUP)
+            write(con, query, parquet, HILBERT, GLOBAL_ROW_GROUP)
         tile(con, parquet, name(n, geom))
         write_yaml(
             collection / ".portolan" / "metadata.yaml",
@@ -163,7 +166,7 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
                     f"'{work / iso3.lower() / 'points.parquet'}'",
                     f"'{work / iso3.lower() / 'lines.parquet'}'",
                 )
-                write(con, query, parquet, ISO3_ROW_GROUP)
+                write(con, query, parquet, LOCAL_HILBERT, ISO3_ROW_GROUP)
             tile(con, parquet, name(n, geom))
         for n in range(1, MAX_LVL + 1):
             check(con, *(folder / f"{name(n, g)}.parquet" for g in GEOMS[:2]), n)

@@ -104,8 +104,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `catalog/global/iso3/<iso3>/`, polygons cut from the merged layer by
   `adm0_pcode` and points and lines from the location's build, and MUST
   remove the folder of a location the merge no longer has.
-- Every published GeoParquet MUST be in Hilbert order, with row groups of
-  at most 32 MB in the global layers and 8 MB per location. A layer MUST
+- Every published GeoParquet MUST be in Hilbert order, over the world box
+  in the global layers and over the location's extent per location, with
+  row groups of at most 32 MB in the global layers and 8 MB per location. A layer MUST
   be rewritten only when its merged source is newer, and tiled only when
   its tiles are missing or older.
 - Each level's points MUST pair 1:1 with its polygons by P-code, or the
