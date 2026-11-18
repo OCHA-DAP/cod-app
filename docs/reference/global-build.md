@@ -87,10 +87,11 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `lines` outputs, listing the others.
 - `--only` MUST rebuild only the listed locations and merge every location
   already built.
-- The merge MUST write `points` and `lines` in Hilbert order.
+- The merge MUST write each `adm{n}` polygon layer ordered by
+  `adm{n}_pcode`, and `points` and `lines` in Hilbert order.
 - Each location's build MUST record the topo-tools version that built it.
-  The global collections MUST name the merged locations' versions only
-  when every one of them has a record.
+  The global collections MUST name the merged locations'
+  versions only when every one of them has a record.
 - The catalog's `global` step MUST copy each ADM0 layer in `PUBLISH` that
   has a merged build into `catalog/global/<adm0>/<adm0>_<layer>/`, one
   collection per layer, as a single GeoParquet with PMTiles, and MUST name
