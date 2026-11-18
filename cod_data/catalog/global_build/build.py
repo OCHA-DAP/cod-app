@@ -491,14 +491,16 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
             HILBERT,
         )
     con.close()
-    # Replace the layers only once every one has passed check().
-    for path in staged:
-        path.replace(out / path.name.removeprefix("."))
     built = [out / "iso3" / i.lower() / VERSION_FILE for i in iso3s]
-    (out / VERSION_FILE).unlink(missing_ok=True)
     if all(v.exists() for v in built):
         versions = sorted({v.read_text() for v in built}, key=Version)
-        (out / VERSION_FILE).write_text(", ".join(versions))
+        staged.append(out / f".{VERSION_FILE}")
+        staged[-1].write_text(", ".join(versions))
+    # Replace the layers only once every one has passed check(), dropping the old
+    # version record first so a crash leaves none rather than a wrong one.
+    (out / VERSION_FILE).unlink(missing_ok=True)
+    for path in staged:
+        path.replace(out / path.name.removeprefix("."))
     return report
 
 
