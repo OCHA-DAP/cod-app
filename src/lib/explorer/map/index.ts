@@ -1,6 +1,6 @@
 import * as maplibregl from "maplibre-gl";
 import { get } from "svelte/store";
-import { fitCountryBounds, initLabelsToggle } from "./admin";
+import { fitCountryBounds, initLabelsToggle, keepCamera } from "./admin";
 import {
   addAdminHoverInteraction,
   addClickInteraction,
@@ -11,6 +11,19 @@ import { mapStore, selectedIso3 } from "./store";
 import MAP_STYLE from "./style";
 import { MAP_DISCLAIMER } from "$lib/utils/mapDisclaimer";
 import { pmtilesProtocol } from "$lib/utils/pmtiles";
+import { viewFromUrl } from "$lib/explorer/urlState";
+
+const CAMERA_KEY = "explorer-camera";
+
+// Camera saved by the other explorer page for the same location, so switching pages doesn't refly from the globe.
+function savedCamera(): { iso3: string; center: [number, number]; zoom: number } | null {
+  try {
+    const c = JSON.parse(sessionStorage.getItem(CAMERA_KEY) ?? "null");
+    return c && c.iso3 && c.iso3 === viewFromUrl(location).iso3 ? c : null;
+  } catch {
+    return null;
+  }
+}
 
 // The explorer globe both tabs draw on: idle spin, refit on resize, location hover and click.
 export function createExplorerMap(
@@ -19,11 +32,13 @@ export function createExplorerMap(
 ): { map: maplibregl.Map; destroy: () => void } {
   pmtilesProtocol(maplibregl);
 
+  const camera = savedCamera();
+  keepCamera(camera?.iso3 ?? null);
   const map = new maplibregl.Map({
     container,
     style,
-    center: [20, 5],
-    zoom: 3,
+    center: camera?.center ?? [20, 5],
+    zoom: camera?.zoom ?? 3,
     attributionControl: { compact: true, customAttribution: MAP_DISCLAIMER },
   });
 
@@ -44,9 +59,13 @@ export function createExplorerMap(
   map.once("load", () => {
     if (!interacted && !get(selectedIso3)) spin.start();
   });
-  map.on("mousedown", stopSpinPermanently);
-  map.on("touchstart", stopSpinPermanently);
-  map.on("wheel", stopSpinPermanently);
+  function onTouch() {
+    stopSpinPermanently();
+    keepCamera(null);
+  }
+  map.on("mousedown", onTouch);
+  map.on("touchstart", onTouch);
+  map.on("wheel", onTouch);
 
   const unsubscribeSpin = selectedIso3.subscribe((iso3) => {
     if (iso3) stopSpinPermanently();
@@ -57,6 +76,15 @@ export function createExplorerMap(
     else if (!interacted && !get(selectedIso3)) spin.start();
   }
   document.addEventListener("visibilitychange", handleVisibilityChange);
+
+  function saveCamera() {
+    const { lng, lat } = map.getCenter();
+    sessionStorage.setItem(
+      CAMERA_KEY,
+      JSON.stringify({ iso3: get(selectedIso3), center: [lng, lat], zoom: map.getZoom() }),
+    );
+  }
+  window.addEventListener("pagehide", saveCamera);
 
   map.on("resize", () => {
     const iso3 = get(selectedIso3);
@@ -70,6 +98,7 @@ export function createExplorerMap(
     map,
     destroy() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", saveCamera);
       unsubscribeSpin();
       spin.stop();
       map.remove();

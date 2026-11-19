@@ -42,12 +42,19 @@ function pickLevelWithMostUnits(stats: SourceStat[], source: string): number {
 }
 
 // The level with the most units, the first on a tie; the level both tabs open a location on.
-export function levelWithMostUnits<L extends number>(levels: readonly L[], count: (l: L) => number): L {
+export function levelWithMostUnits<L extends number>(
+  levels: readonly L[],
+  count: (l: L) => number,
+): L {
   return levels.reduce((best, l) => (count(l) > count(best) ? l : best), levels[0]);
 }
 
 // Runs fn on the first render after the source's tiles have loaded; returns a cancel function.
-export function whenSourceLoaded(map: maplibregl.Map, sourceId: string, fn: () => void): () => void {
+export function whenSourceLoaded(
+  map: maplibregl.Map,
+  sourceId: string,
+  fn: () => void,
+): () => void {
   const onRender = () => {
     if (!map.getSource(sourceId) || !map.isSourceLoaded(sourceId)) return;
     map.off("render", onRender);
@@ -88,7 +95,16 @@ function resolveDefaultSource(decision: Decision | null, stats: SourceStat[]): s
 // Fits the map to a country's bbox. Split out from selectCountry so it can also
 // be re-run on map resize, when the previously fit zoom/pan no longer matches
 // the container's new dimensions.
+let keptIso3: string | null = null;
+
+// Holds a camera carried over from the other explorer page until another location is fit.
+export function keepCamera(iso3: string | null): void {
+  keptIso3 = iso3;
+}
+
 export async function fitCountryBounds(map: maplibregl.Map, iso3: string): Promise<void> {
+  if (iso3 === keptIso3) return;
+  keptIso3 = null;
   const bbox = await getBboxForIso3(iso3);
   if (!bbox) return;
 
@@ -291,7 +307,11 @@ export async function applyMismatchHighlight(map: maplibregl.Map, iso3: string):
     map.setFilter(layerId, [
       "all",
       ["==", ["slice", ["get", src.countryCodeField], 0, 3], iso3],
-      ["in", ["to-string", ["get", adminTiles(activeSource, activeLevel).idField]], ["literal", match.unmatchedCodes]],
+      [
+        "in",
+        ["to-string", ["get", adminTiles(activeSource, activeLevel).idField]],
+        ["literal", match.unmatchedCodes],
+      ],
     ]);
     map.setLayoutProperty(layerId, "visibility", "visible");
   } else {
