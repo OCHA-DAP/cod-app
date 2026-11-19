@@ -25,7 +25,7 @@ export function viewFromUrl(url: URL | Location): ViewState {
   return parseView(hash.size > 0 ? hash : new URLSearchParams(url.search));
 }
 
-// Kiosk, source and hash views are the Partners tab's, so /explorer/ links carrying them go there.
+// Kiosk, source and hash views belong to Compare sources, so /explorer/ links carrying them go there.
 export function isPartnersView(url: URL | Location): boolean {
   const params = new URLSearchParams(url.search);
   return url.hash.length > 1 || params.has("kiosk") || params.has("source");

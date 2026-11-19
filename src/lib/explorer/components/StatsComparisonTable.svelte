@@ -287,7 +287,11 @@
               class:team-pick={col.id === decision?.selectedSource}
             >
               {#if col.levels[level]}
-                <button class="cell-btn" onclick={() => onCellClick(col.id, level)}>
+                <button
+                  class="cell-btn"
+                  aria-pressed={col.id === $selectedSource && level === $selectedAdmin}
+                  onclick={() => onCellClick(col.id, level)}
+                >
                   <span class="unit-count"
                     >{col.levels[level]?.featureCount.toLocaleString()} units</span
                   >
@@ -300,7 +304,6 @@
                       col.levels[level]?.edgeVertices ?? 0,
                     )} out</span
                   >
-                  <span></span>
                   <span class="match-rate"
                     >{#if col.id !== decision?.selectedSource && col.matches[level] && col.levels[level]?.featureCount}{@const total =
                         Number(col.levels[level]?.featureCount ?? 1)}{Math.round(
