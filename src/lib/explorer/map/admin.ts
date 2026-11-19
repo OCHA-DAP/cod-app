@@ -112,13 +112,21 @@ export async function fitCountryBounds(map: maplibregl.Map, iso3: string): Promi
   const bbox = await getBboxForIso3(iso3);
   if (!bbox) return;
 
-  map.once("moveend", () => (fittedIso3 = iso3));
+  // An interrupted move still fires its moveend, so only this fit's own moveend marks it settled.
+  const fit = {};
+  const settled = (e: object) => {
+    if (!("fit" in e) || e.fit !== fit) return;
+    map.off("moveend", settled);
+    fittedIso3 = iso3;
+  };
+  map.on("moveend", settled);
   map.fitBounds(
     [
       [bbox[0], bbox[1]],
       [bbox[2], bbox[3]],
     ],
     { padding: 50, animate: iso3 !== keptIso3 },
+    { fit },
   );
 }
 
