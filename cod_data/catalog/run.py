@@ -104,7 +104,7 @@ def add_all() -> None:
     from cod_data.catalog.global_build.publish import GLOBAL, ISO3
 
     for collection in [*sorted(GLOBAL.glob("adm*-*/")), *sorted(ISO3.glob("[a-z]*/"))]:
-        parquet = next(collection.glob("adm1_*.parquet"), None)
+        parquet = next(collection.glob("adm[1-4]_*.parquet"), None)
         if parquet:
             add(collection, file_date(parquet))
 

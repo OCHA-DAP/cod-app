@@ -49,8 +49,18 @@ def built() -> bool:
     return all((BUILD / ADM0 / f"{f}.parquet").exists() for f in files)
 
 
-def newer(path: Path, than: Path) -> bool:
-    return path.exists() and path.stat().st_mtime >= than.stat().st_mtime
+def newer(path: Path, *inputs: Path) -> bool:
+    """Whether path exists and is at least as new as every existing input."""
+    return path.exists() and all(
+        path.stat().st_mtime >= i.stat().st_mtime for i in inputs if i.exists()
+    )
+
+
+def inputs(n: int, geom: str, polygons: Path, points: Path, lines: Path) -> list[Path]:
+    """The files layer_sql reads for geom at level n."""
+    return {"polygons": [polygons], "points": [points, polygons], "lines": [lines]}[
+        geom
+    ]
 
 
 def layer_sql(n: int, geom: str, polygons: str, points: str, lines: str) -> str:
@@ -105,15 +115,14 @@ def stage_global(con: duckdb.DuckDBPyConnection, notes: str) -> None:
     for n, geom in LAYERS:
         collection = GLOBAL / f"adm{n}-{geom}"
         parquet = collection / f"{name(n, geom)}.parquet"
-        source = src / (
-            f"adm{n}_polygons.parquet" if geom == "polygons" else f"{geom}.parquet"
+        files = (
+            src / f"adm{n}_polygons.parquet",
+            src / "points.parquet",
+            src / "lines.parquet",
         )
         collection.mkdir(parents=True, exist_ok=True)
-        if not newer(parquet, source):
-            polygons = f"'{src}/adm{n}_polygons.parquet'"
-            query = layer_sql(
-                n, geom, polygons, f"'{src}/points.parquet'", f"'{src}/lines.parquet'"
-            )
+        if not newer(parquet, *inputs(n, geom, *files)):
+            query = layer_sql(n, geom, *(f"'{f}'" for f in files))
             write(con, query, parquet, HILBERT, GLOBAL_ROW_GROUP)
         tile(con, parquet, name(n, geom))
         write_yaml(
@@ -157,15 +166,10 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
         for n, geom in LAYERS:
             parquet = folder / f"{name(n, geom)}.parquet"
             source = src / f"adm{n}_polygons.parquet"
-            if not newer(parquet, source):
+            points, lines = (work / iso3.lower() / f"{g}.parquet" for g in GEOMS[1:])
+            if not newer(parquet, *inputs(n, geom, source, points, lines)):
                 polygons = f"(SELECT * FROM '{source}' WHERE adm0_pcode = '{iso3}')"
-                query = layer_sql(
-                    n,
-                    geom,
-                    polygons,
-                    f"'{work / iso3.lower() / 'points.parquet'}'",
-                    f"'{work / iso3.lower() / 'lines.parquet'}'",
-                )
+                query = layer_sql(n, geom, polygons, f"'{points}'", f"'{lines}'")
                 write(con, query, parquet, LOCAL_HILBERT, ISO3_ROW_GROUP)
             tile(con, parquet, name(n, geom))
         for n in range(1, MAX_LVL + 1):
