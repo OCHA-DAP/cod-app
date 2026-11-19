@@ -75,11 +75,13 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
 - Polygon fields MUST run from the layer's level down to adm0, each level's
   fields in `schema.md` order, before `version`.
 - `version` MUST be 1, and `updated` and `valid_to` MUST be null.
-  `valid_from` MUST be recorded when the location is built: for an OCHA
-  pick, the `valid_on` of the cod-ab layer its geometry comes from (the
-  build MUST raise when that layer has more than one); for a partner pick,
-  its `source_updated` in the explorer's `source_provenance`. It MUST be
-  null when there is no date or the location is ADM0 fill.
+  `valid_from` MUST be recorded when the location is built, as its
+  `source_updated` in the explorer's `source_provenance`: the latest
+  `valid_on` for OCHA (provenance MUST raise when a location has more than
+  one), `src_date` for ERM, `update_date` for UNHCR, `source_date` for WFP,
+  `start_date` for UNICEF, and the "Accessed on" date of GAUL's metadata
+  spreadsheets for FAO. It MUST be null on or before 1900-01-01, when
+  there is no date, and when the location is ADM0 fill.
 - `lang1` to `lang3` MUST be constant within a location: the source's tag
   wherever any of its units has that `name{i}`, and null otherwise.
 - The merge MUST raise on duplicate or null P-codes, malformed P-codes,

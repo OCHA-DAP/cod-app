@@ -5,7 +5,7 @@ from pathlib import Path
 
 BUILD = Path("tmp/global")
 VERSION_FILE = "topo_tools_version.txt"
-# The location's valid_from: OCHA's valid_on, else the explorer's source_updated.
+# The location's valid_from: its source_updated in the explorer's source_provenance.
 VALID_FROM_FILE = "valid_from.txt"
 EXPLORER = Path(os.environ.get("CATALOG", "catalog")) / "explorer"
 ADM0_CATALOG = Path(os.environ.get("ADM0_CATALOG", "../adm0-app/catalog"))

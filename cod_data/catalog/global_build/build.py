@@ -396,21 +396,14 @@ def _build(
 
 
 def valid_from(source: str | None, iso3: str, lvl: int) -> str:
-    """OCHA's own valid_on, else the explorer's source_updated; empty when unknown or ADM0 fill."""
+    """The location's source date from the explorer's source_provenance; empty when unknown or ADM0 fill."""
     if not source or not lvl:
         return ""
     con = connect()
-    if source == "ocha":
-        rows = con.execute(
-            f"SELECT DISTINCT valid_on::DATE FROM '{_cod_ab_path(iso3, lvl)}'"
-        ).fetchall()
-        if len(rows) > 1:
-            raise ValueError(f"{iso3}: {len(rows)} valid_on dates")
-    else:
-        rows = con.execute(
-            f"SELECT source_updated FROM '{path_of('source_provenance')}' WHERE source = ? AND iso3 = ?",
-            [source, iso3],
-        ).fetchall()
+    rows = con.execute(
+        f"SELECT source_updated FROM '{path_of('source_provenance')}' WHERE source = ? AND iso3 = ?",
+        [source, iso3],
+    ).fetchall()
     con.close()
     return rows[0][0].isoformat() if rows and rows[0][0] else ""
 

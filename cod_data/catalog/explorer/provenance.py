@@ -1,6 +1,7 @@
-"""Per-source provenance (data provider, last update) per location. Run after every source download.
-OCHA and FAO providers come from hand-maintained CSVs in data/provenance/, FAO dates from GAUL's
-metadata spreadsheets; WFP, UNICEF, UNHCR and ERM from their own layers."""
+"""Per-source provenance (data provider, source date) per location. Run after every source download.
+OCHA and FAO providers come from hand-maintained CSVs in data/provenance/. Each date is the latest value
+of the source's date field: OCHA valid_on, ERM src_date, UNHCR update_date, WFP source_date, UNICEF
+start_date, and FAO's "Accessed on" from GAUL's metadata spreadsheets."""
 
 from pathlib import Path
 
@@ -11,49 +12,41 @@ RAW_DIR = Path(__file__).parent / "data" / "provenance"
 OUT = path_of("source_provenance")
 
 
-def without_bulk_stamp(table: str) -> str:
-    """table's rows, source_updated NULL where it is a bulk edit stamp shared by over 30% of locations."""
-    return f"""
-        SELECT iso3, provider,
-            CASE WHEN source_updated = (
-                SELECT source_updated FROM {table} GROUP BY 1
-                HAVING count(*) > 0.3 * (SELECT count(*) FROM {table})
-                ORDER BY count(*) DESC LIMIT 1
-            ) THEN NULL ELSE source_updated END AS source_updated
-        FROM {table}
-    """
-
-
 con = connect()
+multi = con.execute(f"""
+    SELECT iso3 FROM read_parquet('{path_of("ocha_adm1")}')
+    GROUP BY iso3 HAVING count(DISTINCT valid_on) > 1
+""").fetchall()
+if multi:
+    raise ValueError(
+        f"OCHA locations with several valid_on dates: {[r[0] for r in multi]}"
+    )
 con.execute(f"""
-    CREATE TEMP TABLE wfp_country AS
-        SELECT iso3,
-            array_to_string(list_sort(list_distinct(list(source))), '; ') AS provider,
-            max(lst_update) AS source_updated
-        FROM read_parquet('{path_of("wfp_adm1")}')
-        GROUP BY iso3;
-
-    CREATE TEMP TABLE unicef_country AS
-        SELECT left(adm0_ucode, 3) AS iso3, '{PARTNERS["unicef"]["provider"]}' AS provider,
-            max(start_date)::DATE AS source_updated
-        FROM read_parquet('{path_of("unicef_adm1")}')
-        GROUP BY 1;
-
     CREATE TABLE provenance AS
-        SELECT 'ocha' AS source, iso3, provider, source_updated::DATE AS source_updated
+        SELECT 'ocha' AS source, iso3, provider, v.valid_on::DATE AS source_updated
         FROM read_csv('{RAW_DIR / "ocha.csv"}', header=true)
+        LEFT JOIN (
+            SELECT iso3, max(valid_on) AS valid_on FROM read_parquet('{path_of("ocha_adm1")}') GROUP BY iso3
+        ) v USING (iso3)
     UNION ALL
         SELECT 'fao' AS source, iso3, provider, a.accessed AS source_updated
         FROM read_csv('{RAW_DIR / "fao.csv"}', header=true)
         LEFT JOIN read_parquet('{FAO_ACCESSED}') a USING (iso3)
     UNION ALL
-        SELECT 'wfp' AS source, * FROM ({without_bulk_stamp("wfp_country")})
+        SELECT 'wfp' AS source, iso3,
+            array_to_string(list_sort(list_distinct(list(source))), '; ') AS provider,
+            max(source_date) AS source_updated
+        FROM read_parquet('{path_of("wfp_adm1")}')
+        GROUP BY iso3
     UNION ALL
-        SELECT 'unicef' AS source, * FROM ({without_bulk_stamp("unicef_country")})
+        SELECT 'unicef' AS source, left(adm0_ucode, 3) AS iso3,
+            '{PARTNERS["unicef"]["provider"]}' AS provider, max(start_date)::DATE AS source_updated
+        FROM read_parquet('{path_of("unicef_adm1")}')
+        GROUP BY 2
     UNION ALL
         SELECT 'unhcr' AS source, iso3,
             array_to_string(list_sort(list_distinct(list(source))), '; ') AS provider,
-            max(src_date) AS source_updated
+            max(update_date) AS source_updated
         FROM read_parquet('{path_of("unhcr_adm1")}')
         GROUP BY iso3
     UNION ALL
