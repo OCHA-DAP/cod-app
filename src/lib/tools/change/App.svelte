@@ -651,7 +651,7 @@
     {@const tabbed = info && body !== info && body !== noInfo}
     <section class="cw-panel" class:fit={filesB.length === 0}>
       {@render header?.()}
-      {#if allowB || filesB.length > 0 || body !== noInfo}
+      {#if allowB || filesB.length > 0 || body !== noInfo || duckdbState.initError}
         <div class="cw-panel-body">
           <div class="cw-panel-side">
             {@render initError()}
