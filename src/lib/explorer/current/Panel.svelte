@@ -1,31 +1,34 @@
 <script lang="ts">
   import LabelsToggle from "$lib/explorer/components/LabelsToggle.svelte";
   import { hdxDatasetUrl, hdxDownloads, type HdxDownload } from "$lib/utils/hdx";
-  import { codAbOnHdx, LEVELS, type CodMetadata, type Level } from "./metadata";
+  import { LEVELS, type CodMetadata, type Level } from "./metadata";
 
   let {
     iso3,
     name,
     level = $bindable(),
     counts,
-  }: { iso3: string; name: string; level: Level; counts: Record<Level, number> | null } = $props();
+    meta,
+    missing,
+  }: {
+    iso3: string;
+    name: string;
+    level: Level;
+    counts: Record<Level, number> | null;
+    meta: CodMetadata | null;
+    missing: boolean;
+  } = $props();
 
-  let meta = $state<CodMetadata | null>(null);
   let downloads = $state<HdxDownload[] | null>(null);
   const depth = $derived(counts ? Math.max(0, ...LEVELS.filter((n) => counts![n] > 0)) : 0);
 
   $effect(() => {
     const i = iso3;
-    meta = null;
     downloads = null;
-    codAbOnHdx().then((m) => {
-      if (i !== iso3) return;
-      meta = m.get(i) ?? null;
-      if (meta)
-        hdxDownloads(i)
-          .catch(() => [])
-          .then((d) => i === iso3 && (downloads = d));
-    }).catch(() => {});
+    if (!meta) return;
+    hdxDownloads(i)
+      .catch(() => [])
+      .then((d) => i === iso3 && (downloads = d));
   });
 
   const levelName = (n: number) => meta?.[`admin_${n}_name`] || `Admin ${n}`;
@@ -63,19 +66,23 @@
   <div class="location">
     <h2>{name} <span class="iso3">{iso3}</span></h2>
 
-    <div class="levels" role="group" aria-label="Admin level">
-      {#each LEVELS as n (n)}
-        <button
-          type="button"
-          class:active={level === n}
-          disabled={counts !== null && n > Math.max(1, depth)}
-          onclick={() => (level = n)}
-        >
-          {levelName(n)}
-          <span class="count">{counts ? counts[n].toLocaleString("en") : "…"}</span>
-        </button>
-      {/each}
-    </div>
+    {#if missing}
+      <span class="muted">No admin 1 to 4 boundaries for this location.</span>
+    {:else}
+      <div class="levels" role="group" aria-label="Admin level">
+        {#each LEVELS as n (n)}
+          <button
+            type="button"
+            class:active={level === n}
+            disabled={counts !== null && n > Math.max(1, depth)}
+            onclick={() => (level = n)}
+          >
+            {levelName(n)}
+            <span class="count">{counts ? counts[n].toLocaleString("en") : "…"}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
 
     <span class="labels"><LabelsToggle /></span>
   </div>

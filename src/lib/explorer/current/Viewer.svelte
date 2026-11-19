@@ -19,8 +19,8 @@
     map = $bindable(),
   }: {
     iso3: string;
-    // The location and level to draw; null keeps what is drawn while a new location resolves.
-    units: { iso3: string; level: number } | null;
+    // The location and level to draw (level null draws none); null keeps what is drawn while a new location resolves.
+    units: { iso3: string; level: number | null } | null;
     hidden?: boolean;
     map?: MaplibreMap;
   } = $props();
@@ -52,12 +52,17 @@
   }
 
   // Draws the new location or level over the old one, removing the old once its tiles are in.
-  function show(m: MaplibreMap, u: { iso3: string; level: number }): void {
+  function show(m: MaplibreMap, u: { iso3: string; level: number | null }): void {
     const n = u.level;
-    const id = `units-${u.iso3.toLowerCase()}-adm${n}`;
     cancelSwap();
     hover?.popup.remove();
     hover?.clear();
+    if (n === null) {
+      removeUnits(m, null);
+      current = null;
+      return;
+    }
+    const id = `units-${u.iso3.toLowerCase()}-adm${n}`;
     if (!drawn.has(id)) {
       const layer = `adm${n}_polygons`;
       const points = `adm${n}_points`;

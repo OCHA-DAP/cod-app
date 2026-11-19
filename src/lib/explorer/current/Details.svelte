@@ -2,11 +2,10 @@
   import { getDecision } from "$lib/explorer/decisions";
   import { getProvenanceForCountry } from "$lib/explorer/parquet/sourceProvenance";
   import { ADMIN_SOURCES } from "$lib/explorer/sources";
-  import { codAbOnHdx, type CodMetadata } from "./metadata";
+  import type { CodMetadata } from "./metadata";
 
-  let { iso3 }: { iso3: string } = $props();
+  let { iso3, meta }: { iso3: string; meta: CodMetadata | null } = $props();
 
-  let meta = $state<CodMetadata | null>(null);
   let provider = $state<{ provider: string; sourceUpdated: string | null } | null>(null);
 
   const decision = $derived(getDecision(iso3));
@@ -15,15 +14,13 @@
 
   $effect(() => {
     const i = iso3;
-    meta = null;
     provider = null;
-    codAbOnHdx()
-      .then((m) => i === iso3 && (meta = m.get(i) ?? null))
+    getProvenanceForCountry(i)
+      .then((rows) => {
+        if (i !== iso3) return;
+        provider = rows.find((r) => r.source === getDecision(i)?.selectedSource) ?? null;
+      })
       .catch(() => {});
-    getProvenanceForCountry(i).then((rows) => {
-      if (i !== iso3) return;
-      provider = rows.find((r) => r.source === getDecision(i)?.selectedSource) ?? null;
-    });
   });
 
   const fields = $derived(
