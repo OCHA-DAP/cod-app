@@ -1,10 +1,11 @@
 <script lang="ts">
   import SideToggle from "$lib/components/SideToggle.svelte";
-  import { untrack } from "svelte";
+  import { untrack, type Snippet } from "svelte";
   import CrosswalkTable from "./CrosswalkTable.svelte";
   import MapView from "./MapView.svelte";
   import { REL_COLORS, REL_ORDER, type RelClass, type TableRow } from "./pipeline";
   import type { FeatureInfo } from "$lib/components/MapPopup.svelte";
+  import type { Map as MaplibreMap } from "maplibre-gl";
 
   let {
     overlayGeojson,
@@ -17,6 +18,9 @@
     classes = REL_ORDER,
     showSide = $bindable("b"),
     selectedClusterId = $bindable(null),
+    panel,
+    mapHost,
+    hostMap,
   }: {
     overlayGeojson: string | null;
     outlineAGeojson: string | null;
@@ -28,6 +32,11 @@
     classes?: RelClass[];
     showSide?: "a" | "b";
     selectedClusterId?: number | null;
+    // Renders the table inside the caller's panel below the map, in place of the side pane.
+    panel?: Snippet<[Snippet]>;
+    // The caller's own map, drawn in the map pane; the result draws onto hostMap once it loads.
+    mapHost?: Snippet;
+    hostMap?: MaplibreMap;
   } = $props();
 
   let hoveredClusterId = $state<number | null>(null);
@@ -115,43 +124,53 @@
   });
 </script>
 
-<div class="cw-result">
+{#snippet table()}
+  <CrosswalkTable
+    rows={tableRows}
+    {selectedClusterId}
+    {hoveredClusterId}
+    {hoveredFid}
+    {showSide}
+    {visibleClasses}
+    {sideLabels}
+    {classes}
+    onRowHover={setHoveredFromRow}
+    onToggleClass={toggleClass}
+    onSetSide={(side) => (showSide = side)}
+  />
+{/snippet}
+
+<div class="cw-result" class:stacked={panel}>
   <div class="cw-map-pane">
     {#if overlayGeojson}
       <SideToggle bind:side={showSide} labels={sideLabels} />
     {/if}
 
-    <MapView
-      {overlayGeojson}
-      {outlineAGeojson}
-      {outlineBGeojson}
-      {bounds}
-      {processing}
-      {hoveredClusterId}
-      {hoveredFid}
-      {visibleClasses}
-      baseClasses={["unchanged"]}
-      onClusterClick={(id) => (selectedClusterId = id)}
-      onFeatureHover={setHoveredFromMap}
-      {describe}
-      {showSide}
-    />
+    {#if mapHost}{@render mapHost()}{/if}
+    {#if !mapHost || (hostMap && overlayGeojson)}
+      <MapView
+        {hostMap}
+        {overlayGeojson}
+        {outlineAGeojson}
+        {outlineBGeojson}
+        {bounds}
+        {processing}
+        {hoveredClusterId}
+        {hoveredFid}
+        {visibleClasses}
+        baseClasses={["unchanged"]}
+        onClusterClick={(id) => (selectedClusterId = id)}
+        onFeatureHover={setHoveredFromMap}
+        {describe}
+        {showSide}
+      />
+    {/if}
   </div>
-  <div class="cw-table-pane">
-    <CrosswalkTable
-      rows={tableRows}
-      {selectedClusterId}
-      {hoveredClusterId}
-      {hoveredFid}
-      {showSide}
-      {visibleClasses}
-      {sideLabels}
-      {classes}
-      onRowHover={setHoveredFromRow}
-      onToggleClass={toggleClass}
-      onSetSide={(side) => (showSide = side)}
-    />
-  </div>
+  {#if panel}
+    {@render panel(table)}
+  {:else}
+    <div class="cw-table-pane">{@render table()}</div>
+  {/if}
 </div>
 
 <style>
@@ -167,15 +186,23 @@
     position: relative;
   }
 
+  .cw-result.stacked {
+    display: flex;
+    flex-direction: column;
+  }
+  .cw-result.stacked .cw-map-pane {
+    flex: 1;
+    border: none;
+  }
   .cw-table-pane {
     min-height: 0;
   }
   @media (min-width: 1280px) {
-    .cw-result {
+    .cw-result:not(.stacked) {
       grid-template-rows: 1fr;
       grid-template-columns: 65% 35%;
     }
-    .cw-map-pane {
+    .cw-result:not(.stacked) .cw-map-pane {
       border-right: 1px solid var(--cd-grey--400);
       border-bottom: none;
     }

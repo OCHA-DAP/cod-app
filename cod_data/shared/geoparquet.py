@@ -10,6 +10,8 @@ GEO_OPTIONS = (
     "(FORMAT PARQUET, COMPRESSION ZSTD, COMPRESSION_LEVEL 15, GEOPARQUET_VERSION V2)"
 )
 WORLD = "ST_MakeEnvelope(-180, -90, 180, 90)"
+# Spatial order lets a reader skip row groups outside its area.
+HILBERT = f"ST_Hilbert(geometry, ST_Extent({WORLD}))"
 
 
 def world_clip(col: str = "geometry") -> str:
@@ -29,16 +31,25 @@ def world_clip(col: str = "geometry") -> str:
 
 
 def write_geoparquet(
-    con: duckdb.DuckDBPyConnection, query: str, out: Path, order_by: str = ""
+    con: duckdb.DuckDBPyConnection,
+    query: str,
+    out: Path,
+    order_by: str = "",
+    row_group_bytes: str = "",
 ) -> None:
     """COPY query (geometry column named geometry) to out, world-clipped in CRS84, then check it."""
     # The clip's subquery reorders rows, so order_by (on the unclipped columns) sorts after it.
     key, order = (order_by, "ORDER BY _order") if order_by else ("NULL", "")
+    options = (
+        GEO_OPTIONS.replace(")", f", ROW_GROUP_SIZE_BYTES '{row_group_bytes}')")
+        if row_group_bytes
+        else GEO_OPTIONS
+    )
     con.execute(f"""
         COPY (
             SELECT * EXCLUDE (_order) REPLACE (ST_SetCRS({world_clip()}, '{CRS}') AS geometry)
             FROM (SELECT *, {key} AS _order FROM ({query})) {order}
-        ) TO '{out}' {GEO_OPTIONS}
+        ) TO '{out}' {options}
     """)
     n, crs, xmin, ymin, xmax, ymax = con.execute(f"""
         SELECT count(*), any_value(ST_CRS(geometry)), min(ST_XMin(geometry)),

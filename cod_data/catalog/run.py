@@ -61,9 +61,12 @@ def collections(parent: Path) -> list[Path]:
     )
 
 
+def file_date(path: Path) -> str:
+    return datetime.fromtimestamp(path.stat().st_mtime, UTC).date().isoformat()
+
+
 def download_date(collection: Path) -> str:
-    mtime = (collection / f"{collection.name}.parquet").stat().st_mtime
-    return datetime.fromtimestamp(mtime, UTC).date().isoformat()
+    return file_date(collection / f"{collection.name}.parquet")
 
 
 def tile_tools(*, force: bool) -> None:
@@ -98,14 +101,12 @@ def add_all() -> None:
         if (demo / ".portolan").is_dir():
             add(demo, DEMO_DATETIME)
     add(TOOLS / "sources", SOURCES_DATETIME)
-    from cod_data.catalog.global_build.publish import GLOBAL, PUBLISH
+    from cod_data.catalog.global_build.publish import GLOBAL, ISO3
 
-    for collection in collections(GLOBAL):
-        if (
-            collection.parent.name in PUBLISH
-            and (collection / f"{collection.name}.parquet").exists()
-        ):
-            add(collection, download_date(collection))
+    for collection in [*sorted(GLOBAL.glob("adm*-*/")), *sorted(ISO3.glob("[a-z]*/"))]:
+        parquet = next(collection.glob("adm[1-4]_*.parquet"), None)
+        if parquet:
+            add(collection, file_date(parquet))
 
 
 def main() -> None:
@@ -140,11 +141,10 @@ def main() -> None:
     if "global" in steps:
         from cod_data.catalog.global_build import publish
 
-        ready = publish.built()
-        for adm0 in sorted(set(publish.PUBLISH) - set(ready)):
-            print(f"global: no merged build for {adm0}, skipping it")
-        for adm0 in ready:
-            publish.stage(adm0)
+        if publish.built():
+            publish.stage()
+        else:
+            print(f"global: no merged build for {publish.ADM0}, skipping it")
 
     from cod_data.catalog.tools.annotate_nld import annotate_catalog
 

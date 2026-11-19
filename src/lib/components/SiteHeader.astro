@@ -51,8 +51,15 @@ const menus = [
       { href: `${statusBase}work`, label: "Work" },
     ],
   },
+  {
+    label: "Explorer",
+    base: `${base}explorer/`,
+    links: [
+      { href: `${base}explorer/`, label: "Current boundaries" },
+      { href: `${base}explorer/compare/`, label: "Compare sources" },
+    ],
+  },
 ];
-const explorerHref = `${base}explorer/`;
 ---
 
 <div class:list={["bar", className]}>
@@ -77,7 +84,6 @@ const explorerHref = `${base}explorer/`;
         </div>
       </details>
     ))}
-    <a href={explorerHref} aria-current={current(explorerHref)}>Explorer</a>
   </nav>
 </div>
 

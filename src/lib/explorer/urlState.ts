@@ -1,7 +1,7 @@
 import { ADMIN_SOURCES } from "$lib/explorer/sources";
 
 export interface ViewState {
-  country: string;
+  iso3: string;
   source?: string;
   level?: number;
   kiosk: boolean;
@@ -11,7 +11,7 @@ function parseView(params: URLSearchParams): ViewState {
   const source = params.get("source") ?? "";
   const level = Number(params.get("level"));
   return {
-    country: (params.get("country") ?? "").toUpperCase(),
+    iso3: (params.get("iso3") ?? params.get("country") ?? "").toUpperCase(),
     source: ADMIN_SOURCES.some((s) => s.id === source) ? source : undefined,
     level: Number.isInteger(level) && level > 0 ? level : undefined,
     kiosk: params.has("kiosk"),
@@ -23,4 +23,10 @@ function parseView(params: URLSearchParams): ViewState {
 export function viewFromUrl(url: URL | Location): ViewState {
   const hash = new URLSearchParams(url.hash.slice(1));
   return parseView(hash.size > 0 ? hash : new URLSearchParams(url.search));
+}
+
+// Kiosk, source and hash views belong to Compare sources, so /explorer/ links carrying them go there.
+export function isPartnersView(url: URL | Location): boolean {
+  const params = new URLSearchParams(url.search);
+  return url.hash.length > 1 || params.has("kiosk") || params.has("source");
 }

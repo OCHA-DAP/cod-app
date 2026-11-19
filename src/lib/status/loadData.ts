@@ -4,6 +4,7 @@ import { join } from "node:path";
 import Papa from "papaparse";
 
 import { isOpenStatus, statusRank } from "./status";
+import { hdxDatasetUrl } from "$lib/utils/hdx";
 
 export interface WorkOrderRow {
   iso3: string;
@@ -268,9 +269,6 @@ export function loadData() {
   } catch {
     // file won't exist until npm run fetch:status has been run
   }
-
-  const hdxDatasetUrl = (dataset: "cod-ab" | "cod-ps", iso3: string) =>
-    `https://data.humdata.org/dataset/${dataset}-${iso3.toLowerCase()}`;
 
   function getHdxUrl(iso3: string): string | undefined {
     return hdxIso3.has(iso3) ? hdxDatasetUrl("cod-ab", iso3) : undefined;

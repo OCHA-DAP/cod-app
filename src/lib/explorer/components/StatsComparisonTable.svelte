@@ -10,6 +10,7 @@
   import { getProvenanceForCountry, type SourceProvenance } from "$lib/explorer/parquet/sourceProvenance";
   import { getStatsForCountry, type SourceStat } from "$lib/explorer/parquet/sourceStats";
   import { getDecision } from "$lib/explorer/decisions";
+  import { formatDate } from "$lib/utils/date";
   import { ADMIN_SOURCES } from "$lib/explorer/sources";
   import { get } from "svelte/store";
 
@@ -209,7 +210,7 @@
                 >
               {/if}
               {#if col.provenance?.sourceUpdated}
-                <span class="source-updated">{col.provenance.sourceUpdated}</span>
+                <span class="source-updated">{formatDate(col.provenance.sourceUpdated)}</span>
               {/if}
             </button>
           </th>
@@ -248,7 +249,7 @@
         {/each}
       </tr>
       {#each LEVELS as level (level)}
-        <tr class:active-row={level === $selectedAdmin}>
+        <tr>
           <td class="plain-cell">
             Adm {level}
             {#if level === 1 && iso3166?.subdivisionCount != null}
@@ -286,7 +287,11 @@
               class:team-pick={col.id === decision?.selectedSource}
             >
               {#if col.levels[level]}
-                <button class="cell-btn" onclick={() => onCellClick(col.id, level)}>
+                <button
+                  class="cell-btn"
+                  aria-pressed={col.id === $selectedSource && level === $selectedAdmin}
+                  onclick={() => onCellClick(col.id, level)}
+                >
                   <span class="unit-count"
                     >{col.levels[level]?.featureCount.toLocaleString()} units</span
                   >
@@ -299,7 +304,6 @@
                       col.levels[level]?.edgeVertices ?? 0,
                     )} out</span
                   >
-                  <span></span>
                   <span class="match-rate"
                     >{#if col.id !== decision?.selectedSource && col.matches[level] && col.levels[level]?.featureCount}{@const total =
                         Number(col.levels[level]?.featureCount ?? 1)}{Math.round(
@@ -308,7 +312,7 @@
                   >
                 </button>
               {:else}
-                <span class="muted">—</span>
+                <span class="muted empty-cell">—</span>
               {/if}
             </td>
           {/each}
@@ -491,20 +495,15 @@
     display: block;
   }
 
-  .source-btn:hover,
-  .cell-btn:hover {
+  .source-btn:hover {
     background: color-mix(in srgb, var(--brand-primary) 7%, var(--cd-white));
   }
 
-  tr.active-row,
   th.active-col,
-  td.active-col {
+  td.provider-cell.active-col {
     background: color-mix(in srgb, var(--brand-primary) 4%, var(--cd-white));
   }
 
-  td.active-cell {
-    background: color-mix(in srgb, var(--brand-primary) 15%, var(--cd-white));
-  }
 
   th.team-pick {
     box-shadow: inset 0 3px 0 var(--cd-grey--500);
@@ -527,7 +526,44 @@
     color: var(--brand-success);
   }
 
-  td.active-cell .cell-btn:hover {
-    background: color-mix(in srgb, var(--brand-primary) 20%, var(--cd-white));
+  /* The chip is drawn on the cell, which always spans its row, so every chip in a row matches. */
+  td:has(.cell-btn) {
+    position: relative;
+  }
+  td:has(.cell-btn)::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border: 1px solid var(--cd-grey--500);
+    border-radius: 3px;
+    background: var(--cd-white);
+    pointer-events: none;
+  }
+  td:has(.cell-btn:hover)::before {
+    border-color: var(--brand-primary--text);
+  }
+  td.active-cell::before {
+    border-color: var(--brand-primary--text);
+    background: var(--brand-primary--text);
+  }
+  .cell-btn {
+    position: relative;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    padding: 6px 9px;
+  }
+  .cell-btn .match-rate {
+    grid-column: 1 / -1;
+  }
+  .cell-btn .vertex-hint {
+    justify-self: end;
+  }
+  td.active-cell .cell-btn,
+  td.active-cell .cell-btn :global(*) {
+    color: var(--cd-white);
+  }
+  .empty-cell {
+    display: block;
+    padding: 6px 9px;
   }
 </style>

@@ -1,4 +1,4 @@
-<script lang="ts" generics="T extends string">
+<script lang="ts" generics="T extends string | number">
   let {
     value = $bindable(),
     options,
@@ -6,7 +6,7 @@
     disabled = false,
   }: {
     value: T | null;
-    options: { value: T; label: string }[];
+    options: { value: T; label: string; count?: string }[];
     label: string;
     disabled?: boolean;
   } = $props();
@@ -20,8 +20,12 @@
       aria-checked={value === opt.value}
       class="btn"
       class:active={value === opt.value}
+      class:counted={opt.count !== undefined}
       {disabled}
-      onclick={() => (value = opt.value)}>{opt.label}</button
+      onclick={() => (value = opt.value)}
+      title={opt.count !== undefined ? opt.label : undefined}
+      >{#if opt.count !== undefined}<span class="label">{opt.label}</span><span class="count">{opt.count}</span
+        >{:else}{opt.label}{/if}</button
     >
   {/each}
 </div>
@@ -59,6 +63,22 @@
   .btn.active {
     background: var(--brand-primary--text);
     color: var(--cd-white);
+  }
+  .counted {
+    display: flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .counted .label {
+    max-width: 24ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .count {
+    margin-left: 6px;
+    opacity: 0.75;
+    font-weight: 400;
   }
   .btn:disabled {
     cursor: not-allowed;

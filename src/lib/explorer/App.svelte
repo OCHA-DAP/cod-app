@@ -8,6 +8,7 @@
   import { loadMaplibre } from "$lib/utils/mapStyle";
   import type * as maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
+  import "$lib/explorer/tooltip.css";
   import { onMount, tick } from "svelte";
 
   let mapContainer: HTMLDivElement;
@@ -46,7 +47,7 @@
   // Mirrors the selection into the query string so any view can be shared as a link.
   $effect(() => {
     const iso3 = $selectedIso3;
-    const params = `country=${iso3}&source=${$selectedSource}&level=${$selectedAdmin}`;
+    const params = `iso3=${iso3}&source=${$selectedSource}&level=${$selectedAdmin}`;
     if (!iso3 || kiosk) return;
     history.replaceState(history.state, "", `?${params}`);
   });
@@ -65,45 +66,6 @@
 </div>
 
 <style>
-  :global(.feature-tooltip .maplibregl-popup-content) {
-    padding: 6px 10px;
-    font-size: 13px;
-    background: rgba(0, 0, 0, 1);
-    color: var(--cd-white);
-    border-radius: 4px;
-    pointer-events: none;
-  }
-
-  :global(.feature-tooltip .maplibregl-popup-tip) {
-    display: none;
-  }
-
-  :global(.feature-tooltip .feature-tooltip-code) {
-    font-size: 11px;
-    opacity: 0.7;
-  }
-
-  :global(.feature-tooltip .feature-tooltip-props) {
-    margin-top: 6px;
-    border-collapse: collapse;
-    width: 100%;
-  }
-
-  :global(.feature-tooltip .feature-tooltip-key) {
-    color: rgba(255, 255, 255, 0.45);
-    font-size: 10px;
-    padding-right: 8px;
-    vertical-align: top;
-    white-space: nowrap;
-  }
-
-  :global(.feature-tooltip .feature-tooltip-val) {
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 10px;
-    vertical-align: top;
-    word-break: break-all;
-  }
-
   .app-shell {
     display: flex;
     width: 100%;

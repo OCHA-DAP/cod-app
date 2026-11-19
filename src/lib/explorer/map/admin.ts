@@ -35,9 +35,33 @@ function pickLevelWithMostUnits(stats: SourceStat[], source: string): number {
   const levels = getLevelsForSource(source);
   if (levels.length === 0) return 1;
 
-  const featureCount = (l: number) =>
-    stats.find((s) => s.source === source && s.level === l)?.featureCount ?? 0;
-  return levels.reduce((best, l) => (featureCount(l) > featureCount(best) ? l : best), levels[0]);
+  return levelWithMostUnits(
+    levels,
+    (l) => stats.find((s) => s.source === source && s.level === l)?.featureCount ?? 0,
+  );
+}
+
+// The level with the most units, the first on a tie; the level both pages open a location on.
+export function levelWithMostUnits<L extends number>(
+  levels: readonly L[],
+  count: (l: L) => number,
+): L {
+  return levels.reduce((best, l) => (count(l) > count(best) ? l : best), levels[0]);
+}
+
+// Runs fn on the first render after the source's tiles have loaded; returns a cancel function.
+export function whenSourceLoaded(
+  map: maplibregl.Map,
+  sourceId: string,
+  fn: () => void,
+): () => void {
+  const onRender = () => {
+    if (!map.getSource(sourceId) || !map.isSourceLoaded(sourceId)) return;
+    map.off("render", onRender);
+    fn();
+  };
+  map.on("render", onRender);
+  return () => map.off("render", onRender);
 }
 
 // Resolves which level to show for a source/country: keeps `level` if that
@@ -68,19 +92,41 @@ function resolveDefaultSource(decision: Decision | null, stats: SourceStat[]): s
   return ADMIN_SOURCES.find((s) => sourceHasData(stats, s.id))?.id ?? null;
 }
 
+let keptIso3: string | null = null;
+let fittedIso3: string | null = null;
+
+// A camera carried over from the other explorer page makes fits for its location jump, not fly.
+export function keepCamera(iso3: string | null): void {
+  keptIso3 = iso3;
+}
+
+// The location the camera was last fit to, so a camera saved mid-flight isn't filed under the next one.
+export const lastFittedIso3 = (): string | null => fittedIso3;
+
 // Fits the map to a country's bbox. Split out from selectCountry so it can also
 // be re-run on map resize, when the previously fit zoom/pan no longer matches
 // the container's new dimensions.
 export async function fitCountryBounds(map: maplibregl.Map, iso3: string): Promise<void> {
+  if (iso3 !== keptIso3) keptIso3 = null;
+  fittedIso3 = null;
   const bbox = await getBboxForIso3(iso3);
   if (!bbox) return;
 
+  // An interrupted move still fires its moveend, so only this fit's own moveend marks it settled.
+  const fit = {};
+  const settled = (e: object) => {
+    if (!("fit" in e) || e.fit !== fit) return;
+    map.off("moveend", settled);
+    fittedIso3 = iso3;
+  };
+  map.on("moveend", settled);
   map.fitBounds(
     [
       [bbox[0], bbox[1]],
       [bbox[2], bbox[3]],
     ],
-    { padding: 50 },
+    { padding: 50, animate: iso3 !== keptIso3 },
+    { fit },
   );
 }
 
@@ -156,10 +202,10 @@ export function selectSourceLevel(
 // Applies a URL view (see $lib/explorer/urlState): a new country goes through
 // selectCountry, the same country only switches source/level.
 export async function applyView(map: maplibregl.Map | null, view: ViewState): Promise<void> {
-  if (!view.country) return;
-  if (view.country !== get(selectedIso3)) return selectCountry(map, view.country, view);
-  if (view.source && view.level) selectSourceLevel(map, view.country, view.source, view.level);
-  else if (view.source) await selectSource(map, view.country, view.source);
+  if (!view.iso3) return;
+  if (view.iso3 !== get(selectedIso3)) return selectCountry(map, view.iso3, view);
+  if (view.source && view.level) selectSourceLevel(map, view.iso3, view.source, view.level);
+  else if (view.source) await selectSource(map, view.iso3, view.source);
 }
 
 let cancelPendingHide: (() => void) | null = null;
@@ -223,9 +269,7 @@ export function applyAdminFilter(map: maplibregl.Map, iso3: string): void {
   // Hide old layers the moment the new source's tiles are ready
   const newSourceId = `${activeSource}-adm${activeLevel}`;
 
-  const onRender = () => {
-    if (!map.isSourceLoaded(newSourceId)) return;
-
+  cancelPendingHide = whenSourceLoaded(map, newSourceId, () => {
     for (const src of ADMIN_SOURCES) {
       for (const l of src.levels) {
         if (src.id !== activeSource || l !== activeLevel) {
@@ -242,13 +286,8 @@ export function applyAdminFilter(map: maplibregl.Map, iso3: string): void {
         }
       }
     }
-
-    map.off("render", onRender);
     cancelPendingHide = null;
-  };
-
-  map.on("render", onRender);
-  cancelPendingHide = () => map.off("render", onRender);
+  });
 }
 
 // No highlight when the active source is the team's own pick (see StatsComparisonTable).
@@ -281,7 +320,11 @@ export async function applyMismatchHighlight(map: maplibregl.Map, iso3: string):
     map.setFilter(layerId, [
       "all",
       ["==", ["slice", ["get", src.countryCodeField], 0, 3], iso3],
-      ["in", ["to-string", ["get", adminTiles(activeSource, activeLevel).idField]], ["literal", match.unmatchedCodes]],
+      [
+        "in",
+        ["to-string", ["get", adminTiles(activeSource, activeLevel).idField]],
+        ["literal", match.unmatchedCodes],
+      ],
     ]);
     map.setLayoutProperty(layerId, "visibility", "visible");
   } else {

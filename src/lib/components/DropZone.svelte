@@ -353,6 +353,7 @@
 
 <style>
   .drop-zone {
+    position: relative;
     border: 2px dashed var(--brand-primary--light);
     border-radius: var(--brand-radius--sm);
     padding: 1.5rem 1rem;
