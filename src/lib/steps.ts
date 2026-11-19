@@ -1,8 +1,9 @@
-// The six boundary-cleaning steps, in pipeline order, each with the main tool that runs it.
+// The six boundary-cleaning steps, in pipeline order, each with the main tool that runs it and its individual tools.
 export const steps = [
   {
     n: 1,
     slug: "schema-map",
+    extras: ["schema-join", "schema-fill", "schema-detect"],
     title: "Schema",
     brief: "Map source columns to codes and names",
     summary: "Map source columns to admin code and name columns, then apply the crosswalk.",
@@ -10,6 +11,7 @@ export const steps = [
   {
     n: 2,
     slug: "topo-clean",
+    extras: ["topo-detect"],
     title: "Topology",
     brief: "Find and fix gaps and overlaps",
     summary: "Find gaps and overlaps between units, then clean them.",
@@ -17,6 +19,7 @@ export const steps = [
   {
     n: 3,
     slug: "edge-match",
+    extras: ["edge-extend", "edge-mosaic"],
     title: "Edge matching",
     brief: "Fit units to the reference outline",
     summary: "Fit units to a reference boundary so the outer edge follows the agreed outline.",
@@ -24,6 +27,7 @@ export const steps = [
   {
     n: 4,
     slug: "code-update",
+    extras: ["code-create", "change", "code-detect"],
     title: "Codes",
     brief: "Carry codes over from the last release",
     summary:
@@ -32,6 +36,7 @@ export const steps = [
   {
     n: 5,
     slug: "name-clean",
+    extras: ["name-detect"],
     title: "Names",
     brief: "Fix encoding, spacing and duplicates",
     summary:
@@ -40,13 +45,10 @@ export const steps = [
   {
     n: 6,
     slug: "package",
+    extras: ["package-polygons", "package-points", "package-lines"],
     title: "Packaging",
     brief: "Check, then build polygons, points and lines",
     summary:
       "Check the schema, topology, codes and names, then build per-level polygons, label points, and the boundary line network for release.",
   },
 ] as const;
-
-export type StepSlug = (typeof steps)[number]["slug"];
-
-export const step = (slug: StepSlug) => steps.find((s) => s.slug === slug)!;
