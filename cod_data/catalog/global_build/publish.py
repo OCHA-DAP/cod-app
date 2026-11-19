@@ -1,5 +1,6 @@
 """Stage the global build in catalog/global/: adm{n}-{geom} collections and one iso3/<iso3>/ collection per location."""
 
+import json
 import shutil
 from itertools import product
 from pathlib import Path
@@ -143,6 +144,25 @@ def stage_global(con: duckdb.DuckDBPyConnection, notes: str) -> None:
         check(con, poly, pts, n)
 
 
+def write_stats(con: duckdb.DuckDBPyConnection) -> None:
+    """Write global/stats.json for the home page: ISO3 locations (no X-codes) and native units per level."""
+    polygons = {
+        n: GLOBAL / f"adm{n}-polygons" / f"{name(n, 'polygons')}.parquet"
+        for n in range(1, MAX_LVL + 1)
+    }
+    locations = con.execute(
+        f"SELECT count(DISTINCT adm0_pcode) FROM '{polygons[1]}' WHERE adm0_pcode NOT LIKE 'X%'"
+    ).fetchall()[0][0]
+    units = {
+        str(n): con.execute(f"SELECT count(*) FROM '{p}' WHERE level = {n}").fetchall()[
+            0
+        ][0]
+        for n, p in polygons.items()
+    }
+    stats = {"locations": locations, "units": units}
+    (GLOBAL / "stats.json").write_text(json.dumps(stats, indent=2) + "\n")
+
+
 def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
     src = BUILD / ADM0
     work = src / "iso3"
@@ -216,6 +236,7 @@ def stage() -> None:
     con = connect()
     try:
         stage_global(con, notes)
+        write_stats(con)
         stage_iso3(con, notes)
     finally:
         con.close()
