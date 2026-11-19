@@ -78,11 +78,12 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `valid_from` MUST be the pick's `source_updated` in the explorer's
   `source_provenance`, recorded when the location is built, and null when
   it has none or the location is ADM0 fill.
+- `lang1` to `lang3` MUST be constant within a location: the source's tag
+  wherever any of its units has that `name{i}`, and null otherwise.
 - The merge MUST raise on duplicate or null P-codes, malformed P-codes,
-  P-codes not under their parent, and `name{i}`/`lang{i}` disagreements,
-  and MUST report srcids over 20 characters, rows missing a source `lang`,
-  and null names. It MUST replace the layers only after every layer
-  passes.
+  P-codes not under their parent, and a `name{i}` without its `lang{i}`,
+  and MUST report rows missing a source `lang` and null names. It MUST
+  replace the layers only after every layer passes.
 - Each location MUST build in a temporary folder that replaces its last
   build only on success. A location that fails MUST keep its last
   successful build when that build's ADM0 rows match the current ADM0
