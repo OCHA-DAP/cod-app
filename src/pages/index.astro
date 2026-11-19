@@ -11,9 +11,10 @@ const lede =
   "Administrative boundaries and population statistics to support coordinated humanitarian preparedness and response.";
 
 const { openTotal } = loadData();
-const global: { locations: number; units: Record<string, number> } = await fetch(
-  globalUrl("stats.json"),
-).then((r) => r.json());
+const statsUrl = globalUrl("stats.json");
+const statsResponse = await fetch(statsUrl);
+if (!statsResponse.ok) throw new Error(`${statsUrl}: HTTP ${statsResponse.status}`);
+const global: { locations: number; units: Record<string, number> } = await statsResponse.json();
 const stats = [
   { value: global.locations, label: "countries and territories", href: `${base}status/` },
   {
