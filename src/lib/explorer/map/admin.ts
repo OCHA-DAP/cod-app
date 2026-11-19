@@ -41,7 +41,7 @@ function pickLevelWithMostUnits(stats: SourceStat[], source: string): number {
   );
 }
 
-// The level with the most units, the first on a tie; the level both tabs open a location on.
+// The level with the most units, the first on a tie; the level both pages open a location on.
 export function levelWithMostUnits<L extends number>(
   levels: readonly L[],
   count: (l: L) => number,
@@ -92,28 +92,33 @@ function resolveDefaultSource(decision: Decision | null, stats: SourceStat[]): s
   return ADMIN_SOURCES.find((s) => sourceHasData(stats, s.id))?.id ?? null;
 }
 
-// Fits the map to a country's bbox. Split out from selectCountry so it can also
-// be re-run on map resize, when the previously fit zoom/pan no longer matches
-// the container's new dimensions.
 let keptIso3: string | null = null;
+let fittedIso3: string | null = null;
 
-// Holds a camera carried over from the other explorer page until another location is fit.
+// A camera carried over from the other explorer page makes fits for its location jump, not fly.
 export function keepCamera(iso3: string | null): void {
   keptIso3 = iso3;
 }
 
+// The location the camera was last fit to, so a camera saved mid-flight isn't filed under the next one.
+export const lastFittedIso3 = (): string | null => fittedIso3;
+
+// Fits the map to a country's bbox. Split out from selectCountry so it can also
+// be re-run on map resize, when the previously fit zoom/pan no longer matches
+// the container's new dimensions.
 export async function fitCountryBounds(map: maplibregl.Map, iso3: string): Promise<void> {
-  if (iso3 === keptIso3) return;
-  keptIso3 = null;
+  if (iso3 !== keptIso3) keptIso3 = null;
+  fittedIso3 = null;
   const bbox = await getBboxForIso3(iso3);
   if (!bbox) return;
 
+  map.once("moveend", () => (fittedIso3 = iso3));
   map.fitBounds(
     [
       [bbox[0], bbox[1]],
       [bbox[2], bbox[3]],
     ],
-    { padding: 50 },
+    { padding: 50, animate: iso3 !== keptIso3 },
   );
 }
 

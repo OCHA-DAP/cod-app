@@ -1,6 +1,6 @@
 import * as maplibregl from "maplibre-gl";
 import { get } from "svelte/store";
-import { fitCountryBounds, initLabelsToggle, keepCamera } from "./admin";
+import { fitCountryBounds, initLabelsToggle, keepCamera, lastFittedIso3 } from "./admin";
 import {
   addAdminHoverInteraction,
   addClickInteraction,
@@ -25,7 +25,7 @@ function savedCamera(): { iso3: string; center: [number, number]; zoom: number }
   }
 }
 
-// The explorer globe both tabs draw on: idle spin, refit on resize, location hover and click.
+// The explorer globe both pages draw on: idle spin, refit on resize, location hover and click.
 export function createExplorerMap(
   container: HTMLDivElement,
   { style, onSelect }: { style: maplibregl.StyleSpecification; onSelect?: (iso3: string) => void },
@@ -78,11 +78,17 @@ export function createExplorerMap(
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   function saveCamera() {
+    const iso3 = get(selectedIso3);
+    if (!iso3 || iso3 !== lastFittedIso3() || map.isMoving()) return;
     const { lng, lat } = map.getCenter();
-    sessionStorage.setItem(
-      CAMERA_KEY,
-      JSON.stringify({ iso3: get(selectedIso3), center: [lng, lat], zoom: map.getZoom() }),
-    );
+    try {
+      sessionStorage.setItem(
+        CAMERA_KEY,
+        JSON.stringify({ iso3, center: [lng, lat], zoom: map.getZoom() }),
+      );
+    } catch {
+      // Storage blocked (sandboxed iframe, private mode); the other page flies in as usual.
+    }
   }
   window.addEventListener("pagehide", saveCamera);
 
