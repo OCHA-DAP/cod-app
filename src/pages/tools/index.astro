@@ -1,152 +1,315 @@
 ---
-import ToolCard from "$lib/components/ToolCard.astro";
-import GroupBox from "$lib/components/GroupBox.astro";
-import Step from "$lib/components/Step.astro";
-import { step } from "$lib/steps";
-import Disclosure from "$lib/components/Disclosure.astro";
+import Arrow from "$lib/components/Arrow.svelte";
+import { steps } from "$lib/steps";
 import { tools } from "$lib/tools";
-import Masthead from "$lib/components/Masthead.astro";
 import { toolsBase } from "$lib/utils/paths";
-import Layout from "../../layouts/Layout.astro";
+import PageLayout from "../../layouts/PageLayout.astro";
 
-const bySlug = (slug: string) => tools.find((t) => t.slug === slug)!;
-const clean = bySlug("topo-clean");
-const detect = bySlug("topo-detect");
-const match = bySlug("edge-match");
-const extend = bySlug("edge-extend");
-const mosaic = bySlug("edge-mosaic");
-const change = bySlug("change");
-const pkg = bySlug("package");
-const packagePolygons = bySlug("package-polygons");
-const packagePoints = bySlug("package-points");
-const packageLines = bySlug("package-lines");
-const schemaMap = bySlug("schema-map");
-const schemaJoin = bySlug("schema-join");
-const schemaFill = bySlug("schema-fill");
-const codeCreate = bySlug("code-create");
-const codeUpdate = bySlug("code-update");
-const nameClean = bySlug("name-clean");
-const nameDetect = bySlug("name-detect");
-const schemaDetect = bySlug("schema-detect");
-const codeDetect = bySlug("code-detect");
+const summary =
+  "These tools take a raw administrative boundary delivery through to a clean, coded, packaged COD-AB release. Run them in your browser, from the command line, or with an AI agent.";
+
+const rows = steps.map((s) => ({ ...s, tool: tools.find((t) => t.slug === s.slug)!.name }));
+const appHref = `${toolsBase}app/`;
+const docsHref = `${toolsBase}docs/`;
 ---
 
-<Layout
-  title="Tools: browser-only geospatial utilities"
-  description="A suite of browser-only geospatial topology tools. All processing runs client-side; your files never leave your device."
->
-  <Masthead title="Tools">
-    <p class="tagline">
-      Take a raw administrative boundary delivery through to a clean, coded, packaged release, one
-      step at a time. All processing runs in your browser via WebAssembly, so your files never leave
-      your device.
-    </p>
-  </Masthead>
-
-  <main class="page">
-    <section class="tools">
-      <h2 class="section-heading">Boundary cleaning</h2>
-      <ol class="steps">
-        <Step {...step("schema-map")}>
-          <GroupBox>
-            <ToolCard tool={schemaMap} header />
-            <Disclosure label="Show 3 individual tools">
-              <ToolCard tool={schemaJoin} variant="secondary" />
-              <ToolCard tool={schemaFill} variant="secondary" />
-              <ToolCard tool={schemaDetect} variant="secondary" />
-            </Disclosure>
-          </GroupBox>
-        </Step>
-
-        <Step {...step("topo-clean")}>
-          <GroupBox>
-            <ToolCard tool={clean} header />
-            <Disclosure label="Show 1 individual tool">
-              <ToolCard tool={detect} variant="secondary" />
-            </Disclosure>
-          </GroupBox>
-        </Step>
-
-        <Step {...step("edge-match")}>
-          <GroupBox>
-            <ToolCard tool={match} header />
-            <Disclosure label="Show 2 individual tools">
-              <ToolCard tool={extend} variant="secondary" />
-              <ToolCard tool={mosaic} variant="secondary" />
-            </Disclosure>
-          </GroupBox>
-        </Step>
-
-        <Step {...step("code-update")}>
-          <GroupBox>
-            <ToolCard tool={codeUpdate} header />
-            <Disclosure label="Show 3 individual tools">
-              <ToolCard tool={codeCreate} variant="secondary" />
-              <ToolCard tool={change} variant="secondary" />
-              <ToolCard tool={codeDetect} variant="secondary" />
-            </Disclosure>
-          </GroupBox>
-        </Step>
-
-        <Step {...step("name-clean")}>
-          <GroupBox>
-            <ToolCard tool={nameClean} header />
-            <Disclosure label="Show 1 individual tool">
-              <ToolCard tool={nameDetect} variant="secondary" />
-            </Disclosure>
-          </GroupBox>
-        </Step>
-
-        <Step {...step("package")} last>
-          <GroupBox>
-            <ToolCard tool={pkg} header />
-            <Disclosure label="Show 3 individual tools">
-              <ToolCard tool={packagePolygons} variant="secondary" />
-              <ToolCard tool={packagePoints} variant="secondary" />
-              <ToolCard tool={packageLines} variant="secondary" />
-            </Disclosure>
-          </GroupBox>
-        </Step>
-      </ol>
+<PageLayout title="Tools" summary={summary}>
+  <div class="overview wrap">
+    <section class="mirror" aria-label="Two ways to run the six steps">
+      <header class="head web">
+        <h2>In your browser</h2>
+        <p>The web app. Nothing to install, and your files never leave your device.</p>
+      </header>
+      <a class="pane web" href={appHref} aria-label="Open the web app">
+        <span class="chrome">
+          <span class="dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span class="addr">/tools/app/</span>
+        </span>
+        <span class="rows">
+          {rows.map((r, i) => (
+            <span class="row" style={`--i: ${i}`}>
+              <span class="n">{r.n}</span>
+              <span class="title">{r.title}</span>
+              <span class="tool">{r.tool}</span>
+            </span>
+          ))}
+        </span>
+        <span class="cta">
+          Open the web app <Arrow />
+        </span>
+      </a>
+      <div class="bridge" aria-hidden="true">
+        {rows.map((_, i) => (
+          <span style={`--i: ${i}`} />
+        ))}
+      </div>
+      <header class="head cli">
+        <h2>On your machine</h2>
+        <p>
+          The Python CLI, for scripting, batch runs and files too large for the browser. An AI agent
+          can drive it for you.
+        </p>
+      </header>
+      <a class="pane cli" href={docsHref} aria-label="Read the CLI docs">
+        <span class="chrome">
+          <span class="dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span class="addr">uv tool install topo-tools</span>
+        </span>
+        <span class="rows">
+          {rows.map((r, i) => (
+            <span class="row" style={`--i: ${i}`}>
+              <span class="prompt">$</span>
+              <span>
+                topo-tools <b>{r.slug}</b>
+              </span>
+            </span>
+          ))}
+        </span>
+        <span class="cta">
+          Read the CLI docs <Arrow />
+        </span>
+      </a>
     </section>
 
-  </main>
-  <footer class="page-footer">
-    <a href={`${toolsBase}privacy`}>Privacy</a>
-  </footer>
-</Layout>
+    <p class="slides">
+      Presenting the tools? <a href={`${toolsBase}slides`}>View the slides</a>
+    </p>
+  </div>
+</PageLayout>
 
 <style>
-  .page-footer {
-    border-top: 1px solid var(--brand-grey--border);
-    padding: 1.5rem;
+  .overview {
+    --web: var(--brand-primary);
+    --cli: var(--cd-blue--darkest);
+    padding-top: 48px;
+    padding-bottom: 64px;
+  }
+  .slides {
+    margin: 40px 0 0;
+    font-size: 14px;
+    color: var(--cd-grey--800);
     text-align: center;
-    font-size: 0.875rem;
   }
-  .page-footer a {
-    color: var(--cd-grey--800);
+  .slides a {
+    color: var(--brand-primary--text);
+    font-weight: 700;
   }
-  .page-footer a:hover {
-    color: var(--cd-blue--darker);
+  @keyframes draw-x {
+    from {
+      transform: scaleX(0);
+    }
   }
-  .page {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 2.5rem 1.5rem 4rem;
-    display: flex;
-    flex-direction: column;
-    gap: 2.5rem;
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
   }
-  .section-heading {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--cd-grey--800);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin: 0 0 0.75rem;
+
+  /* Mirror: a browser and a terminal side by side, each step bridged to its command. */
+  .mirror {
+    display: grid;
+    --row: 48px;
+    grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);
+    grid-template-rows: auto auto repeat(6, var(--row)) auto;
   }
-  .steps {
+  .mirror .head {
+    grid-row: 1;
+    margin-bottom: 16px;
+  }
+  .mirror .head.web {
+    grid-column: 1;
+  }
+  .mirror .head.cli {
+    grid-column: 3;
+  }
+  .mirror .head h2 {
+    margin: 0 0 4px;
+    font-size: 24px;
+    line-height: 32px;
+    color: var(--brand-primary--text);
+  }
+  .mirror .head.cli h2 {
+    color: var(--cli);
+  }
+  .mirror .head p {
     margin: 0;
-    padding: 0;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--cd-grey--800);
+  }
+  .mirror .pane {
+    grid-row: 2 / -1;
+    display: grid;
+    grid-template-rows: subgrid;
+    border-radius: 8px;
+    color: inherit;
+    text-decoration: none;
+    overflow: hidden;
+  }
+  .mirror .pane.web {
+    grid-column: 1;
+    border: 2px solid var(--web);
+    background: var(--cd-white);
+  }
+  .mirror .pane.cli {
+    grid-column: 3;
+    border: 2px solid var(--cli);
+    background: var(--cli);
+    color: var(--cd-white);
+    font-family: var(--brand-font-mono);
+  }
+  .mirror .chrome {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+  }
+  .mirror .web .chrome {
+    background: var(--brand-primary--lightest);
+  }
+  .mirror .cli .chrome {
+    background: rgb(255 255 255 / 0.08);
+  }
+  .mirror .dots {
+    display: flex;
+    gap: 6px;
+  }
+  .mirror .dots i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.3;
+  }
+  .mirror .addr {
+    flex: 1;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    line-height: 20px;
+  }
+  .mirror .web .addr {
+    background: var(--cd-white);
+    color: var(--cd-grey--800);
+  }
+  .mirror .cli .addr {
+    padding-inline: 0;
+    color: rgb(255 255 255 / 0.7);
+  }
+  .mirror .rows {
+    grid-row: span 6;
+    display: grid;
+    grid-template-rows: subgrid;
+  }
+  .mirror .row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+    animation: rise 300ms ease-out calc(var(--i) * 80ms) both;
+  }
+  .mirror .web .n {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--web);
+    color: var(--cd-white);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .mirror .web .title {
+    font-weight: 700;
+    color: var(--brand-primary--text);
+  }
+  .mirror .web .tool {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--cd-grey--800);
+  }
+  .mirror .cli .row {
+    font-size: 15px;
+  }
+  .mirror .cli .prompt {
+    color: rgb(255 255 255 / 0.5);
+  }
+  .mirror .cli b {
+    color: var(--cd-blue--bright);
+  }
+  .mirror .cta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 16px 20px 20px;
+    font-family: var(--brand-font);
+    font-weight: 700;
+  }
+  .mirror .web .cta {
+    color: var(--brand-primary--text);
+  }
+  .mirror .bridge {
+    grid-column: 2;
+    grid-row: 3 / span 6;
+    display: grid;
+    grid-template-rows: subgrid;
+  }
+  .mirror .bridge span {
+    position: relative;
+  }
+  .mirror .bridge span::before {
+    content: "";
+    position: absolute;
+    top: calc(50% - 2px);
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--web), var(--cli));
+    transform-origin: left;
+    animation: draw-x 300ms ease-out calc(300ms + var(--i) * 80ms) both;
+  }
+  @media (max-width: 900px) {
+    .mirror {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+    }
+    .mirror .head.web,
+    .mirror .head.cli,
+    .mirror .pane.web,
+    .mirror .pane.cli {
+      grid-column: 1;
+      grid-row: auto;
+    }
+    .mirror .head.cli {
+      margin-top: 40px;
+    }
+    .mirror .pane,
+    .mirror .rows {
+      display: block;
+    }
+    .mirror .row {
+      height: var(--row);
+    }
+    .mirror .bridge {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .overview *,
+    .overview *::before {
+      animation: none !important;
+      transition: none !important;
+    }
   }
 </style>

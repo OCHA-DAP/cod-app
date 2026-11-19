@@ -182,7 +182,7 @@ POL,erm,true,"EuroRegionalMap, from the national mapping agency"
 PRI,wfp,false,WFP is main source
 PRK,ocha,false,"Mostly same sources, defaulting to OCHA"
 PRT,erm,true,"EuroRegionalMap, from the national mapping agency"
-PRY,unhcr,false,UNHCR has govt source
+PRY,ocha,false,OCHA has admin 3 and 4
 PSE,ocha,true,WFP has more detailed data than others
 PYF,none,false,No subnational units available
 QAT,ocha,false,"OCHA most detailed, ADM2/3 fixed file on HDX"

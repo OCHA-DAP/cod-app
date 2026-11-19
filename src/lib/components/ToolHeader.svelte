@@ -7,7 +7,7 @@
   let {
     title,
     demo,
-    back = { href: toolsBase, label: "All tools" },
+    back = { href: `${toolsBase}app/`, label: "All tools" },
     hint,
     children,
   }: {

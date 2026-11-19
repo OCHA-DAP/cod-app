@@ -1,0 +1,318 @@
+---
+import Disclosure from "$lib/components/Disclosure.astro";
+import ToolCard from "$lib/components/ToolCard.astro";
+import { steps } from "$lib/steps";
+import { tools } from "$lib/tools";
+import { toolsBase } from "$lib/utils/paths";
+import ToolLayout from "../../layouts/ToolLayout.astro";
+
+const bySlug = (slug: string) => tools.find((t) => t.slug === slug)!;
+const groups = steps.map((s) => ({ ...s, main: bySlug(s.slug), extras: s.extras.map(bySlug) }));
+const showLabel = (n: number) => `Show ${n} individual tool${n === 1 ? "" : "s"}`;
+---
+
+<ToolLayout
+  title="Web app | Tools"
+  description="Browser-only tools that take a raw administrative boundary delivery through to a clean, coded, packaged release."
+>
+  <main class="webapp grid-bg">
+    <header class="bar">
+      <div class="bar-inner">
+        <h1>Web app</h1>
+        <p>
+          Six steps from a raw boundary delivery to a clean, coded, packaged release. Every tool
+          runs in your browser, so your files never leave your device.
+        </p>
+      </div>
+    </header>
+
+    <div class="flow">
+      <ol class="route">
+        {
+          groups.map((g, i) => (
+            <li class="stop" style={`--i: ${i}`}>
+              <div class="label">
+                <h2>{g.title}</h2>
+                <p>{g.brief}</p>
+              </div>
+              <div class="marker" aria-hidden="true">
+                <span>{g.n}</span>
+              </div>
+              <div class="tools">
+                <ToolCard tool={g.main} header />
+                <Disclosure label={showLabel(g.extras.length)}>
+                  {g.extras.map((t) => (
+                    <ToolCard tool={t} variant="secondary" />
+                  ))}
+                </Disclosure>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+
+    <footer class="foot">
+      <a href={`${toolsBase}privacy`}>Privacy</a>
+    </footer>
+  </main>
+</ToolLayout>
+
+<style>
+  .webapp {
+    --track: 8px;
+    --stop: 56px;
+    --col-gap: 24px;
+    display: flex;
+    flex-direction: column;
+    min-height: var(--app-height);
+    padding-bottom: 8px;
+  }
+  .bar {
+    padding: 16px 40px 12px;
+  }
+  .bar-inner {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 20px;
+  }
+  .bar h1 {
+    margin: 0;
+    font-size: 30px;
+    line-height: 36px;
+    color: var(--brand-primary--text);
+  }
+  .bar p {
+    margin: 0;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--cd-grey--800);
+  }
+  .flow,
+  .foot {
+    padding-inline: 40px;
+  }
+  .foot {
+    font-size: 13px;
+    text-align: right;
+  }
+  .foot a {
+    color: var(--cd-grey--800);
+  }
+
+  /* The route sits in the middle of whatever height is left. */
+  .flow {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: 16px;
+  }
+
+  /* Wide screens: one row of six stops on a horizontal track. */
+  .route {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    column-gap: var(--col-gap);
+    margin: 0;
+    padding: 0;
+  }
+  .stop {
+    position: relative;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 4;
+    min-width: 0;
+    list-style: none;
+  }
+  .label {
+    text-align: center;
+  }
+  .label h2 {
+    margin: 0;
+    font-size: 22px;
+    line-height: 28px;
+    color: var(--brand-primary--text);
+    text-wrap: balance;
+  }
+  .label p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--cd-grey--800);
+    text-wrap: pretty;
+  }
+  .tools {
+    display: contents;
+  }
+  .tools :global(.disclosure) {
+    margin-top: 12px;
+  }
+  .tools :global(.card) {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+  .tools :global(.card.header .icon) {
+    width: 64px;
+    height: 64px;
+  }
+
+  .marker {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--stop);
+    margin: 16px 0;
+  }
+  .marker span {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--stop);
+    height: var(--stop);
+    border-radius: 50%;
+    background: var(--brand-primary);
+    color: var(--cd-white);
+    font-size: 24px;
+    font-weight: 700;
+    animation: arrive 200ms ease-out calc(var(--i) * 140ms) both;
+  }
+  /* The track runs from each stop back to the one before it. */
+  .stop:not(:first-child) .marker::before {
+    content: "";
+    position: absolute;
+    top: calc(50% - var(--track) / 2);
+    right: 50%;
+    width: calc(100% + var(--col-gap));
+    height: var(--track);
+    background: var(--brand-primary);
+    transform-origin: left;
+    animation: draw-x 240ms ease-out calc(var(--i) * 140ms - 140ms) both;
+  }
+  @keyframes draw-x {
+    from {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes draw-y {
+    from {
+      transform: scaleY(0);
+    }
+  }
+  @keyframes arrive {
+    from {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+  }
+
+  /* Narrow screens: the stops stack, the track running down the left past each step. */
+  @media (max-width: 1100px) {
+    .webapp {
+      --stop: 40px;
+      --track: 4px;
+      padding-bottom: 16px;
+    }
+    .bar {
+      padding: 40px 24px 24px;
+    }
+    .bar-inner,
+    .flow,
+    .foot {
+      width: 100%;
+      max-width: 800px;
+      margin-inline: auto;
+    }
+    .bar-inner {
+      flex-direction: column;
+      gap: 12px;
+    }
+    .flow {
+      justify-content: start;
+      padding: 32px 24px 0;
+    }
+    .foot {
+      padding-inline: 24px;
+    }
+    .route {
+      display: flex;
+      flex-direction: column;
+    }
+    .stop {
+      grid-template-columns: var(--stop) minmax(0, 1fr);
+      grid-template-rows: auto;
+      column-gap: 20px;
+      padding-bottom: 40px;
+    }
+    .stop:last-child {
+      padding-bottom: 0;
+    }
+    .marker {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+      align-self: start;
+      margin: 0;
+    }
+    .marker span {
+      font-size: 18px;
+    }
+    .label {
+      grid-column: 2;
+      grid-row: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: var(--stop);
+      text-align: left;
+    }
+    .tools {
+      display: flex;
+      flex-direction: column;
+      grid-column: 2;
+      grid-row: 2;
+      margin-top: 12px;
+    }
+    .tools :global(.card) {
+      flex-direction: row;
+      align-items: center;
+    }
+    .tools :global(.card.header .icon) {
+      width: 56px;
+      height: 56px;
+    }
+    .stop:not(:first-child) .marker::before {
+      content: none;
+    }
+    .stop:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: calc(var(--stop) / 2);
+      bottom: calc(var(--stop) / -2);
+      left: calc(var(--stop) / 2 - var(--track) / 2);
+      width: var(--track);
+      background: var(--brand-primary);
+      transform-origin: top;
+      animation: draw-y 240ms ease-out calc(var(--i) * 140ms) both;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .tools :global(.card) {
+      flex-direction: column;
+      align-items: start;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marker span,
+    .marker::before,
+    .stop::after {
+      animation: none !important;
+    }
+  }
+</style>

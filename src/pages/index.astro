@@ -3,16 +3,25 @@ import Arrow from "$lib/components/Arrow.svelte";
 import HomeGlobe from "$lib/components/home/HomeGlobe.svelte";
 import SiteHeader from "$lib/components/SiteHeader.astro";
 import { loadData } from "$lib/status/loadData";
+import { globalUrl } from "$lib/utils/data";
 import { aboutBase, base, standardsBase, toolsBase } from "$lib/utils/paths";
 import Layout from "../layouts/Layout.astro";
 
 const lede =
   "Administrative boundaries and population statistics to support coordinated humanitarian preparedness and response.";
 
-const { totalInGis, adminUnits, openTotal } = loadData();
+const { openTotal } = loadData();
+const statsUrl = globalUrl("stats.json");
+const statsResponse = await fetch(statsUrl);
+if (!statsResponse.ok) throw new Error(`${statsUrl}: HTTP ${statsResponse.status}`);
+const global: { locations: number; units: Record<string, number> } = await statsResponse.json();
 const stats = [
-  { value: totalInGis, label: "countries and territories", href: `${base}status/` },
-  { value: adminUnits, label: "administrative units", href: `${base}status/` },
+  { value: global.locations, label: "countries and territories", href: `${base}status/` },
+  {
+    value: Object.values(global.units).reduce((a, b) => a + b, 0),
+    label: "administrative units",
+    href: `${base}status/`,
+  },
   { value: openTotal, label: "updates in progress", href: `${base}status/work` },
 ].sort((a, b) => a.value - b.value);
 
@@ -33,7 +42,7 @@ const products = [
   {
     href: toolsBase,
     title: "Tools",
-    text: "Take a raw administrative boundary delivery through to a clean, coded, packaged release, one step at a time. All processing runs in your browser via WebAssembly, so your files never leave your device.",
+    text: "Take a raw administrative boundary delivery through to a clean, coded, packaged release, in your browser, from the command line, or with an AI agent.",
     image: `${base}home/tools.webp`,
   },
   {
@@ -69,7 +78,16 @@ const logos = [
       <div class="grid-bg">
         <section class="wrap hero">
           <div class="hero-text">
-            <h1><span class="name">Common<br />Operational<br />Datasets</span> <span class="tagline">for humanitarian response</span></h1>
+            <h1>
+              <span class="name">
+                Common
+                <br />
+                Operational
+                <br />
+                Datasets
+              </span>{" "}
+              <span class="tagline">for humanitarian response</span>
+            </h1>
             <p class="lede">{lede}</p>
           </div>
           <div class="hero-globe">
@@ -82,7 +100,9 @@ const logos = [
         <div class="wrap stats-row">
           {stats.map((s, i) => (
             <a class="stat" href={s.href} data-reveal style={`--delay: ${i * 100}ms`}>
-              <b class="figure-num" data-count={s.value}>{s.value.toLocaleString("en-US")}</b>
+              <b class="figure-num" data-count={s.value}>
+                {s.value.toLocaleString("en-US")}
+              </b>
               <span>{s.label}</span>
             </a>
           ))}
@@ -102,19 +122,27 @@ const logos = [
             Management Working Group accepts them in country or in their region. CODs reflect the
             local administrative hierarchy and are annotated with place names and P-codes. They
             provide a common operational picture of a crisis and a geographic framework for data
-            collection, analysis and visualization, and are disseminated on the <a
-              href="https://data.humdata.org/">Humanitarian Data Exchange (HDX)</a>.
+            collection, analysis and visualization, and are disseminated on the{" "}
+            <a href="https://data.humdata.org/">Humanitarian Data Exchange (HDX)</a>.
           </p>
           <dl class="types">
             <div>
-              <dt><a href="https://data.humdata.org/dataset/cod-ab-global">Administrative boundaries (COD&#8209;AB)</a></dt>
+              <dt>
+                <a href="https://data.humdata.org/dataset/cod-ab-global">
+                  Administrative boundaries (COD&#8209;AB)
+                </a>
+              </dt>
               <dd>
                 Geographic boundaries and gazetteers of feature names and P-codes, reflecting each
                 country’s administrative hierarchy.
               </dd>
             </div>
             <div>
-              <dt><a href="https://data.humdata.org/dataset/cod-ps-global">Population statistics (COD&#8209;PS)</a></dt>
+              <dt>
+                <a href="https://data.humdata.org/dataset/cod-ps-global">
+                  Population statistics (COD&#8209;PS)
+                </a>
+              </dt>
               <dd>
                 Baseline, age- and sex-disaggregated population figures of a country’s pre-crisis
                 situation, linkable to COD-AB using P-codes.
