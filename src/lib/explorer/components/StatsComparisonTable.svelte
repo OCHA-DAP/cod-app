@@ -249,7 +249,7 @@
         {/each}
       </tr>
       {#each LEVELS as level (level)}
-        <tr class:active-row={level === $selectedAdmin}>
+        <tr>
           <td class="plain-cell">
             Adm {level}
             {#if level === 1 && iso3166?.subdivisionCount != null}
@@ -309,7 +309,7 @@
                   >
                 </button>
               {:else}
-                <span class="muted">—</span>
+                <span class="muted empty-cell">—</span>
               {/if}
             </td>
           {/each}
@@ -492,20 +492,15 @@
     display: block;
   }
 
-  .source-btn:hover,
-  .cell-btn:hover {
+  .source-btn:hover {
     background: color-mix(in srgb, var(--brand-primary) 7%, var(--cd-white));
   }
 
-  tr.active-row,
   th.active-col,
-  td.active-col {
+  td.provider-cell.active-col {
     background: color-mix(in srgb, var(--brand-primary) 4%, var(--cd-white));
   }
 
-  td.active-cell {
-    background: color-mix(in srgb, var(--brand-primary) 15%, var(--cd-white));
-  }
 
   th.team-pick {
     box-shadow: inset 0 3px 0 var(--cd-grey--500);
@@ -528,7 +523,44 @@
     color: var(--brand-success);
   }
 
-  td.active-cell .cell-btn:hover {
-    background: color-mix(in srgb, var(--brand-primary) 20%, var(--cd-white));
+  /* The chip is drawn on the cell, which always spans its row, so every chip in a row matches. */
+  td:has(.cell-btn) {
+    position: relative;
+  }
+  td:has(.cell-btn)::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border: 1px solid var(--cd-grey--500);
+    border-radius: 3px;
+    background: var(--cd-white);
+    pointer-events: none;
+  }
+  td:has(.cell-btn:hover)::before {
+    border-color: var(--brand-primary--text);
+  }
+  td.active-cell::before {
+    border-color: var(--brand-primary--text);
+    background: var(--brand-primary--text);
+  }
+  .cell-btn {
+    position: relative;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    padding: 6px 9px;
+  }
+  .cell-btn .match-rate {
+    grid-column: 1 / -1;
+  }
+  .cell-btn .vertex-hint {
+    justify-self: end;
+  }
+  td.active-cell .cell-btn,
+  td.active-cell .cell-btn :global(*) {
+    color: var(--cd-white);
+  }
+  .empty-cell {
+    display: block;
+    padding: 6px 9px;
   }
 </style>
