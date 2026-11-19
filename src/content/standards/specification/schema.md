@@ -4,7 +4,7 @@ summary: The fields every polygon layer carries, with their types. Each layer re
 order: 4
 ---
 
-Each polygon layer at level L carries all of the following fields. Fields whose names contain *{N}* repeat for every level from 0 through L, making each layer self-contained: upper-level units can be derived by dissolving on the embedded parent fields without reference to any other layer. All other fields except *area\_sqkm* and *level* are constant across all rows of one location within a layer.
+Each polygon layer at level L carries all of the following fields. Fields whose names contain *{N}* repeat for every level from 0 through L, making each layer self-contained: upper-level units can be derived by dissolving on the embedded parent fields without reference to any other layer. The per-level fields run from level L down to level 0, before the other fields. All other fields except *area\_sqkm* and *level* are constant across all rows of one location within a layer.
 
 | Field | Type | Description |
 | :---- | :---- | :---- |
