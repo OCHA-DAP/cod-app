@@ -94,8 +94,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   layer, and otherwise MUST fall back to ADM0 fill, built in the main
   process after the pool. It MUST be listed before the merge,
   and MUST make the run exit non-zero.
-- The merge MUST include only locations with `admin1`, `points` and
-  `lines` outputs, listing the others.
+- The merge MUST include only locations with `admin1`, `points`, `lines`
+  and `valid_from.txt` outputs, listing the others.
 - `--only` MUST rebuild only the listed locations and merge every location
   already built.
 - The merge MUST write each `adm{n}` polygon layer ordered by

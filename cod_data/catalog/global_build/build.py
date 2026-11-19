@@ -604,7 +604,7 @@ def main() -> None:
                 f"{iso3} ({picks.get(iso3)}, adm{lvl}) {secs:.0f}s ({done}/{len(jobs)})",
                 flush=True,
             )
-    files = ("admin1.parquet", "points.parquet", "lines.parquet")
+    files = ("admin1.parquet", "points.parquet", "lines.parquet", VALID_FROM_FILE)
 
     def is_built(iso3: str) -> bool:
         return all((out / "iso3" / iso3.lower() / f).exists() for f in files)
