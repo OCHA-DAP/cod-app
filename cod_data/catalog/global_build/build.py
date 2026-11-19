@@ -322,7 +322,7 @@ def job(
     work.mkdir(parents=True)
     result = _build(iso3, source, parents_all, work)
     (work / VERSION_FILE).write_text(version("topo-tools"))
-    (work / VALID_FROM_FILE).write_text(source_updated(source, iso3) if source else "")
+    (work / VALID_FROM_FILE).write_text(valid_from(source, iso3, result[2]))
     shutil.rmtree(final, ignore_errors=True)
     work.rename(final)
     return result
@@ -395,13 +395,22 @@ def _build(
     return iso3, time.perf_counter() - t0, lvl
 
 
-def source_updated(source: str, iso3: str) -> str:
-    """The explorer's last-update date for iso3 in source, empty when it has none."""
+def valid_from(source: str | None, iso3: str, lvl: int) -> str:
+    """OCHA's own valid_on, else the explorer's source_updated; empty when unknown or ADM0 fill."""
+    if not source or not lvl:
+        return ""
     con = connect()
-    rows = con.execute(
-        f"SELECT source_updated FROM '{path_of('source_provenance')}' WHERE source = ? AND iso3 = ?",
-        [source, iso3],
-    ).fetchall()
+    if source == "ocha":
+        rows = con.execute(
+            f"SELECT DISTINCT valid_on::DATE FROM '{_cod_ab_path(iso3, lvl)}'"
+        ).fetchall()
+        if len(rows) > 1:
+            raise ValueError(f"{iso3}: {len(rows)} valid_on dates")
+    else:
+        rows = con.execute(
+            f"SELECT source_updated FROM '{path_of('source_provenance')}' WHERE source = ? AND iso3 = ?",
+            [source, iso3],
+        ).fetchall()
     con.close()
     return rows[0][0].isoformat() if rows and rows[0][0] else ""
 
