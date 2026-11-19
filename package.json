@@ -28,7 +28,7 @@
     "@types/node": "^26.6.6",
     "@types/papaparse": "^5.5.2",
     "@vitest/browser-playwright": "^5.1.1",
-    "astro": "^7.4.12",
+    "astro": "^7.4.13",
     "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-astro": "^3.2.1",
@@ -43,9 +43,9 @@
     "vitest": "^5.1.1"
   },
   "dependencies": {
-    "@astrojs/markdown-remark": "^7.3.9",
+    "@astrojs/markdown-remark": "^7.3.10",
     "@astrojs/starlight": "^0.43.1",
-    "@duckdb/duckdb-wasm": "1.33.1-dev118.0",
+    "@duckdb/duckdb-wasm": "1.33.1-dev119.0",
     "astro-rehype-relative-markdown-links": "^0.19.2",
     "fflate": "^0.8.3",
     "hyparquet": "^1.33.1",

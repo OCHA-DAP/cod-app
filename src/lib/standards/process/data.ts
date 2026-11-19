@@ -3,8 +3,8 @@ export type CellTrack = Track | "both";
 export type Kind = "lead" | "support" | "informed";
 
 export const TRACKS: { id: Track; label: string }[] = [
-  { id: "with", label: "With OCHA presence" },
-  { id: "without", label: "Without OCHA presence" },
+  { id: "with", label: "Location with OCHA presence" },
+  { id: "without", label: "Location without OCHA presence" },
 ];
 
 export interface Step {
