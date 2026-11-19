@@ -23,7 +23,9 @@
       class:counted={opt.count !== undefined}
       {disabled}
       onclick={() => (value = opt.value)}
-      >{opt.label}{#if opt.count !== undefined}<span class="count">{opt.count}</span>{/if}</button
+      title={opt.count !== undefined ? opt.label : undefined}
+      >{#if opt.count !== undefined}<span class="label">{opt.label}</span><span class="count">{opt.count}</span
+        >{:else}{opt.label}{/if}</button
     >
   {/each}
 </div>
@@ -63,8 +65,15 @@
     color: var(--cd-white);
   }
   .counted {
-    flex: 0 0 auto;
+    display: flex;
+    flex: 0 1 auto;
+    min-width: 0;
     white-space: nowrap;
+  }
+  .counted .label {
+    max-width: 24ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .count {
     margin-left: 6px;

@@ -26,7 +26,7 @@
 
   onMount(() => {
     if (isPartnersView(location)) {
-      location.replace(`${base}explorer/partners/${location.search}${location.hash}`);
+      location.replace(`${base}explorer/compare/${location.search}${location.hash}`);
       return;
     }
     const view = viewFromUrl(location);
