@@ -1,3 +1,4 @@
+import { whenSourceLoaded } from "$lib/explorer/map/admin";
 import { labelsEnabled, selectedAdmin, selectedSource } from "$lib/explorer/map/store";
 import { ADMIN_SOURCES, adminTiles } from "$lib/explorer/sources";
 import * as maplibregl from "maplibre-gl";
@@ -10,10 +11,16 @@ function buildPopupHtml(
 ): string | null {
   const nameField = src.nameField.replace("{level}", String(level));
   const codeField = src.codeField.replace("{level}", String(level));
-  const name = props[nameField];
-  if (!name) return null;
-  const code = props[codeField];
+  return featurePopupHtml(props, props[nameField], props[codeField]);
+}
 
+// Name and code over a table of the feature's non-empty properties; null without a name.
+export function featurePopupHtml(
+  props: Record<string, unknown>,
+  name: unknown,
+  code: unknown,
+): string | null {
+  if (!name) return null;
   let html = code
     ? `${String(name)}<br><span class="feature-tooltip-code">${String(code)}</span>`
     : String(name);
@@ -33,55 +40,84 @@ function buildPopupHtml(
   return html;
 }
 
-export function addAdminHoverInteraction(map: maplibregl.Map): void {
+// Feature-state hover on unit fills, with a properties popup while labels are off.
+export function createFeatureHover(map: maplibregl.Map) {
   const popup = new maplibregl.Popup({
     closeButton: false,
     closeOnClick: false,
     className: "feature-tooltip",
     maxWidth: "260px",
   });
+  let hovered: { source: string; sourceLayer: string; id: string | number } | null = null;
 
-  // Hover highlighting is feature-state keyed off each source's promoted unique id (see adminTiles).
-  let hoveredId: string | number | null = null;
-  let hoveredSourceId: string | null = null;
-  let hoveredSourceLayer: string | null = null;
+  function clear() {
+    if (hovered && map.getSource(hovered.source)) map.setFeatureState(hovered, { hover: false });
+    hovered = null;
+  }
+
+  function set(source: string, sourceLayer: string, id: string | number) {
+    if (hovered && id === hovered.id && source === hovered.source) return;
+    clear();
+    hovered = { source, sourceLayer, id };
+    map.setFeatureState(hovered, { hover: true });
+  }
+
+  function show(lngLat: maplibregl.LngLatLike, html: string | null) {
+    if (!html) return;
+    map.getCanvas().style.cursor = "pointer";
+    popup.setLngLat(lngLat).setHTML(html).addTo(map);
+  }
+
+  const unsubscribe = labelsEnabled.subscribe((enabled) => {
+    if (enabled) popup.remove();
+  });
+
+  // Returns a function that removes the layer's listeners.
+  function bind(
+    layerId: string,
+    source: string,
+    sourceLayer: string,
+    html: (props: Record<string, unknown>) => string | null,
+    on: { move?: (e: maplibregl.MapLayerMouseEvent) => void; leave?: () => void } = {},
+  ): () => void {
+    const move = (e: maplibregl.MapLayerMouseEvent) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      on.move?.(e);
+      if (f.id != null) set(source, sourceLayer, f.id);
+      if (!get(labelsEnabled)) show(e.lngLat, html(f.properties ?? {}));
+    };
+    const leave = () => {
+      map.getCanvas().style.cursor = "";
+      popup.remove();
+      clear();
+      on.leave?.();
+    };
+    map.on("mousemove", layerId, move);
+    map.on("mouseleave", layerId, leave);
+    return () => {
+      map.off("mousemove", layerId, move);
+      map.off("mouseleave", layerId, leave);
+    };
+  }
+
+  return { popup, set, clear, show, bind, destroy: () => (unsubscribe(), popup.remove()) };
+}
+
+export function addAdminHoverInteraction(map: maplibregl.Map): void {
+  const hover = createFeatureHover(map);
   let lastPoint: maplibregl.Point | null = null;
   let lastLngLat: maplibregl.LngLat | null = null;
 
-  function clearHover() {
-    if (hoveredId !== null && hoveredSourceId && hoveredSourceLayer) {
-      map.setFeatureState(
-        { source: hoveredSourceId, sourceLayer: hoveredSourceLayer, id: hoveredId },
-        { hover: false },
-      );
-    }
-    hoveredId = null;
-    hoveredSourceId = null;
-    hoveredSourceLayer = null;
-  }
-
-  function setHover(sourceId: string, sourceLayer: string, id: string | number) {
-    if (id === hoveredId && sourceId === hoveredSourceId) return;
-    clearHover();
-    hoveredId = id;
-    hoveredSourceId = sourceId;
-    hoveredSourceLayer = sourceLayer;
-    map.setFeatureState({ source: sourceId, sourceLayer, id }, { hover: true });
-  }
-
   selectedAdmin.subscribe(() => {
-    popup.remove();
-    clearHover();
+    hover.popup.remove();
+    hover.clear();
     lastPoint = null;
     lastLngLat = null;
   });
 
-  labelsEnabled.subscribe((enabled) => {
-    if (enabled) popup.remove();
-  });
-
   selectedSource.subscribe((newSource) => {
-    clearHover();
+    hover.clear();
     if (!lastPoint || !lastLngLat) return;
 
     const level = get(selectedAdmin);
@@ -101,57 +137,43 @@ export function addAdminHoverInteraction(map: maplibregl.Map): void {
 
       // Restore hover highlight for the new source
       if (features[0].id != null) {
-        setHover(sourceId, sourceLayer, features[0].id);
+        hover.set(sourceId, sourceLayer, features[0].id);
       }
 
       if (labels) return true;
 
       const html = buildPopupHtml(features[0].properties ?? {}, srcDef, level);
       if (!html) {
-        popup.remove();
+        hover.popup.remove();
         return true;
       }
-      popup.setLngLat(lngLat).setHTML(html).addTo(map);
+      hover.popup.setLngLat(lngLat).setHTML(html).addTo(map);
       return true;
     };
 
     // Always defer to next render so applyAdminFilter (called after selectedSource.set)
     // runs first and doesn't overwrite our hover filter.
-    const onRender = () => {
-      if (!map.isSourceLoaded(sourceId)) return;
-      map.off("render", onRender);
-      tryUpdate();
-    };
-    map.on("render", onRender);
+    whenSourceLoaded(map, sourceId, tryUpdate);
   });
 
   for (const src of ADMIN_SOURCES) {
     for (const level of src.levels) {
-      const layerId = `${src.id}-adm${level}-fill`;
-      const sourceId = `${src.id}-adm${level}`;
-      const sourceLayer = adminTiles(src.id, level).layer;
-
-      map.on("mousemove", layerId, (e) => {
-        if (!e.features?.length) return;
-        lastPoint = e.point;
-        lastLngLat = e.lngLat;
-        if (e.features[0].id != null) {
-          setHover(sourceId, sourceLayer, e.features[0].id);
-        }
-        if (get(labelsEnabled)) return;
-        const html = buildPopupHtml(e.features[0].properties ?? {}, src, level);
-        if (!html) return;
-        map.getCanvas().style.cursor = "pointer";
-        popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
-      });
-
-      map.on("mouseleave", layerId, () => {
-        map.getCanvas().style.cursor = "";
-        popup.remove();
-        clearHover();
-        lastPoint = null;
-        lastLngLat = null;
-      });
+      hover.bind(
+        `${src.id}-adm${level}-fill`,
+        `${src.id}-adm${level}`,
+        adminTiles(src.id, level).layer,
+        (props) => buildPopupHtml(props, src, level),
+        {
+          move: (e) => {
+            lastPoint = e.point;
+            lastLngLat = e.lngLat;
+          },
+          leave: () => {
+            lastPoint = null;
+            lastLngLat = null;
+          },
+        },
+      );
     }
   }
 }

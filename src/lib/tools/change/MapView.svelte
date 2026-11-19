@@ -5,6 +5,7 @@
     GeoJSONSource,
     LngLatLike,
     Map as MaplibreMap,
+    MapLayerMouseEvent,
     MapMouseEvent,
   } from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
@@ -30,6 +31,7 @@
     onClusterClick,
     onFeatureHover,
     describe,
+    hostMap,
   }: {
     overlayGeojson?: string | null;
     outlineAGeojson?: string | null;
@@ -46,14 +48,22 @@
     onFeatureHover?: (payload: { cluster_id: number | null; fid: number | null }) => void;
     // Hover popup content for the unit under the cursor; no popup when unset.
     describe?: (clusterId: number, fid: number) => FeatureInfo[];
+    // Draws onto this loaded map, keeping its view, instead of creating one.
+    hostMap?: MaplibreMap;
   } = $props();
 
-  let container: HTMLDivElement | undefined;
-  let map: MaplibreMap | undefined;
+  let container = $state<HTMLDivElement | undefined>();
+  let map = $state.raw<MaplibreMap | undefined>();
   let overlayUrl: string | undefined;
   let outlineAUrl: string | undefined;
   let outlineBUrl: string | undefined;
-  let styleReady = false;
+  let styleReady = $state(false);
+  type Listener = ["click" | "mousemove" | "mouseleave", string, (e: MapLayerMouseEvent) => void];
+  const listeners: Listener[] = [];
+  function listen(...l: Listener): void {
+    listeners.push(l);
+    map?.on(...l);
+  }
   let hovered = $state<FeatureInfo[]>([]);
   let hoverLngLat = $state<LngLatLike | null>(null);
 
@@ -161,7 +171,7 @@
 
   $effect(() => {
     const b = bounds;
-    if (!b || !map) return;
+    if (!b || !map || hostMap) return;
     function apply() {
       if (!map || !b) return;
       const [minLng, minLat, maxLng, maxLat] = b;
@@ -280,13 +290,13 @@
       layout: { visibility: "none" },
       paint: { "line-color": MAP_COLORS.outline, "line-width": 2.5 },
     });
-    map.on("mousemove", `cw-outline-${side}-fill`, (e) => {
+    listen("mousemove", `cw-outline-${side}-fill`, (e) => {
       const props = e.features?.[0]?.properties;
       const cid = props?.cluster_id == null ? null : Number(props.cluster_id);
       const fid = props?.fid == null ? null : Number(props.fid);
       hover(cid, fid, e.lngLat);
     });
-    map.on("mouseleave", `cw-outline-${side}-fill`, () => {
+    listen("mouseleave", `cw-outline-${side}-fill`, () => {
       hover(null, null, null);
     });
     // Apply current showSide visibility since the effect won't re-fire for newly added layers.
@@ -326,7 +336,41 @@
     onClusterClick(cid == null ? null : Number(cid));
   }
 
+  function addHandlers(): void {
+    map?.on("click", handleMapClick);
+    listen("mousemove", "cw-overlay-fill", (e) => {
+      const props = e.features?.[0]?.properties;
+      const cid = props?.cluster_id == null ? null : Number(props.cluster_id);
+      const sideFid = showSide === "a" ? props?.a_fid : props?.b_fid;
+      const fid = sideFid == null ? null : Number(sideFid);
+      hover(cid, fid, e.lngLat);
+    });
+    listen("mouseleave", "cw-overlay-fill", () => {
+      hover(null, null, null);
+    });
+  }
+
+  const OWN_LAYERS = [
+    "cw-outline-a-highlight", "cw-outline-b-highlight", "cw-highlight-line",
+    "cw-outline-a-line", "cw-outline-b-line", "cw-outline-a-fill", "cw-outline-b-fill", "cw-overlay-fill",
+  ];
+
+  // Leaves the host map as it found it.
+  function detach(m: MaplibreMap): void {
+    m.off("click", handleMapClick);
+    for (const l of listeners) m.off(...l);
+    for (const id of OWN_LAYERS) if (m.getLayer(id)) m.removeLayer(id);
+    for (const id of ["cw-overlay", "cw-outline-a", "cw-outline-b"]) if (m.getSource(id)) m.removeSource(id);
+    m.getCanvas().style.cursor = "";
+  }
+
   onMount(async () => {
+    if (hostMap) {
+      map = hostMap;
+      addHandlers();
+      styleReady = true;
+      return;
+    }
     if (!container) return;
     const maplibregl = await loadMaplibre();
     const style = await loadStyle();
@@ -343,30 +387,21 @@
       map?.on("mousedown", stopSpin);
       map?.on("touchstart", stopSpin);
       map?.on("wheel", stopSpin);
-      map?.on("click", handleMapClick);
-      map?.on("mousemove", "cw-overlay-fill", (e) => {
-        const props = e.features?.[0]?.properties;
-        const cid = props?.cluster_id == null ? null : Number(props.cluster_id);
-        const sideFid = showSide === "a" ? props?.a_fid : props?.b_fid;
-        const fid = sideFid == null ? null : Number(sideFid);
-        hover(cid, fid, e.lngLat);
-      });
-      map?.on("mouseleave", "cw-overlay-fill", () => {
-        hover(null, null, null);
-      });
+      addHandlers();
     });
   });
 
   onDestroy(() => {
     stopSpin();
-    map?.remove();
+    if (hostMap) detach(hostMap);
+    else map?.remove();
     if (overlayUrl) URL.revokeObjectURL(overlayUrl);
     if (outlineAUrl) URL.revokeObjectURL(outlineAUrl);
     if (outlineBUrl) URL.revokeObjectURL(outlineBUrl);
   });
 </script>
 
-<div bind:this={container} class="cw-map"></div>
+{#if !hostMap}<div bind:this={container} class="cw-map"></div>{/if}
 <MapPopup getMap={() => map} items={hovered} lngLat={hoverLngLat} />
 
 <style>

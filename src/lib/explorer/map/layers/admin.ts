@@ -12,37 +12,62 @@ export function adminLayersForSource(
   codeField: string,
   countryCodeField: string,
 ): maplibregl.LayerSpecification[] {
-  const source = `${sourceId}-adm${level}`;
-  const { layer: sourceLayer, labelsLayer } = adminTiles(sourceId, level);
+  const { layer, labelsLayer } = adminTiles(sourceId, level);
+  return adminLayers({
+    id: `${sourceId}-adm${level}`,
+    source: `${sourceId}-adm${level}`,
+    sourceLayer: layer,
+    labelsSource: `${sourceId}-adm${level}-labels`,
+    labelsLayer,
+    nameField,
+    codeField,
+    hiddenFilter: ["==", ["get", countryCodeField], ""],
+  });
+}
+
+// Layer ids adminLayers creates, each as `${id}-${suffix}`.
+export const ADMIN_LAYER_SUFFIXES = ["fill", "mismatch", "hover", "line", "label"] as const;
+
+// One admin level's fill, mismatch, hover, line and label layers, shared by both explorer tabs.
+export function adminLayers(o: {
+  id: string;
+  source: string;
+  sourceLayer: string;
+  labelsSource: string;
+  labelsLayer: string;
+  nameField: string;
+  codeField: string;
+  hiddenFilter?: maplibregl.FilterSpecification;
+}): maplibregl.LayerSpecification[] {
+  const scope = o.hiddenFilter
+    ? { filter: o.hiddenFilter, layout: { visibility: "none" as const } }
+    : {};
   return [
     {
-      id: `${sourceId}-adm${level}-fill`,
+      id: `${o.id}-fill`,
       type: "fill",
-      source,
-      "source-layer": sourceLayer,
-      filter: ["==", ["get", countryCodeField], ""],
-      layout: { visibility: "none" },
+      source: o.source,
+      "source-layer": o.sourceLayer,
+      ...scope,
       paint: { "fill-color": MAP_COLORS.original, "fill-opacity": MAP_TINT_OPACITY },
     },
     {
-      id: `${sourceId}-adm${level}-mismatch`,
+      id: `${o.id}-mismatch`,
       type: "fill",
-      source,
-      "source-layer": sourceLayer,
-      filter: ["==", ["get", countryCodeField], ""],
+      source: o.source,
+      "source-layer": o.sourceLayer,
+      filter: o.hiddenFilter ?? ["literal", false],
       layout: { visibility: "none" },
       paint: { "fill-color": MAP_COLORS.error, "fill-opacity": MAP_STATUS_OPACITY },
     },
     {
-      id: `${sourceId}-adm${level}-hover`,
+      id: `${o.id}-hover`,
       type: "line",
-      source,
-      "source-layer": sourceLayer,
-      // Scoped to the selected country like -fill/-line; which feature within
-      // that is highlighted is driven by feature-state (see hover-admin.ts),
-      // keyed off the source's promoted id (see adminTiles).
-      filter: ["==", ["get", countryCodeField], ""],
-      layout: { visibility: "none" },
+      source: o.source,
+      "source-layer": o.sourceLayer,
+      // Which feature is highlighted is driven by feature-state (see hover-admin.ts),
+      // keyed off the source's promoted id.
+      ...scope,
       paint: {
         "line-color": MAP_COLORS.selected,
         "line-width": 3,
@@ -50,27 +75,26 @@ export function adminLayersForSource(
       },
     },
     {
-      id: `${sourceId}-adm${level}-line`,
+      id: `${o.id}-line`,
       type: "line",
-      source,
-      "source-layer": sourceLayer,
-      filter: ["==", ["get", countryCodeField], ""],
-      layout: { visibility: "none" },
+      source: o.source,
+      "source-layer": o.sourceLayer,
+      ...scope,
       paint: { "line-color": MAP_COLORS.outline, "line-width": 1 },
     },
     {
-      id: `${sourceId}-adm${level}-label`,
+      id: `${o.id}-label`,
       type: "symbol",
-      source: `${sourceId}-adm${level}-labels`,
-      "source-layer": labelsLayer,
-      filter: ["==", ["get", countryCodeField], ""],
+      source: o.labelsSource,
+      "source-layer": o.labelsLayer,
+      ...(o.hiddenFilter ? { filter: o.hiddenFilter } : {}),
       layout: {
-        visibility: "none",
+        visibility: o.hiddenFilter ? "none" : "visible",
         "text-field": [
           "format",
-          ["get", nameField],
+          ["get", o.nameField],
           {},
-          ["case", ["has", codeField], ["concat", "\n", ["get", codeField]], ""],
+          ["case", ["has", o.codeField], ["concat", "\n", ["get", o.codeField]], ""],
           { "font-scale": 0.75 },
         ],
         "text-font": ["Noto Sans Regular"],

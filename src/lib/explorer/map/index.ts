@@ -1,5 +1,4 @@
 import * as maplibregl from "maplibre-gl";
-import { Protocol } from "pmtiles";
 import { get } from "svelte/store";
 import { fitCountryBounds, initLabelsToggle } from "./admin";
 import {
@@ -11,14 +10,18 @@ import { createSpin } from "./spin";
 import { mapStore, selectedIso3 } from "./store";
 import MAP_STYLE from "./style";
 import { MAP_DISCLAIMER } from "$lib/utils/mapDisclaimer";
+import { pmtilesProtocol } from "$lib/utils/pmtiles";
 
-export function initMap(container: HTMLDivElement): () => void {
-  const protocol = new Protocol();
-  maplibregl.addProtocol("pmtiles", protocol.tile);
+// The explorer globe both tabs draw on: idle spin, refit on resize, location hover and click.
+export function createExplorerMap(
+  container: HTMLDivElement,
+  { style, onSelect }: { style: maplibregl.StyleSpecification; onSelect?: (iso3: string) => void },
+): { map: maplibregl.Map; destroy: () => void } {
+  pmtilesProtocol(maplibregl);
 
   const map = new maplibregl.Map({
     container,
-    style: MAP_STYLE,
+    style,
     center: [20, 5],
     zoom: 3,
     attributionControl: { compact: true, customAttribution: MAP_DISCLAIMER },
@@ -28,9 +31,8 @@ export function initMap(container: HTMLDivElement): () => void {
     map.setProjection({ type: "globe" });
   });
 
-  // Idle globe spin, shown only until a country is picked or the user
-  // touches the map — a one-way transition, since there's no "back to
-  // overview" affordance once a country is selected.
+  // Idle globe spin, shown only until a location is picked or the user touches the map;
+  // one way, since nothing returns to the overview once a location is selected.
   const spin = createSpin(() => map);
   let interacted = false;
 
@@ -61,18 +63,28 @@ export function initMap(container: HTMLDivElement): () => void {
     if (iso3) fitCountryBounds(map, iso3);
   });
 
-  mapStore.set(map);
   addHoverInteraction(map);
-  addClickInteraction(map);
+  addClickInteraction(map, onSelect);
+
+  return {
+    map,
+    destroy() {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      unsubscribeSpin();
+      spin.stop();
+      map.remove();
+    },
+  };
+}
+
+export function initMap(container: HTMLDivElement): () => void {
+  const { map, destroy } = createExplorerMap(container, { style: MAP_STYLE });
+  mapStore.set(map);
   addAdminHoverInteraction(map);
   initLabelsToggle(map);
 
   return () => {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-    unsubscribeSpin();
-    spin.stop();
     mapStore.set(null);
-    map.remove();
-    maplibregl.removeProtocol("pmtiles");
+    destroy();
   };
 }

@@ -35,9 +35,26 @@ function pickLevelWithMostUnits(stats: SourceStat[], source: string): number {
   const levels = getLevelsForSource(source);
   if (levels.length === 0) return 1;
 
-  const featureCount = (l: number) =>
-    stats.find((s) => s.source === source && s.level === l)?.featureCount ?? 0;
-  return levels.reduce((best, l) => (featureCount(l) > featureCount(best) ? l : best), levels[0]);
+  return levelWithMostUnits(
+    levels,
+    (l) => stats.find((s) => s.source === source && s.level === l)?.featureCount ?? 0,
+  );
+}
+
+// The level with the most units, the first on a tie; the level both tabs open a location on.
+export function levelWithMostUnits<L extends number>(levels: readonly L[], count: (l: L) => number): L {
+  return levels.reduce((best, l) => (count(l) > count(best) ? l : best), levels[0]);
+}
+
+// Runs fn on the first render after the source's tiles have loaded; returns a cancel function.
+export function whenSourceLoaded(map: maplibregl.Map, sourceId: string, fn: () => void): () => void {
+  const onRender = () => {
+    if (!map.getSource(sourceId) || !map.isSourceLoaded(sourceId)) return;
+    map.off("render", onRender);
+    fn();
+  };
+  map.on("render", onRender);
+  return () => map.off("render", onRender);
 }
 
 // Resolves which level to show for a source/country: keeps `level` if that
@@ -223,9 +240,7 @@ export function applyAdminFilter(map: maplibregl.Map, iso3: string): void {
   // Hide old layers the moment the new source's tiles are ready
   const newSourceId = `${activeSource}-adm${activeLevel}`;
 
-  const onRender = () => {
-    if (!map.isSourceLoaded(newSourceId)) return;
-
+  cancelPendingHide = whenSourceLoaded(map, newSourceId, () => {
     for (const src of ADMIN_SOURCES) {
       for (const l of src.levels) {
         if (src.id !== activeSource || l !== activeLevel) {
@@ -242,13 +257,8 @@ export function applyAdminFilter(map: maplibregl.Map, iso3: string): void {
         }
       }
     }
-
-    map.off("render", onRender);
     cancelPendingHide = null;
-  };
-
-  map.on("render", onRender);
-  cancelPendingHide = () => map.off("render", onRender);
+  });
 }
 
 // No highlight when the active source is the team's own pick (see StatsComparisonTable).

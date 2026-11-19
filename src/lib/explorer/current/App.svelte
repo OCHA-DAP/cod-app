@@ -1,39 +1,64 @@
 <script lang="ts">
   import CountrySidebar from "$lib/explorer/components/CountrySidebar.svelte";
+  import { levelWithMostUnits } from "$lib/explorer/map/admin";
   import { selectedIso3 } from "$lib/explorer/map/store";
   import { getCountries } from "$lib/explorer/parquet/countries";
   import { viewFromUrl } from "$lib/explorer/urlState";
   import ChangeApp from "$lib/tools/change/App.svelte";
+  import type { Map as MaplibreMap } from "maplibre-gl";
   import { onMount } from "svelte";
   import "$lib/explorer/tooltip.css";
-  import { LEVELS, polygonsUrl, type Level } from "./metadata";
+  import { LEVELS, polygonsUrl, unitCounts, type Level } from "./metadata";
+  import Details from "./Details.svelte";
   import Panel from "./Panel.svelte";
   import Viewer from "./Viewer.svelte";
 
   let level = $state<Level>(1);
   let names = $state(new Map<string, string>());
+  let map = $state.raw<MaplibreMap | undefined>();
+  let hasResult = $state(false);
+  let counts = $state<Record<Level, number> | null>(null);
+  // The location whose level is resolved; until then the map keeps the previous location's units.
+  let resolved = $state<string | null>(null);
+  let urlLevel: number | null = null;
 
   onMount(() => {
     const view = viewFromUrl(location);
-    if (LEVELS.includes(view.level as Level)) level = view.level as Level;
+    urlLevel = view.level ?? null;
     if (view.iso3) selectedIso3.set(view.iso3);
     getCountries().then((c) => (names = new Map(c.map((r) => [r.iso3, r.name]))));
   });
 
+  // A new location opens on its level with the most units, or on a valid ?level= the first time.
   $effect(() => {
-    const iso3 = $selectedIso3;
-    if (!iso3) return;
+    const i = $selectedIso3;
+    counts = null;
+    if (!i) return;
+    const resolve = (c: Record<Level, number> | null) => {
+      if (i !== $selectedIso3) return;
+      const want = urlLevel as Level;
+      urlLevel = null;
+      counts = c;
+      if (c) level = LEVELS.includes(want) && c[want] > 0 ? want : levelWithMostUnits(LEVELS, (n) => c[n]);
+      resolved = i;
+    };
+    unitCounts(i).then(resolve, () => resolve(null));
+  });
+
+  const units = $derived(resolved && resolved === $selectedIso3 ? { iso3: resolved, level } : null);
+
+  $effect(() => {
+    if (!units) return;
     const params = new URLSearchParams(location.search);
-    params.set("iso3", iso3);
-    params.set("level", String(level));
+    params.set("iso3", units.iso3);
+    params.set("level", String(units.level));
     history.replaceState(history.state, "", `?${params}`);
   });
 
   // Version A is the location's current boundaries at the shown level.
   const presetA = $derived.by(() => {
-    const iso3 = $selectedIso3;
-    const n = level;
-    if (!iso3) return null;
+    if (!units) return null;
+    const { iso3, level: n } = units;
     return {
       key: iso3,
       label: "Current",
@@ -51,16 +76,19 @@
 <div class="app-shell">
   <CountrySidebar view="cod-ab" />
   <div class="current">
-    <ChangeApp {presetA} downloads={false}>
+    <ChangeApp {presetA} {map} bind:hasResult>
       {#snippet header()}
         {#if $selectedIso3}
-          <Panel iso3={$selectedIso3} name={names.get($selectedIso3) ?? $selectedIso3} bind:level />
+          <Panel iso3={$selectedIso3} name={names.get($selectedIso3) ?? $selectedIso3} {counts} bind:level />
         {:else}
           <p class="hint">Pick a location from the list to see its current boundaries.</p>
         {/if}
       {/snippet}
+      {#snippet info()}
+        {#if $selectedIso3}<Details iso3={$selectedIso3} />{/if}
+      {/snippet}
       {#snippet placeholder()}
-        <Viewer iso3={$selectedIso3} {level} />
+        <Viewer iso3={$selectedIso3} {units} hidden={hasResult} bind:map />
       {/snippet}
     </ChangeApp>
   </div>
@@ -79,6 +107,8 @@
   }
   .hint {
     margin: 0;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--cd-grey--400);
     color: var(--cd-grey--700);
     font-size: 13px;
   }

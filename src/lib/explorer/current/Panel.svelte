@@ -1,40 +1,23 @@
 <script lang="ts">
-  import { getDecision } from "$lib/explorer/decisions";
-  import { getProvenanceForCountry } from "$lib/explorer/parquet/sourceProvenance";
-  import { ADMIN_SOURCES } from "$lib/explorer/sources";
+  import LabelsToggle from "$lib/explorer/components/LabelsToggle.svelte";
   import { hdxDatasetUrl, hdxDownloads, type HdxDownload } from "$lib/utils/hdx";
-  import { codAbOnHdx, LEVELS, unitCounts, type CodMetadata, type Level } from "./metadata";
+  import { codAbOnHdx, LEVELS, type CodMetadata, type Level } from "./metadata";
 
   let {
     iso3,
     name,
     level = $bindable(),
-  }: { iso3: string; name: string; level: Level } = $props();
+    counts,
+  }: { iso3: string; name: string; level: Level; counts: Record<Level, number> | null } = $props();
 
-  let counts = $state<Record<Level, number> | null>(null);
   let meta = $state<CodMetadata | null>(null);
   let downloads = $state<HdxDownload[] | null>(null);
-  let provider = $state<{ provider: string; sourceUpdated: string | null } | null>(null);
-
-  const decision = $derived(getDecision(iso3));
-  const pick = $derived(decision?.selectedSource ?? null);
-  const pickLabel = $derived(ADMIN_SOURCES.find((s) => s.id === pick)?.label ?? pick);
   const depth = $derived(counts ? Math.max(0, ...LEVELS.filter((n) => counts![n] > 0)) : 0);
 
   $effect(() => {
     const i = iso3;
-    counts = null;
     meta = null;
     downloads = null;
-    provider = null;
-    unitCounts(i)
-      .then((c) => {
-        if (i !== iso3) return;
-        counts = c;
-        const deepest = Math.max(1, ...LEVELS.filter((n) => c[n] > 0)) as Level;
-        if (level > deepest) level = deepest;
-      })
-      .catch(() => {});
     codAbOnHdx().then((m) => {
       if (i !== iso3) return;
       meta = m.get(i) ?? null;
@@ -43,36 +26,14 @@
           .catch(() => [])
           .then((d) => i === iso3 && (downloads = d));
     }).catch(() => {});
-    getProvenanceForCountry(i).then((rows) => {
-      if (i !== iso3) return;
-      provider = rows.find((r) => r.source === getDecision(i)?.selectedSource) ?? null;
-    });
   });
 
   const levelName = (n: number) => meta?.[`admin_${n}_name`] || `Admin ${n}`;
-  const fields = $derived(
-    meta
-      ? ([
-          ["Source", meta.source],
-          ["Contributor", meta.contributor],
-          ["Source date", meta.date_source],
-          ["Valid on", meta.date_valid_on],
-          ["Reviewed", meta.date_reviewed],
-          ["Updated", meta.date_updated],
-          ["Version", meta.version],
-          ["Caveats", meta.caveats],
-        ]
-          .filter(([, v]) => v)
-          .map(([k, v]) => [k, v.replace(/\s*<br\s*\/?>\s*/gi, "\n").trim()]) as [string, string][])
-      : [],
-  );
 </script>
 
-<section class="panel">
-  <h2>{name} <span class="iso3">{iso3}</span></h2>
-
-  {#if meta}
-    <div class="hdx">
+<header class="panel-header">
+  <div class="hdx">
+    {#if meta}
       <details class="download">
         <summary>Download from HDX</summary>
         <ul>
@@ -92,139 +53,97 @@
         </ul>
       </details>
       <a class="dataset" href={hdxDatasetUrl("cod-ab", iso3)} target="_blank" rel="noopener"
-        >Go to dataset</a
+        >Go to HDX dataset</a
       >
-    </div>
-  {:else}
-    <p class="muted">No current COD-AB on HDX for this location.</p>
-  {/if}
-
-  <div class="levels" role="group" aria-label="Admin level">
-    {#each LEVELS as n (n)}
-      <button
-        type="button"
-        class:active={level === n}
-        disabled={counts !== null && n > Math.max(1, depth)}
-        onclick={() => (level = n)}
-      >
-        <span>{levelName(n)}</span>
-        <span class="count">{counts ? counts[n].toLocaleString("en") : "…"}</span>
-      </button>
-    {/each}
+    {:else}
+      <span class="muted">Not on HDX</span>
+    {/if}
   </div>
 
-  <dl>
-    <dt>Boundaries shown</dt>
-    <dd>
-      {#if decision?.noSourceSuitable || !pick}
-        Admin 0 only (no suitable source)
-      {:else}
-        {pickLabel}{provider ? `, ${provider.provider}` : ""}{provider?.sourceUpdated
-          ? ` (${provider.sourceUpdated})`
-          : ""}
-      {/if}
-    </dd>
-  </dl>
+  <div class="location">
+    <h2>{name} <span class="iso3">{iso3}</span></h2>
 
-  {#if meta}
-    <h3>{pick === "ocha" ? "COD-AB on HDX" : "OCHA's COD-AB on HDX"}</h3>
-    <dl>
-      {#each fields as [k, v] (k)}
-        <dt>{k}</dt>
-        <dd>{v}</dd>
+    <div class="levels" role="group" aria-label="Admin level">
+      {#each LEVELS as n (n)}
+        <button
+          type="button"
+          class:active={level === n}
+          disabled={counts !== null && n > Math.max(1, depth)}
+          onclick={() => (level = n)}
+        >
+          {levelName(n)}
+          <span class="count">{counts ? counts[n].toLocaleString("en") : "…"}</span>
+        </button>
       {/each}
-    </dl>
-  {/if}
-</section>
+    </div>
+
+    <span class="labels"><LabelsToggle /></span>
+  </div>
+</header>
 
 <style>
-  .panel {
+  .panel-header {
+    display: grid;
+    grid-template-columns: var(--cw-side-width, 270px) minmax(0, 1fr);
+    border-bottom: 1px solid var(--cd-grey--400);
+  }
+  .hdx {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    font-size: 13px;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-right: 1px solid var(--cd-grey--400);
+  }
+  .hdx > * {
+    flex: 1 1 auto;
+  }
+  .location {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 10px 16px;
+  }
+  .labels {
+    margin-left: auto;
   }
   h2 {
     margin: 0;
-    font-size: 1.25rem;
-  }
-  h3 {
-    margin: 0;
-    font-size: 0.95rem;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--cd-grey--900);
+    white-space: nowrap;
   }
   .iso3,
   .muted {
     color: var(--cd-grey--700);
     font-weight: 400;
   }
-  .muted {
-    margin: 0;
-  }
-  .hdx {
-    display: flex;
-    gap: 0.5rem;
-    align-items: flex-start;
-  }
-  .download {
-    position: relative;
-    flex: 1;
-  }
-  .download summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 0.5rem 0.75rem;
-    border-radius: 4px;
-    background: var(--brand-primary--text);
-    color: var(--cd-white);
-    font-weight: 600;
-    text-align: center;
-  }
-  .download summary::-webkit-details-marker {
-    display: none;
-  }
-  .download ul {
-    position: absolute;
-    z-index: 2;
-    left: 0;
-    right: 0;
-    margin: 0.25rem 0 0;
-    padding: 0.25rem 0;
-    list-style: none;
-    background: var(--cd-white);
-    border: 1px solid var(--cd-grey--400);
-    border-radius: 4px;
-  }
-  .download li a,
-  .download li.muted {
-    display: block;
-    padding: 0.35rem 0.75rem;
-  }
-  .dataset {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--brand-primary--text);
-    border-radius: 4px;
-    text-decoration: none;
-    font-weight: 600;
-  }
   .levels {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.35rem;
+    display: flex;
+    border: 1px solid var(--cd-grey--500);
+    border-radius: var(--brand-radius--sm);
+    overflow: hidden;
   }
   .levels button {
     display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.4rem 0.6rem;
-    border: 1px solid var(--brand-grey--border);
-    border-radius: 4px;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 0;
+    border-left: 1px solid var(--cd-grey--500);
     background: var(--cd-white);
-    cursor: pointer;
+    color: var(--cd-grey--800);
     font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .levels button:first-child {
+    border-left: 0;
   }
   .levels button.active {
-    border-color: var(--brand-primary--text);
     background: var(--brand-primary--light);
+    color: var(--cd-grey--900);
     font-weight: 600;
   }
   .levels button:disabled {
@@ -233,19 +152,51 @@
   }
   .count {
     color: var(--cd-grey--700);
+    font-weight: 400;
   }
-  dl {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 0.25rem 0.75rem;
-    margin: 0;
+  .download {
+    position: relative;
   }
-  dt {
-    color: var(--cd-grey--700);
+  .download summary,
+  .dataset {
+    display: block;
+    padding: 5px 6px;
+    border-radius: var(--brand-radius--sm);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
   }
-  dd {
-    margin: 0;
-    white-space: pre-line;
-    overflow-wrap: anywhere;
+  .download summary {
+    list-style: none;
+    cursor: pointer;
+    background: var(--brand-primary--text);
+    color: var(--cd-white);
+  }
+  .download summary::-webkit-details-marker {
+    display: none;
+  }
+  .download ul {
+    position: absolute;
+    z-index: 5;
+    left: 0;
+    min-width: 100%;
+    margin: 4px 0 0;
+    padding: 4px 0;
+    list-style: none;
+    background: var(--cd-white);
+    border: 1px solid var(--cd-grey--400);
+    border-radius: var(--brand-radius--sm);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  }
+  .download li a,
+  .download li.muted {
+    display: block;
+    padding: 5px 12px;
+    white-space: nowrap;
+  }
+  .dataset {
+    border: 1px solid var(--brand-primary--text);
+    text-decoration: none;
   }
 </style>

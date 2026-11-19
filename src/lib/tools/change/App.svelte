@@ -4,11 +4,13 @@
   import PrivacyNote from "$lib/components/PrivacyNote.svelte";
   import InputStep from "$lib/components/InputStep.svelte";
   import DropZone from "$lib/components/DropZone.svelte";
+  import AdvancedOptions from "$lib/components/AdvancedOptions.svelte";
   import { duckdbState, initDuckDB, withDb } from "$lib/db/duckdb.svelte";
   import { layerBounds } from "$lib/db/layerView";
   import { choiceParam, numberParam, syncParam, textParam } from "$lib/utils/syncParam.svelte";
   import { onMount, untrack, type Snippet } from "svelte";
   import ResultView from "./ResultView.svelte";
+  import type { Map as MaplibreMap } from "maplibre-gl";
   import {
     PipelineError,
     reclassifyOnly,
@@ -29,8 +31,8 @@
     "Render result",
   ];
 
-  // A preset Version A replaces its drop zone and column pickers (the explorer's current
-  // boundaries); it loads only once a Version B is dropped, and a new key clears Version B.
+  // A preset Version A (the explorer's current boundaries) lays the tool out as a map over a panel;
+  // it loads only once a Version B is dropped, and a new key clears Version B.
   interface PresetA {
     key: string;
     load: () => Promise<File[]>;
@@ -41,13 +43,18 @@
   let {
     presetA,
     header,
+    info,
     placeholder,
-    downloads = true,
+    map,
+    hasResult = $bindable(false),
   }: {
     presetA?: PresetA | null;
     header?: Snippet;
+    info?: Snippet;
+    // The caller's map, kept mounted under the panel; the result draws onto map.
     placeholder?: Snippet;
-    downloads?: boolean;
+    map?: MaplibreMap;
+    hasResult?: boolean;
   } = $props();
   const hasPreset = untrack(() => presetA !== undefined);
 
@@ -118,9 +125,14 @@
   let bounds = $state<[number, number, number, number] | null>(null);
 
   let selectedClusterId = $state<number | null>(null);
+  $effect(() => {
+    hasResult = overlayGeoJSON !== null;
+  });
 
   // Comparison mode
   let showSide = $state<"a" | "b">("b");
+  let panelTab = $state<"changes" | "details">("changes");
+  let replacingB = $state(false);
 
   onMount(() => {
     initDuckDB();
@@ -151,13 +163,7 @@
     const preset = presetA;
     const key = preset?.key ?? null;
     untrack(() => {
-      if (presetKey !== null && key !== presetKey && filesB.length > 0) {
-        filesA = [];
-        filesB = [];
-        colsA = colsB = null;
-        loadedA = loadedB = false;
-        resetResults();
-      }
+      if (presetKey !== null && key !== presetKey && filesB.length > 0) clearInputs();
       presetKey = key;
     });
     if (!preset || filesB.length === 0) return;
@@ -191,6 +197,7 @@
   $effect(() => {
     const f = filesB;
     const ready = duckdbState.ready;
+    replacingB = false;
     if (f.length === 0 || !ready) return;
     untrack(() => {
       if (loading.b) return;
@@ -200,6 +207,15 @@
       loadSideThen("b");
     });
   });
+
+  function clearInputs(): void {
+    filesA = [];
+    filesB = [];
+    colsA = colsB = null;
+    aCodeCol = aNameCol = bCodeCol = bNameCol = null;
+    loadedA = loadedB = false;
+    resetResults();
+  }
 
   function resetResults(): void {
     overlayGeoJSON = null;
@@ -214,6 +230,7 @@
     error = null;
     loadError = null;
     showSide = "b";
+    panelTab = "changes";
     reclassifyPending = false;
     ran = false;
     if (reclassifyTimer) {
@@ -465,26 +482,242 @@
   }
 </script>
 
-<div class="cw-layout">
-  <aside class="cw-sidebar">
-    {#if header}
-      {@render header()}
+{#snippet versionB(helpText: string)}
+  <div data-testid="dropzone-b">
+    <label class="cw-zone-label">Version B</label>
+    <DropZone bind:files={filesB} urlParam="new" disabled={running || loading.b} {helpText} />
+  </div>
+{/snippet}
+
+{#snippet loadStatus()}
+  {#if loading.a}<p class="cw-status">Loading {presetA?.label ?? "Version A"}…</p>{/if}
+  {#if loading.b}<p class="cw-status">Loading Version B…</p>{/if}
+  {#if loadError}<div class="cw-error">{loadError}</div>{/if}
+{/snippet}
+
+{#snippet matching()}
+  <div class="cw-match-toggle" role="group" aria-label="Matching mode">
+    <button
+      class="cw-match-btn"
+      class:active={matchMode === "geometry"}
+      disabled={running}
+      onclick={() => { matchMode = "geometry"; scheduleReclassify(); }}
+    >Geometry first</button>
+    <button
+      class="cw-match-btn"
+      class:active={matchMode === "identity" && linkMode === "either"}
+      disabled={running}
+      onclick={() => { matchMode = "identity"; linkMode = "either"; scheduleReclassify(); }}
+    >Code or name</button>
+    <button
+      class="cw-match-btn"
+      class:active={matchMode === "identity" && linkMode === "both"}
+      disabled={running}
+      onclick={() => { matchMode = "identity"; linkMode = "both"; scheduleReclassify(); }}
+    >Code and name</button>
+  </div>
+  <p class="cw-hint">
+    {#if matchMode === "geometry"}
+      Units matched by spatial overlap only.
+    {:else if linkMode === "either"}
+      Pairs units sharing a unique code <em>or</em> name even without overlap, so moved units
+      are classified as <em>relocated</em>, <em>modified</em>, or <em>renamed</em> instead of
+      merge/split/complex.
     {:else}
+      Pairs units sharing a unique code <em>and</em> name even without overlap, so moved units
+      are classified as <em>relocated</em>, <em>modified</em>, or <em>renamed</em> instead of
+      merge/split/complex.
+    {/if}
+  </p>
+
+  <label class="cw-slider">
+    <span>Matched — {Math.round(tauSame * 100)}%</span>
+    <input
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      bind:value={tauSame}
+      oninput={scheduleReclassify}
+      disabled={running}
+    />
+    <p class="cw-hint">
+      How much a 1:1 matched pair must overlap (IoU) to be classified as
+      <em>unchanged</em> rather than <em>modified</em>.
+    </p>
+  </label>
+
+  <label class="cw-slider">
+    <span>Related — {Math.round(tauMatch * 100)}%</span>
+    <input
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      bind:value={tauMatch}
+      oninput={scheduleReclassify}
+      disabled={running}
+    />
+    <p class="cw-hint">
+      How much of either polygon must overlap the other to be considered related.
+      Lower = more units linked.
+    </p>
+  </label>
+{/snippet}
+
+{#snippet columnFields(cols: ColumnGuess, side: "a" | "b")}
+  <label class="cw-field">
+    <span>Code</span>
+    {#if side === "a"}
+      <select bind:value={aCodeCol} disabled={running}>
+        <option value={null}>(none)</option>
+        {#each cols.all as col (col)}<option value={col}>{col}</option>{/each}
+      </select>
+    {:else}
+      <select bind:value={bCodeCol} disabled={running}>
+        <option value={null}>(none)</option>
+        {#each cols.all as col (col)}<option value={col}>{col}</option>{/each}
+      </select>
+    {/if}
+  </label>
+  <label class="cw-field">
+    <span>Name</span>
+    {#if side === "a"}
+      <select bind:value={aNameCol} disabled={running}>
+        <option value={null}>(none)</option>
+        {#each cols.all as col (col)}<option value={col}>{col}</option>{/each}
+      </select>
+    {:else}
+      <select bind:value={bNameCol} disabled={running}>
+        <option value={null}>(none)</option>
+        {#each cols.all as col (col)}<option value={col}>{col}</option>{/each}
+      </select>
+    {/if}
+  </label>
+{/snippet}
+
+{#snippet runStatus()}
+  {#if running || errorStage > 0}
+    <ol class="cw-stages">
+      {#each STAGE_LABELS as label, i}
+        {@const status = stageStatus(i)}
+        <li class={status}>
+          {#if status === "error"}
+            <span class="cw-stage-x">✕</span>
+          {:else}
+            <span class="cw-stage-dot"></span>
+          {/if}
+          <span class="cw-stage-label">
+            {i + 1 === currentStage && stageLabel ? stageLabel : label}
+          </span>
+        </li>
+      {/each}
+    </ol>
+  {/if}
+  {#if error}<div class="cw-error">{error}</div>{/if}
+{/snippet}
+
+{#snippet initError()}
+  {#if duckdbState.initError}
+    <div class="cw-error">
+      <strong>Initialisation error:</strong>
+      {duckdbState.initError}
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet resultView(panel?: Snippet<[Snippet]>)}
+  <ResultView
+    sideLabels={[presetA?.label ?? "Version A", "Version B"]}
+    overlayGeojson={overlayGeoJSON}
+    outlineAGeojson={outlineAGeoJSON}
+    outlineBGeojson={outlineBGeoJSON}
+    {tableRows}
+    {bounds}
+    processing={(loadedA && loadedB) || running}
+    {panel}
+    mapHost={placeholder}
+    hostMap={map}
+    bind:showSide
+    bind:selectedClusterId
+  />
+{/snippet}
+
+{#if hasPreset}
+  {#snippet bottom(body: Snippet)}
+    {@const tabbed = info && body !== info && body !== noInfo}
+    <section class="cw-panel">
+      {@render header?.()}
+      <div class="cw-panel-body">
+        <div class="cw-panel-side">
+          {@render initError()}
+          {#if filesB.length > 0 && !replacingB}
+            <div class="cw-loaded">
+              <span class="cw-zone-label">Version B</span>
+              <span class="cw-loaded-name" title={filesB[0].name}>{filesB[0].name}</span>
+              {#if !running}
+                <span class="cw-loaded-actions">
+                  <button type="button" class="cw-link" onclick={() => (replacingB = true)}>Replace</button>
+                  <button type="button" class="cw-link" onclick={clearInputs}>Clear</button>
+                </span>
+              {/if}
+            </div>
+          {/if}
+          <div hidden={filesB.length > 0 && !replacingB}>
+            {@render versionB("Your version of these boundaries, in any supported format.")}
+          </div>
+          {#if replacingB}
+            <button type="button" class="cw-link" onclick={() => (replacingB = false)}>Cancel</button>
+          {/if}
+          {@render loadStatus()}
+          {@render runStatus()}
+          {#if overlayGeoJSON || errorStage > 0}
+            <AdvancedOptions>
+              <div>
+                <h3>Matching</h3>
+                {@render matching()}
+              </div>
+              {#if colsB}
+                <fieldset class="cw-fieldset">
+                  <legend>Version B columns</legend>
+                  {@render columnFields(colsB, "b")}
+                </fieldset>
+              {/if}
+            </AdvancedOptions>
+          {/if}
+          <PrivacyNote />
+        </div>
+        <div class="cw-panel-main" class:tabbed>
+          {#if tabbed}
+            <div class="cw-panel-tabs" role="tablist">
+              <button type="button" role="tab" aria-selected={panelTab === "changes"} onclick={() => (panelTab = "changes")}>Changes</button>
+              <button type="button" role="tab" aria-selected={panelTab === "details"} onclick={() => (panelTab = "details")}>Details</button>
+            </div>
+            <div class="cw-panel-tab">{@render (panelTab === "changes" ? body : info!)()}</div>
+          {:else}
+            {@render body()}
+          {/if}
+        </div>
+      </div>
+    </section>
+  {/snippet}
+  {#snippet noInfo()}{/snippet}
+
+  {#snippet panelFor(table: Snippet)}
+    {@render bottom(overlayGeoJSON || (loadedA && loadedB) || running ? table : (info ?? noInfo))}
+  {/snippet}
+  {@render resultView(panelFor)}
+{:else}
+  <div class="cw-layout">
+    <aside class="cw-sidebar">
       <ToolHeader title="Changelog" demo="change">
         Compare two versions of a polygon layer (e.g. ADM2 across census rounds) and classify each unit as unchanged, modified, merged, split, created, or removed. Drop both versions; the tool overlays them, scores coverage per pair, and groups related polygons into clusters.
       </ToolHeader>
-    {/if}
 
-    {#if duckdbState.initError}
-      <div class="cw-error">
-        <strong>Initialisation error:</strong>
-        {duckdbState.initError}
-      </div>
-    {/if}
+      {@render initError()}
 
-    <InputStep title={hasPreset ? "Compare a version" : "Layers"} collapsed={ran} detail={[filesA[0]?.name, filesB[0]?.name].filter(Boolean).join(", ")}>
-      <div class="cw-dropzones">
-        {#if !hasPreset}
+      <InputStep title="Layers" collapsed={ran} detail={[filesA[0]?.name, filesB[0]?.name].filter(Boolean).join(", ")}>
+        <div class="cw-dropzones">
           <div data-testid="dropzone-a">
             <label class="cw-zone-label">Version A</label>
             <DropZone
@@ -494,192 +727,57 @@
               helpText="Older version. Polygon layer in any supported format."
             />
           </div>
-        {/if}
-        <div data-testid="dropzone-b">
-          <label class="cw-zone-label">Version B</label>
-          <DropZone
-            bind:files={filesB}
-            urlParam="new"
-            disabled={running || loading.b}
-            helpText="Newer version. Same coverage area."
-          />
+          {@render versionB("Newer version. Same coverage area.")}
         </div>
-      </div>
-      {#if loading.a}<p class="cw-status">Loading {presetA?.label ?? "Version A"}…</p>{/if}
-      {#if loading.b}<p class="cw-status">Loading Version B…</p>{/if}
-      {#if loadError}<div class="cw-error">{loadError}</div>{/if}
-    </InputStep>
+        {@render loadStatus()}
+      </InputStep>
 
-    {#if overlayGeoJSON || errorStage > 0}
-    <section class="cw-step">
-      <h2 class="cw-step-heading">Thresholds</h2>
+      {#if overlayGeoJSON || errorStage > 0}
+        <section class="cw-step">
+          <h2 class="cw-step-heading">Thresholds</h2>
+          {@render matching()}
+        </section>
 
-      <div class="cw-match-toggle" role="group" aria-label="Matching mode">
-        <button
-          class="cw-match-btn"
-          class:active={matchMode === "geometry"}
-          disabled={running}
-          onclick={() => { matchMode = "geometry"; scheduleReclassify(); }}
-        >Geometry first</button>
-        <button
-          class="cw-match-btn"
-          class:active={matchMode === "identity" && linkMode === "either"}
-          disabled={running}
-          onclick={() => { matchMode = "identity"; linkMode = "either"; scheduleReclassify(); }}
-        >Code or name</button>
-        <button
-          class="cw-match-btn"
-          class:active={matchMode === "identity" && linkMode === "both"}
-          disabled={running}
-          onclick={() => { matchMode = "identity"; linkMode = "both"; scheduleReclassify(); }}
-        >Code and name</button>
-      </div>
-      <p class="cw-hint">
-        {#if matchMode === "geometry"}
-          Units matched by spatial overlap only.
-        {:else if linkMode === "either"}
-          Pairs units sharing a unique code <em>or</em> name even without overlap, so moved units
-          are classified as <em>relocated</em>, <em>modified</em>, or <em>renamed</em> instead of
-          merge/split/complex.
-        {:else}
-          Pairs units sharing a unique code <em>and</em> name even without overlap, so moved units
-          are classified as <em>relocated</em>, <em>modified</em>, or <em>renamed</em> instead of
-          merge/split/complex.
-        {/if}
-      </p>
-
-      <label class="cw-slider">
-        <span>Matched — {Math.round(tauSame * 100)}%</span>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          bind:value={tauSame}
-          oninput={scheduleReclassify}
-          disabled={running}
-        />
-        <p class="cw-hint">
-          How much a 1:1 matched pair must overlap (IoU) to be classified as
-          <em>unchanged</em> rather than <em>modified</em>.
-        </p>
-      </label>
-
-      <label class="cw-slider">
-        <span>Related — {Math.round(tauMatch * 100)}%</span>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          bind:value={tauMatch}
-          oninput={scheduleReclassify}
-          disabled={running}
-        />
-        <p class="cw-hint">
-          How much of either polygon must overlap the other to be considered related.
-          Lower = more units linked.
-        </p>
-      </label>
-
-    </section>
-
-    <section class="cw-step">
-      <h2 class="cw-step-heading">Pick code &amp; name columns</h2>
-        <div class="cw-cols">
-          {#if colsA && !hasPreset}
-            <fieldset class="cw-fieldset">
-              <legend>Version A</legend>
-              <label class="cw-field">
-                <span>Code</span>
-                <select bind:value={aCodeCol} disabled={running}>
-                  <option value={null}>(none)</option>
-                  {#each colsA.all as col (col)}<option value={col}>{col}</option>{/each}
-                </select>
-              </label>
-              <label class="cw-field">
-                <span>Name</span>
-                <select bind:value={aNameCol} disabled={running}>
-                  <option value={null}>(none)</option>
-                  {#each colsA.all as col (col)}<option value={col}>{col}</option>{/each}
-                </select>
-              </label>
-            </fieldset>
-          {/if}
-          {#if colsB}
-            <fieldset class="cw-fieldset">
-              <legend>Version B</legend>
-              <label class="cw-field">
-                <span>Code</span>
-                <select bind:value={bCodeCol} disabled={running}>
-                  <option value={null}>(none)</option>
-                  {#each colsB.all as col (col)}<option value={col}>{col}</option>{/each}
-                </select>
-              </label>
-              <label class="cw-field">
-                <span>Name</span>
-                <select bind:value={bNameCol} disabled={running}>
-                  <option value={null}>(none)</option>
-                  {#each colsB.all as col (col)}<option value={col}>{col}</option>{/each}
-                </select>
-              </label>
-            </fieldset>
-          {/if}
-        </div>
-    </section>
-    {/if}
-
-    {#if running || errorStage > 0}
-      <ol class="cw-stages">
-        {#each STAGE_LABELS as label, i}
-          {@const status = stageStatus(i)}
-          <li class={status}>
-            {#if status === "error"}
-              <span class="cw-stage-x">✕</span>
-            {:else}
-              <span class="cw-stage-dot"></span>
+        <section class="cw-step">
+          <h2 class="cw-step-heading">Pick code &amp; name columns</h2>
+          <div class="cw-cols">
+            {#if colsA}
+              <fieldset class="cw-fieldset">
+                <legend>Version A</legend>
+                {@render columnFields(colsA, "a")}
+              </fieldset>
             {/if}
-            <span class="cw-stage-label">
-              {i + 1 === currentStage && stageLabel ? stageLabel : label}
-            </span>
-          </li>
-        {/each}
-      </ol>
-    {/if}
-    {#if error}<div class="cw-error">{error}</div>{/if}
+            {#if colsB}
+              <fieldset class="cw-fieldset">
+                <legend>Version B</legend>
+                {@render columnFields(colsB, "b")}
+              </fieldset>
+            {/if}
+          </div>
+        </section>
+      {/if}
 
-    {#if overlayGeoJSON && downloads}
-      <section class="cw-step">
-        <h2 class="cw-step-heading">Download</h2>
-        <div class="cw-downloads">
-          <DownloadMenu
-            primaryLabel="Changelog CSV"
-            filenameStem={fileStem(filesA, filesB)}
-            exportSource="crosswalk_changelog"
-          />
-        </div>
-      </section>
-    {/if}
+      {@render runStatus()}
 
-    <PrivacyNote />
-  </aside>
+      {#if overlayGeoJSON}
+        <section class="cw-step">
+          <h2 class="cw-step-heading">Download</h2>
+          <div class="cw-downloads">
+            <DownloadMenu
+              primaryLabel="Changelog CSV"
+              filenameStem={fileStem(filesA, filesB)}
+              exportSource="crosswalk_changelog"
+            />
+          </div>
+        </section>
+      {/if}
 
-  {#if placeholder && !overlayGeoJSON && !(loadedA && loadedB) && !running}
-    {@render placeholder()}
-  {:else}
-  <ResultView
-    sideLabels={[presetA?.label ?? "Version A", "Version B"]}
-    overlayGeojson={overlayGeoJSON}
-    outlineAGeojson={outlineAGeoJSON}
-    outlineBGeojson={outlineBGeoJSON}
-    {tableRows}
-    {bounds}
-    processing={(loadedA && loadedB) || running}
-    bind:showSide
-    bind:selectedClusterId
-  />
-  {/if}
-</div>
+      <PrivacyNote />
+    </aside>
+
+    {@render resultView()}
+  </div>
+{/if}
 
 <style>
   .cw-layout {
@@ -687,6 +785,117 @@
     grid-template-columns: 340px 1fr;
     height: var(--app-height, 100dvh);
     overflow: hidden;
+  }
+  .cw-panel {
+    --cw-side-width: 270px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    height: 40vh;
+    background: var(--cd-white);
+    border-top: 1px solid var(--brand-grey--border);
+    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.08);
+    font-size: 13px;
+  }
+  .cw-panel-body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: var(--cw-side-width) minmax(0, 1fr);
+  }
+  .cw-panel-main {
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .cw-panel-main.tabbed {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .cw-panel-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 6px 12px 0;
+    border-bottom: 1px solid var(--cd-grey--400);
+  }
+  .cw-panel-tabs button {
+    padding: 4px 10px 6px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    font: inherit;
+    font-size: 12px;
+    color: var(--cd-grey--800);
+    cursor: pointer;
+  }
+  .cw-panel-tabs button[aria-selected="true"] {
+    border-bottom-color: var(--brand-primary--text);
+    color: var(--brand-primary--text);
+    font-weight: 600;
+  }
+  .cw-panel-tab {
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .cw-panel-side {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 16px;
+    border-right: 1px solid var(--cd-grey--400);
+  }
+  .cw-panel-tab :global(.cw-table-toolbar) {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.4rem 0.5rem;
+  }
+  .cw-panel-tab :global(.cw-search) {
+    width: 14rem;
+    padding-block: 0.25rem;
+  }
+  .cw-panel-tab :global(.cw-class-filters) {
+    flex: 1 1 0;
+    min-width: 12rem;
+  }
+  .cw-panel-side :global(.drop-zone) {
+    padding: 0.75rem;
+  }
+  .cw-loaded {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+  }
+  .cw-loaded .cw-zone-label {
+    width: 100%;
+    margin: 0;
+  }
+  .cw-loaded-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--brand-font-mono);
+    font-size: 12px;
+  }
+  .cw-loaded-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .cw-link {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 12px;
+    color: var(--cd-grey--800);
+    text-decoration: underline;
+    cursor: pointer;
   }
   .cw-sidebar {
     display: flex;

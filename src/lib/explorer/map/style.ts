@@ -31,27 +31,32 @@ const admSources = Object.fromEntries(
   ),
 );
 
+// Location fills for hover and click, and international boundary lines, shared by both explorer tabs.
+export const COUNTRY_SOURCES: maplibregl.StyleSpecification["sources"] = {
+  countries: {
+    type: "vector",
+    url: pmtiles("basemap_adm0"),
+    promoteId: { basemap_adm0: "objectid" },
+  },
+  "country-lines": {
+    type: "vector",
+    url: pmtiles("basemap_lines"),
+  },
+};
+export const COUNTRY_LAYERS = [...countriesLayers, ...countryLineLayers];
+
 const MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sprite: positron.sprite,
   glyphs: positron.glyphs,
   sources: {
     ...(positron.sources as maplibregl.StyleSpecification["sources"]),
-    countries: {
-      type: "vector",
-      url: pmtiles("basemap_adm0"),
-      promoteId: { basemap_adm0: "objectid" },
-    },
-    "country-lines": {
-      type: "vector",
-      url: pmtiles("basemap_lines"),
-    },
+    ...COUNTRY_SOURCES,
     ...admSources,
   },
   layers: [
     ...(positron.layers as maplibregl.LayerSpecification[]),
-    ...countriesLayers,
-    ...countryLineLayers,
+    ...COUNTRY_LAYERS,
     ...ADMIN_SOURCES.flatMap((src) =>
       src.levels.flatMap((l) =>
         adminLayersForSource(

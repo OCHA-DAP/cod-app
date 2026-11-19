@@ -1,96 +1,144 @@
 <script lang="ts">
-  import type { Map as MaplibreMap, Popup } from "maplibre-gl";
+  import type { Map as MaplibreMap } from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
-  import { onMount } from "svelte";
-  import { getBboxForIso3 } from "$lib/explorer/parquet/bbox";
-  import { MAP_COLORS, MAP_TINT_OPACITY } from "$lib/utils/mapColors";
-  import { MAP_DISCLAIMER } from "$lib/utils/mapDisclaimer";
-  import { lineWidth, loadMaplibre, loadStyle } from "$lib/utils/mapStyle";
-  import { pmtilesProtocol } from "$lib/utils/pmtiles";
+  import { onMount, untrack } from "svelte";
+  import { createExplorerMap } from "$lib/explorer/map";
+  import { fitCountryBounds, whenSourceLoaded } from "$lib/explorer/map/admin";
+  import { createFeatureHover, featurePopupHtml } from "$lib/explorer/map/interactions/hover-admin";
+  import { ADMIN_LAYER_SUFFIXES, adminLayers } from "$lib/explorer/map/layers/admin";
+  import { labelsEnabled, selectedIso3 } from "$lib/explorer/map/store";
+  import { COUNTRY_LAYERS, COUNTRY_SOURCES } from "$lib/explorer/map/style";
+  import { loadMaplibre, loadStyle } from "$lib/utils/mapStyle";
+  import { globalUrl } from "$lib/utils/data";
   import { polygonsUrl } from "./metadata";
 
-  let { iso3, level }: { iso3: string; level: number } = $props();
+  let {
+    iso3,
+    units,
+    hidden = false,
+    map = $bindable(),
+  }: {
+    iso3: string;
+    // The location and level to draw; null keeps what is drawn while a new location resolves.
+    units: { iso3: string; level: number } | null;
+    hidden?: boolean;
+    map?: MaplibreMap;
+  } = $props();
 
   let container: HTMLDivElement;
-  let map = $state<MaplibreMap | undefined>();
-  let popup: Popup | undefined;
+  let hover: ReturnType<typeof createFeatureHover> | undefined;
+  let current: string | null = null;
+  let cancelSwap = () => {};
+  // Unit layer groups on the map, by id, with the function that unbinds their hover.
+  const drawn = new Map<string, () => void>();
 
-  function show(m: MaplibreMap, iso3: string, n: number): void {
-    for (const id of ["units-fill", "units-line"]) if (m.getLayer(id)) m.removeLayer(id);
-    if (m.getSource("units")) m.removeSource("units");
-    if (!iso3) return;
-    m.addSource("units", { type: "vector", url: `pmtiles://${polygonsUrl(iso3, n, "pmtiles")}` });
-    const layer = `adm${n}_polygons`;
-    m.addLayer({
-      id: "units-fill",
-      type: "fill",
-      source: "units",
-      "source-layer": layer,
-      paint: { "fill-color": MAP_COLORS.original, "fill-opacity": MAP_TINT_OPACITY },
-    });
-    m.addLayer({
-      id: "units-line",
-      type: "line",
-      source: "units",
-      "source-layer": layer,
-      paint: { "line-color": MAP_COLORS.outline, "line-width": lineWidth },
-    });
+  function removeUnits(m: MaplibreMap, keep: string | null): void {
+    for (const [id, unbind] of drawn) {
+      if (id === keep) continue;
+      for (const s of ADMIN_LAYER_SUFFIXES) if (m.getLayer(`${id}-${s}`)) m.removeLayer(`${id}-${s}`);
+      for (const s of [id, `${id}-labels`]) if (m.getSource(s)) m.removeSource(s);
+      unbind();
+      drawn.delete(id);
+    }
+  }
+
+  function applyVisibility(m: MaplibreMap): void {
+    if (!current) return;
+    for (const s of ADMIN_LAYER_SUFFIXES) {
+      if (s === "mismatch") continue;
+      const on = !hidden && (s !== "label" || $labelsEnabled);
+      m.setLayoutProperty(`${current}-${s}`, "visibility", on ? "visible" : "none");
+    }
+  }
+
+  // Draws the new location or level over the old one, removing the old once its tiles are in.
+  function show(m: MaplibreMap, u: { iso3: string; level: number }): void {
+    const n = u.level;
+    const id = `units-${u.iso3.toLowerCase()}-adm${n}`;
+    cancelSwap();
+    hover?.popup.remove();
+    hover?.clear();
+    if (!drawn.has(id)) {
+      const layer = `adm${n}_polygons`;
+      const points = `adm${n}_points`;
+      m.addSource(id, {
+        type: "vector",
+        url: `pmtiles://${polygonsUrl(u.iso3, n, "pmtiles")}`,
+        promoteId: { [layer]: `adm${n}_pcode` },
+      });
+      m.addSource(`${id}-labels`, {
+        type: "vector",
+        url: `pmtiles://${globalUrl(`iso3/${u.iso3.toLowerCase()}/${points}.pmtiles`)}`,
+      });
+      const specs = adminLayers({
+        id,
+        source: id,
+        sourceLayer: layer,
+        labelsSource: `${id}-labels`,
+        labelsLayer: points,
+        nameField: "name",
+        codeField: "pcode",
+      });
+      for (const l of specs) m.addLayer(l);
+      const unbind =
+        hover?.bind(`${id}-fill`, id, layer, (p) => {
+          const k = Math.min(Number(p.level), n);
+          return featurePopupHtml(p, p[`adm${k}_name`], p[`adm${k}_pcode`]);
+        }) ?? (() => {});
+      drawn.set(id, unbind);
+    }
+    current = id;
+    applyVisibility(m);
+    cancelSwap = whenSourceLoaded(m, id, () => removeUnits(m, id));
   }
 
   onMount(() => {
     let cancelled = false;
-    let created: MaplibreMap | undefined;
-    loadMaplibre().then(async (maplibregl) => {
+    let destroy = () => {};
+    loadMaplibre().then(async () => {
+      const base = await loadStyle();
       if (cancelled) return;
-      pmtilesProtocol(maplibregl);
-      const style = await loadStyle();
-      if (cancelled) return;
-      const m = (created = new maplibregl.Map({
-        container,
-        style,
-        center: [20, 5],
-        zoom: 2,
-        attributionControl: { compact: true, customAttribution: MAP_DISCLAIMER },
-      }));
-      popup = new maplibregl.Popup({ closeButton: false, className: "feature-tooltip" });
-      m.on("mousemove", "units-fill", (e) => {
-        const p = e.features?.[0]?.properties;
-        if (!p) return;
-        const n = Math.min(Number(p.level), level);
-        m.getCanvas().style.cursor = "pointer";
-        popup
-          ?.setLngLat(e.lngLat)
-          .setHTML(
-            `${p[`adm${n}_name`] ?? ""}<div class="feature-tooltip-code">${p[`adm${n}_pcode`] ?? ""}</div>`,
-          )
-          .addTo(m);
+      const created = createExplorerMap(container, {
+        style: {
+          ...base,
+          sources: { ...base.sources, ...COUNTRY_SOURCES },
+          layers: [...base.layers, ...COUNTRY_LAYERS],
+        },
+        onSelect: (i) => selectedIso3.set(i),
       });
-      m.on("mouseleave", "units-fill", () => {
-        m.getCanvas().style.cursor = "";
-        popup?.remove();
-      });
-      m.once("load", () => (map = m));
+      destroy = created.destroy;
+      hover = createFeatureHover(created.map);
+      created.map.once("load", () => (map = created.map));
     });
     return () => {
       cancelled = true;
-      created?.remove();
+      cancelSwap();
+      hover?.destroy();
+      destroy();
     };
   });
 
   $effect(() => {
     const m = map;
-    const [i, n] = [iso3, level];
+    const u = units;
+    if (m && u) untrack(() => show(m, u));
+  });
+
+  $effect(() => {
+    const m = map;
+    void [hidden, $labelsEnabled];
     if (!m) return;
-    show(m, i, n);
+    applyVisibility(m);
+    if (hidden) {
+      hover?.popup.remove();
+      hover?.clear();
+    }
   });
 
   $effect(() => {
     const m = map;
     const i = iso3;
-    if (!m || !i) return;
-    getBboxForIso3(i).then((b) => {
-      if (b && i === iso3) m.fitBounds(b, { padding: 40, duration: 0 });
-    });
+    if (m && i) fitCountryBounds(m, i);
   });
 </script>
 
