@@ -47,6 +47,7 @@
     placeholder,
     map,
     hasResult = $bindable(false),
+    allowB = true,
   }: {
     presetA?: PresetA | null;
     header?: Snippet;
@@ -55,6 +56,8 @@
     placeholder?: Snippet;
     map?: MaplibreMap;
     hasResult?: boolean;
+    // False hides the Version B input, for a preset with nothing to compare against.
+    allowB?: boolean;
   } = $props();
   const hasPreset = untrack(() => presetA !== undefined);
 
@@ -646,7 +649,7 @@
 {#if hasPreset}
   {#snippet bottom(body: Snippet)}
     {@const tabbed = info && body !== info && body !== noInfo}
-    <section class="cw-panel">
+    <section class="cw-panel" class:fit={filesB.length === 0}>
       {@render header?.()}
       <div class="cw-panel-body">
         <div class="cw-panel-side">
@@ -663,7 +666,7 @@
               {/if}
             </div>
           {/if}
-          <div hidden={filesB.length > 0 && !replacingB}>
+          <div hidden={!allowB || (filesB.length > 0 && !replacingB)}>
             {@render versionB("Your version of these boundaries, in any supported format.")}
           </div>
           {#if replacingB}
@@ -704,7 +707,7 @@
   {#snippet noInfo()}{/snippet}
 
   {#snippet panelFor(table: Snippet)}
-    {@render bottom(overlayGeoJSON || (loadedA && loadedB) || running ? table : (info ?? noInfo))}
+    {@render bottom(overlayGeoJSON || filesB.length > 0 || running ? table : (info ?? noInfo))}
   {/snippet}
   {@render resultView(panelFor)}
 {:else}
@@ -797,6 +800,10 @@
     box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.08);
     font-size: 13px;
   }
+  .cw-panel.fit {
+    height: auto;
+    max-height: 40vh;
+  }
   .cw-panel-body {
     flex: 1;
     min-height: 0;
@@ -840,10 +847,10 @@
   .cw-panel-side {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 0.4rem;
     min-height: 0;
     overflow-y: auto;
-    padding: 12px 16px;
+    padding: 6px 16px;
     border-right: 1px solid var(--cd-grey--400);
   }
   .cw-panel-tab :global(.cw-table-toolbar) {
@@ -861,7 +868,7 @@
     min-width: 12rem;
   }
   .cw-panel-side :global(.drop-zone) {
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
   }
   .cw-loaded {
     display: flex;

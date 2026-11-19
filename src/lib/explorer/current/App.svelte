@@ -2,7 +2,6 @@
   import CountrySidebar from "$lib/explorer/components/CountrySidebar.svelte";
   import { levelWithMostUnits } from "$lib/explorer/map/admin";
   import { selectedIso3 } from "$lib/explorer/map/store";
-  import { getCountries } from "$lib/explorer/parquet/countries";
   import { isPartnersView, viewFromUrl } from "$lib/explorer/urlState";
   import { base } from "$lib/utils/paths";
   import ChangeApp from "$lib/tools/change/App.svelte";
@@ -15,7 +14,6 @@
   import Viewer from "./Viewer.svelte";
 
   let level = $state<Level>(1);
-  let names = $state(new Map<string, string>());
   let map = $state.raw<MaplibreMap | undefined>();
   let hasResult = $state(false);
   let counts = $state<Record<Level, number> | null>(null);
@@ -34,7 +32,6 @@
     const view = viewFromUrl(location);
     urlLevel = view.level ?? null;
     if (view.iso3) selectedIso3.set(view.iso3);
-    getCountries().then((c) => (names = new Map(c.map((r) => [r.iso3, r.name]))));
   });
 
   // A new location opens on its level with the most units, or on a valid ?level= the first time.
@@ -92,10 +89,10 @@
 <div class="app-shell">
   <CountrySidebar view="cod-ab" />
   <div class="current">
-    <ChangeApp {presetA} {map} bind:hasResult>
+    <ChangeApp {presetA} {map} bind:hasResult allowB={!missing}>
       {#snippet header()}
         {#if $selectedIso3}
-          <Panel iso3={$selectedIso3} name={names.get($selectedIso3) ?? $selectedIso3} {counts} {meta} {missing} bind:level />
+          <Panel iso3={$selectedIso3} {counts} {meta} {missing} bind:level />
         {:else}
           <p class="hint">Pick a location from the list to see its current boundaries.</p>
         {/if}

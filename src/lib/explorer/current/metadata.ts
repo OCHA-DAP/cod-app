@@ -22,6 +22,8 @@ async function statusCsv(file: string): Promise<Record<string, string>[]> {
 
 export type CodMetadata = Record<string, string>;
 
+const versionNumber = (v: string | undefined) => Number(/\d+/.exec(v ?? "")?.[0] ?? 0);
+
 let metadataPromise: Promise<Map<string, CodMetadata>> | null = null;
 
 // COD-AB metadata rows for locations in the current system that are also on HDX; cod-ab-<iso3>
@@ -30,7 +32,13 @@ export function codAbOnHdx(): Promise<Map<string, CodMetadata>> {
   metadataPromise ??= Promise.all([statusCsv("cod_metadata.csv"), statusCsv("hdx.csv")]).then(
     ([meta, hdx]) => {
       const onHdx = new Set(hdx.map((r) => r.iso3));
-      return new Map(meta.filter((r) => onHdx.has(r.country_iso3)).map((r) => [r.country_iso3, r]));
+      const latest = new Map<string, CodMetadata>();
+      for (const r of meta) {
+        if (!onHdx.has(r.country_iso3)) continue;
+        const prev = latest.get(r.country_iso3);
+        if (!prev || versionNumber(r.version) > versionNumber(prev.version)) latest.set(r.country_iso3, r);
+      }
+      return latest;
     },
   );
   metadataPromise.catch(() => (metadataPromise = null));

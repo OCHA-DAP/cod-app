@@ -10,6 +10,7 @@
   import { getProvenanceForCountry, type SourceProvenance } from "$lib/explorer/parquet/sourceProvenance";
   import { getStatsForCountry, type SourceStat } from "$lib/explorer/parquet/sourceStats";
   import { getDecision } from "$lib/explorer/decisions";
+  import { formatDate } from "$lib/utils/date";
   import { ADMIN_SOURCES } from "$lib/explorer/sources";
   import { get } from "svelte/store";
 
@@ -209,7 +210,7 @@
                 >
               {/if}
               {#if col.provenance?.sourceUpdated}
-                <span class="source-updated">{col.provenance.sourceUpdated}</span>
+                <span class="source-updated">{formatDate(col.provenance.sourceUpdated)}</span>
               {/if}
             </button>
           </th>
