@@ -89,16 +89,14 @@
 <div class="app-shell">
   <CountrySidebar view="cod-ab" />
   <div class="current">
-    <ChangeApp {presetA} {map} bind:hasResult allowB={!missing}>
+    {#snippet details()}<Details iso3={$selectedIso3!} {meta} />{/snippet}
+    <ChangeApp {presetA} {map} bind:hasResult allowB={!missing && !!$selectedIso3} info={$selectedIso3 ? details : undefined}>
       {#snippet header()}
         {#if $selectedIso3}
           <Panel iso3={$selectedIso3} {counts} {meta} {missing} bind:level />
         {:else}
           <p class="hint">Pick a location from the list to see its current boundaries.</p>
         {/if}
-      {/snippet}
-      {#snippet info()}
-        {#if $selectedIso3}<Details iso3={$selectedIso3} {meta} />{/if}
       {/snippet}
       {#snippet placeholder()}
         <Viewer iso3={$selectedIso3} {units} hidden={hasResult} bind:map />

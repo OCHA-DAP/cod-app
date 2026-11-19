@@ -651,57 +651,59 @@
     {@const tabbed = info && body !== info && body !== noInfo}
     <section class="cw-panel" class:fit={filesB.length === 0}>
       {@render header?.()}
-      <div class="cw-panel-body">
-        <div class="cw-panel-side">
-          {@render initError()}
-          {#if filesB.length > 0 && !replacingB}
-            <div class="cw-loaded">
-              <span class="cw-zone-label">Version B</span>
-              <span class="cw-loaded-name" title={filesB[0].name}>{filesB[0].name}</span>
-              {#if !running}
-                <span class="cw-loaded-actions">
-                  <button type="button" class="cw-link" onclick={() => (replacingB = true)}>Replace</button>
-                  <button type="button" class="cw-link" onclick={clearInputs}>Clear</button>
-                </span>
-              {/if}
-            </div>
-          {/if}
-          <div hidden={!allowB || (filesB.length > 0 && !replacingB)}>
-            {@render versionB("Your version of these boundaries, in any supported format.")}
-          </div>
-          {#if replacingB}
-            <button type="button" class="cw-link" onclick={() => (replacingB = false)}>Cancel</button>
-          {/if}
-          {@render loadStatus()}
-          {@render runStatus()}
-          {#if overlayGeoJSON || errorStage > 0}
-            <AdvancedOptions>
-              <div>
-                <h3>Matching</h3>
-                {@render matching()}
+      {#if allowB || filesB.length > 0 || body !== noInfo}
+        <div class="cw-panel-body">
+          <div class="cw-panel-side">
+            {@render initError()}
+            {#if filesB.length > 0 && !replacingB}
+              <div class="cw-loaded">
+                <span class="cw-zone-label">Version B</span>
+                <span class="cw-loaded-name" title={filesB[0].name}>{filesB[0].name}</span>
+                {#if !running}
+                  <span class="cw-loaded-actions">
+                    <button type="button" class="cw-link" onclick={() => (replacingB = true)}>Replace</button>
+                    <button type="button" class="cw-link" onclick={clearInputs}>Clear</button>
+                  </span>
+                {/if}
               </div>
-              {#if colsB}
-                <fieldset class="cw-fieldset">
-                  <legend>Version B columns</legend>
-                  {@render columnFields(colsB, "b")}
-                </fieldset>
-              {/if}
-            </AdvancedOptions>
-          {/if}
-          <PrivacyNote />
-        </div>
-        <div class="cw-panel-main" class:tabbed>
-          {#if tabbed}
-            <div class="cw-panel-tabs" role="tablist">
-              <button type="button" role="tab" aria-selected={panelTab === "changes"} onclick={() => (panelTab = "changes")}>Changes</button>
-              <button type="button" role="tab" aria-selected={panelTab === "details"} onclick={() => (panelTab = "details")}>Details</button>
+            {/if}
+            <div hidden={!allowB || (filesB.length > 0 && !replacingB)}>
+              {@render versionB("Your version of these boundaries, in any supported format.")}
             </div>
-            <div class="cw-panel-tab">{@render (panelTab === "changes" ? body : info!)()}</div>
-          {:else}
-            {@render body()}
-          {/if}
+            {#if replacingB}
+              <button type="button" class="cw-link" onclick={() => (replacingB = false)}>Cancel</button>
+            {/if}
+            {@render loadStatus()}
+            {@render runStatus()}
+            {#if overlayGeoJSON || errorStage > 0}
+              <AdvancedOptions>
+                <div>
+                  <h3>Matching</h3>
+                  {@render matching()}
+                </div>
+                {#if colsB}
+                  <fieldset class="cw-fieldset">
+                    <legend>Version B columns</legend>
+                    {@render columnFields(colsB, "b")}
+                  </fieldset>
+                {/if}
+              </AdvancedOptions>
+            {/if}
+            <PrivacyNote />
+          </div>
+          <div class="cw-panel-main" class:tabbed>
+            {#if tabbed}
+              <div class="cw-panel-tabs" role="tablist">
+                <button type="button" role="tab" aria-selected={panelTab === "changes"} onclick={() => (panelTab = "changes")}>Changes</button>
+                <button type="button" role="tab" aria-selected={panelTab === "details"} onclick={() => (panelTab = "details")}>Details</button>
+              </div>
+              <div class="cw-panel-tab">{@render (panelTab === "changes" ? body : info!)()}</div>
+            {:else}
+              {@render body()}
+            {/if}
+          </div>
         </div>
-      </div>
+      {/if}
     </section>
   {/snippet}
   {#snippet noInfo()}{/snippet}
