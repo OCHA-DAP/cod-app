@@ -72,6 +72,12 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `lines` GeoParquet to `tmp/global/<adm0>/`, with the fields of
   `schema.md`. A location shallower than a layer MUST repeat its deepest
   units there with their own `level`, copying their fields down.
+- Polygon fields MUST run from the layer's level down to adm0, each level's
+  fields in `schema.md` order, before `version`.
+- `version` MUST be 1, and `updated` and `valid_to` MUST be null.
+  `valid_from` MUST be the pick's `source_updated` in the explorer's
+  `source_provenance`, recorded when the location is built, and null when
+  it has none or the location is ADM0 fill.
 - The merge MUST raise on duplicate or null P-codes, malformed P-codes,
   P-codes not under their parent, and `name{i}`/`lang{i}` disagreements,
   and MUST report srcids over 20 characters, rows missing a source `lang`,

@@ -28,6 +28,8 @@ DECISIONS = f"""(
 )"""
 COD_AB_BASE = "https://data.source.coop/hdx/cod-ab"
 COD_AB_CACHE = Path("tmp/catalog/cache/cod-ab")
+# The date FAO accessed each location's source, from GAUL's metadata spreadsheets.
+FAO_ACCESSED = Path("tmp/catalog/cache/fao_accessed.parquet")
 DUCKDB_TMP = Path("tmp/catalog/duckdb-tmp")
 BASEMAP_BUILD = Path("tmp/catalog/basemap")
 TILE_MAX_ZOOM = 11

@@ -5,6 +5,8 @@ from pathlib import Path
 
 BUILD = Path("tmp/global")
 VERSION_FILE = "topo_tools_version.txt"
+# The pick's source_updated from the explorer's source_provenance, empty when unknown.
+VALID_FROM_FILE = "valid_from.txt"
 EXPLORER = Path(os.environ.get("CATALOG", "catalog")) / "explorer"
 ADM0_CATALOG = Path(os.environ.get("ADM0_CATALOG", "../adm0-app/catalog"))
 # Read-only: OCHA picks take their extended geometry from its extended/ tier.

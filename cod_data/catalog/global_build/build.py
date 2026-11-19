@@ -9,7 +9,6 @@ import shutil
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from datetime import date
 from importlib.metadata import version
 from pathlib import Path
 
@@ -24,7 +23,7 @@ from topo_tools.api import (
     topo_detect,
 )
 
-from cod_data.catalog.common import DECISIONS, connect
+from cod_data.catalog.common import DECISIONS, connect, path_of
 from cod_data.catalog.global_build.adm0 import write_parents
 from cod_data.catalog.global_build.config import (
     ADM0_LAYERS,
@@ -37,6 +36,7 @@ from cod_data.catalog.global_build.config import (
     NAME_FIELD,
     PARTS,
     THREADS,
+    VALID_FROM_FILE,
     VERSION_FILE,
     WORKERS,
 )
@@ -322,6 +322,7 @@ def job(
     work.mkdir(parents=True)
     result = _build(iso3, source, parents_all, work)
     (work / VERSION_FILE).write_text(version("topo-tools"))
+    (work / VALID_FROM_FILE).write_text(source_updated(source, iso3) if source else "")
     shutil.rmtree(final, ignore_errors=True)
     work.rename(final)
     return result
@@ -394,13 +395,26 @@ def _build(
     return iso3, time.perf_counter() - t0, lvl
 
 
-def polygons_sql(work: Path, n: int, valid_from: str) -> str:
-    """Level-n polygons in schema.md's field order, with spec metadata."""
+def source_updated(source: str, iso3: str) -> str:
+    """The explorer's last-update date for iso3 in source, empty when it has none."""
+    con = connect()
+    rows = con.execute(
+        f"SELECT source_updated FROM '{path_of('source_provenance')}' WHERE source = ? AND iso3 = ?",
+        [source, iso3],
+    ).fetchall()
+    con.close()
+    return rows[0][0].isoformat() if rows and rows[0][0] else ""
+
+
+def polygons_sql(work: Path, n: int) -> str:
+    """Level-n polygons in schema.md's field order, deepest level first, with spec metadata."""
     cols = [
         f"adm{k}_{c}"
-        for k in range(n + 1)
+        for k in range(n, -1, -1)
         for c in ("pcode", "name", "name1", "name2", "name3", "type", "srcid")
     ]
+    valid_from = (work / VALID_FROM_FILE).read_text().strip()
+    valid_from = f"DATE '{valid_from}'" if valid_from else "NULL::DATE"
     # Fill parts of one iso3 (AUS's islands) share a code, so they merge into one row.
     # Fill rows carry the ADM0 layer's English names; lang{i} only where this layer has a name{i}.
     langs = [
@@ -413,7 +427,7 @@ def polygons_sql(work: Path, n: int, valid_from: str) -> str:
             least(coalesce(src_lvl::INT, 0), {n}) AS level, geometry
         FROM (
             SELECT {", ".join(cols)}, 1 AS version, NULL::DATE AS updated,
-                DATE '{valid_from}' AS valid_from, NULL::DATE AS valid_to,
+                {valid_from} AS valid_from, NULL::DATE AS valid_to,
                 CASE WHEN src_lvl IS NULL THEN 'en' ELSE lang END AS lang, {", ".join(langs)},
                 src_lvl, ST_Union_Agg(geometry) AS geometry
             FROM read_parquet('{work}/admin{n}.parquet') GROUP BY ALL
@@ -466,14 +480,13 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
 
 
 def merge(out: Path, iso3s: list[str]) -> list[str]:
-    valid_from = date.today().isoformat()
     con = connect()
     report, staged = [], []
     for n in range(1, MAX_LVL + 1):
         dest = out / f".adm{n}_polygons.parquet"
         staged.append(dest)
         union = " UNION ALL BY NAME ".join(
-            f"({polygons_sql(out / 'iso3' / i.lower(), n, valid_from)})" for i in iso3s
+            f"({polygons_sql(out / 'iso3' / i.lower(), n)})" for i in iso3s
         )
         write_geoparquet(con, f"SELECT * FROM ({union})", dest, f"adm{n}_pcode")
         report += check(con, dest, n)
