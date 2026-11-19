@@ -252,6 +252,7 @@
         Awaited<ReturnType<typeof detectUnitColumns>>;
       do {
         files = current();
+        if (files.length === 0) return;
         preset = presetOfA;
         const loadFiles = files;
         cols = await withDb(async (db, conn) => {
@@ -259,7 +260,6 @@
           return { ...(await detectColumns(conn, table)), ...(await detectUnitColumns(conn, table)) };
         });
       } while (current() !== files);
-      if (current().length === 0) return;
       if (side === "a") {
         aCodeCol = preset ? preset.code : pick(cols, aCodeCol, cols.code ?? null);
         aNameCol = preset ? preset.name : pick(cols, aNameCol, cols.name);
