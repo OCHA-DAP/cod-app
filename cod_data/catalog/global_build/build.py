@@ -5,6 +5,7 @@ Run from the repo root: uv run -m cod_data.catalog.global_build.build --adm0 gau
 
 import argparse
 import hashlib
+import inspect
 import shutil
 import sys
 import time
@@ -13,7 +14,6 @@ from importlib.metadata import version
 from pathlib import Path
 
 import duckdb
-from packaging.version import Version
 from topo_tools.api import (
     code_create,
     edge_extend,
@@ -23,31 +23,44 @@ from topo_tools.api import (
     topo_detect,
 )
 
-from cod_data.catalog.common import DECISIONS, connect, path_of
+from cod_data.catalog.common import (
+    BOUNDARY_SOURCES,
+    DECISIONS,
+    connect,
+    junk_filter,
+    path_of,
+)
+from cod_data.catalog.explorer.erm import layers as erm_layers
 from cod_data.catalog.global_build.adm0 import write_parents
 from cod_data.catalog.global_build.config import (
     ADM0_LAYERS,
     BUILD,
     COD_AB_CATALOG,
     CODE_FIELD,
+    FINGERPRINT_FILE,
     GAP_WIDTH,
     MATCH_KEY,
     MAX_LVL,
     NAME_FIELD,
     PARTS,
+    PROD_THREADS,
     THREADS,
     VALID_FROM_FILE,
     VERSION_FILE,
     WORKERS,
 )
-from cod_data.catalog.global_build.conform import depth, stage_sql
-from cod_data.shared.geoparquet import HILBERT, write_geoparquet
+from cod_data.catalog.global_build.conform import COLUMNS, depth, layer, stage_sql
+from cod_data.catalog.global_build.merge import LANG, merge, merged
+from cod_data.shared.geoparquet import write_geoparquet
 
 LEVEL_COLS = ("name", "name1", "name2", "name3", "pcode", "srcid", "type")
-LANG = ("lang", "lang1", "lang2", "lang3")
 FILL = {"adm0_pcode": "adm0_pcode", "adm0_name": "adm0_name"}
 EXTENDED = BUILD / "extended"
-AREA = "ST_Area(ST_Transform(geometry, 'OGC:CRS84', 'EPSG:8857')) / 1e6"
+# The per-location build code; merge.py and publish.py stay out so editing them rebuilds nothing.
+CODE = [
+    Path(__file__).with_name(f)
+    for f in ("build.py", "conform.py", "config.py", "adm0.py")
+]
 
 
 def staged_columns() -> list[str]:
@@ -313,7 +326,7 @@ def _copy_adm0(con: duckdb.DuckDBPyConnection, parents: Path, work: Path) -> Non
 
 
 def job(
-    iso3: str, source: str | None, parents_all: Path, out: Path
+    iso3: str, source: str | None, parents_all: Path, out: Path, fingerprint: str
 ) -> tuple[str, float, int]:
     """Build one location in a hidden folder, replacing its last build only on success."""
     final = out / "iso3" / iso3.lower()
@@ -322,7 +335,8 @@ def job(
     work.mkdir(parents=True)
     result = _build(iso3, source, parents_all, work)
     (work / VERSION_FILE).write_text(version("topo-tools"))
-    (work / VALID_FROM_FILE).write_text(valid_from(source, iso3, result[2]))
+    (work / VALID_FROM_FILE).write_text(valid_from(source, iso3))
+    (work / FINGERPRINT_FILE).write_text(fingerprint)
     shutil.rmtree(final, ignore_errors=True)
     work.rename(final)
     return result
@@ -332,8 +346,7 @@ def _build(
     iso3: str, source: str | None, parents_all: Path, work: Path
 ) -> tuple[str, float, int]:
     t0 = time.perf_counter()
-    con = connect()
-    con.execute(f"SET threads = {THREADS}")
+    con = connect(threads=THREADS)
     parents = work / "parent.parquet"
     write_geoparquet(
         con, f"SELECT * FROM '{parents_all}' WHERE adm0_pcode = '{iso3}'", parents
@@ -395,9 +408,9 @@ def _build(
     return iso3, time.perf_counter() - t0, lvl
 
 
-def valid_from(source: str | None, iso3: str, lvl: int) -> str:
+def valid_from(source: str | None, iso3: str) -> str:
     """The location's source date from the explorer's source_provenance; empty when unknown or ADM0 fill."""
-    if not source or not lvl:
+    if not source:
         return ""
     con = connect()
     rows = con.execute(
@@ -408,131 +421,62 @@ def valid_from(source: str | None, iso3: str, lvl: int) -> str:
     return rows[0][0].isoformat() if rows and rows[0][0] else ""
 
 
-def level_cols(n: int) -> list[str]:
-    """schema.md's per-level fields, level n first, down to adm0."""
-    return [
-        f"adm{k}_{c}"
-        for k in range(n, -1, -1)
-        for c in ("pcode", "name", "name1", "name2", "name3", "type", "srcid")
+def row_digests(con: duckdb.DuckDBPyConnection, rel: str, key: str) -> dict[str, str]:
+    """md5 per key value over its rows' md5s, geometry as WKB, in one pass."""
+    rows = con.execute(f"""
+        SELECT k, md5(string_agg(h, '' ORDER BY h)) FROM (
+            SELECT {key} AS k, md5(t::VARCHAR) AS h
+            FROM (SELECT * REPLACE (hex(ST_AsWKB(geometry)) AS geometry) FROM {rel}) t
+        ) GROUP BY k
+    """).fetchall()
+    return dict(rows)
+
+
+def digests(
+    con: duckdb.DuckDBPyConnection, parents: Path, sources: set[str]
+) -> dict[tuple[str, int], dict[str, str]]:
+    """Row digests per location of the ADM0 parents (key ("parents", 0)) and each source layer."""
+    out = {("parents", 0): row_digests(con, f"'{parents}'", "adm0_pcode")}
+    for s in BOUNDARY_SOURCES:
+        if s.name in sources:
+            for n in s.levels:
+                out[(s.name, n)] = row_digests(
+                    con, layer(s.name, n), COLUMNS[s.name].iso3
+                )
+    return out
+
+
+def file_hash(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def fingerprint(
+    iso3: str, source: str | None, rows: dict[tuple[str, int], dict[str, str]]
+) -> str:
+    """Hash of everything a location's build reads: its rows, the build code and topo-tools."""
+    parts = [
+        f"source {source}",
+        f"topo-tools {version('topo-tools')}",
+        f"parents {rows[('parents', 0)].get(iso3)}",
+        *(f"{p.name} {file_hash(p)}" for p in CODE),
+        inspect.getsource(junk_filter),
     ]
-
-
-SPEC_TAIL = [
-    "version",
-    "updated",
-    "valid_from",
-    "valid_to",
-    *LANG,
-    "area_sqkm",
-    "level",
-]
-CONSTANT = ["version", "updated", "valid_from", "valid_to", *LANG]
-
-
-def polygons_sql(work: Path, n: int) -> str:
-    """Level-n polygons in schema.md's field order, deepest level first, with spec metadata."""
-    cols = level_cols(n)
-    valid_from = (work / VALID_FROM_FILE).read_text().strip()
-    valid_from = f"DATE '{valid_from}'" if valid_from else "NULL::DATE"
-    # Fill parts of one iso3 (AUS's islands) share a code, so they merge into one row.
-    # Fill rows carry the ADM0 layer's English names. A location's lang{i} is set on all its
-    # rows when any of its units has a name{i}.
-    langs = [
-        f"CASE WHEN coalesce({', '.join(f'adm{k}_name{i}' for k in range(1, n + 1))}) "
-        f"IS NOT NULL THEN lang{i} END AS lang{i}"
-        for i in (1, 2, 3)
-    ]
-    constant = ", ".join(f"max(lang{i}) OVER () AS lang{i}" for i in (1, 2, 3))
-    return f"""
-        SELECT * EXCLUDE (src_lvl, geometry) REPLACE ({constant}), {AREA} AS area_sqkm,
-            least(coalesce(src_lvl::INT, 0), {n}) AS level, geometry
-        FROM (
-            SELECT {", ".join(cols)}, 1 AS version, NULL::DATE AS updated,
-                {valid_from} AS valid_from, NULL::DATE AS valid_to,
-                CASE WHEN src_lvl IS NULL THEN 'en' ELSE lang END AS lang, {", ".join(langs)},
-                src_lvl, ST_Union_Agg(geometry) AS geometry
-            FROM read_parquet('{work}/admin{n}.parquet') GROUP BY ALL
-        )
-    """
-
-
-def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
-    """Raise on spec code violations; return report lines for softer gaps."""
-    t = f"read_parquet('{path}')"
-    hard = {
-        "duplicate or null pcode": f"SELECT count(*) - count(DISTINCT adm{n}_pcode) + count(*) FILTER (adm{n}_pcode IS NULL) FROM {t}",
-        "pcode format": f"SELECT count(*) FROM {t} WHERE NOT regexp_full_match(adm{n}_pcode, '[A-Z]{{3}}(\\.\\d{{3,}})*')",
-        "pcode not under parent": " + ".join(
-            f"(SELECT count(*) FROM {t} WHERE NOT coalesce(starts_with(adm{k}_pcode, adm{k - 1}_pcode || '.')"
-            f" OR (level < {k} AND adm{k}_pcode = adm{k - 1}_pcode), false))"
-            for k in range(1, n + 1)
-        ),
-        "name{i} without lang{i}": " + ".join(
-            f"(SELECT count(*) FROM {t} WHERE lang{i} IS NULL AND "
-            f"coalesce({', '.join(f'adm{k}_name{i}' for k in range(1, n + 1))}) IS NOT NULL)"
-            for i in (1, 2, 3)
-        ),
-    }
-    errors = {
-        k: con.execute(q if q.startswith("SELECT") else f"SELECT {q}").fetchall()[0][0]
-        for k, q in hard.items()
-    }
-    cols = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {t}").fetchall()]
-    errors["fields not in schema.md order"] = int(
-        cols != [*level_cols(n), *SPEC_TAIL, "geometry"]
-    )
-    errors["metadata not constant per location"] = con.execute(
-        f"SELECT count(*) FROM (SELECT adm0_pcode FROM {t} GROUP BY 1 HAVING "
-        + " OR ".join(
-            f"count(DISTINCT {c}) + max(({c} IS NULL)::INT) > 1" for c in CONSTANT
-        )
-        + ")"
-    ).fetchall()[0][0]
-    errors["version not 1, or updated or valid_to set"] = con.execute(
-        f"SELECT count(*) FROM {t} WHERE version <> 1 OR updated IS NOT NULL OR valid_to IS NOT NULL"
-    ).fetchall()[0][0]
-    if any(errors.values()):
-        raise ValueError(f"{path}: {errors}")
-    lang = con.execute(f"SELECT count(*) FROM {t} WHERE lang IS NULL").fetchall()[0][0]
-    names = con.execute(
-        f"SELECT count(*) FROM {t} WHERE "
-        + " OR ".join(f"(adm{k}_name IS NULL AND level >= {k})" for k in range(n + 1))
-    ).fetchall()[0][0]
-    return [f"adm{n}: {lang} rows without lang, {names} rows with a null name"]
-
-
-def merge(out: Path, iso3s: list[str]) -> list[str]:
-    con = connect()
-    report, staged = [], []
-    for n in range(1, MAX_LVL + 1):
-        dest = out / f".adm{n}_polygons.parquet"
-        staged.append(dest)
-        union = " UNION ALL BY NAME ".join(
-            f"({polygons_sql(out / 'iso3' / i.lower(), n)})" for i in iso3s
-        )
-        write_geoparquet(con, f"SELECT * FROM ({union})", dest, f"adm{n}_pcode")
-        report += check(con, dest, n)
-    for geom in ("points", "lines"):
-        files = [str(out / "iso3" / i.lower() / f"{geom}.parquet") for i in iso3s]
-        staged.append(out / f".{geom}.parquet")
-        write_geoparquet(
-            con,
-            f"SELECT * FROM read_parquet({files}, union_by_name = true)",
-            staged[-1],
-            HILBERT,
-        )
-    con.close()
-    built = [out / "iso3" / i.lower() / VERSION_FILE for i in iso3s]
-    if all(v.exists() for v in built):
-        versions = sorted({v.read_text() for v in built}, key=Version)
-        staged.append(out / f".{VERSION_FILE}")
-        staged[-1].write_text(", ".join(versions))
-    # Replace the layers only once every one has passed check(), dropping the old
-    # version record first so a crash leaves none rather than a wrong one.
-    (out / VERSION_FILE).unlink(missing_ok=True)
-    for path in staged:
-        path.replace(out / path.name.removeprefix("."))
-    return report
+    if source:
+        entry = next(s for s in BOUNDARY_SOURCES if s.name == source)
+        parts.append(repr(entry))
+        parts += [f"adm{n} {rows[(source, n)].get(iso3)}" for n in entry.levels]
+    if source == "ocha":
+        parts += [
+            f"cod-ab adm{n} {file_hash(p)}"
+            for n in range(1, MAX_LVL + 1)
+            if (p := _cod_ab_path(iso3, n)).exists()
+        ]
+    if source == "erm":
+        parts += [
+            f"{p} {Path(p).stat().st_size} {Path(p).stat().st_mtime_ns}"
+            for p, *_ in erm_layers()
+        ]
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
 def same_parent(parents: Path, built: Path, iso3: str) -> bool:
@@ -559,36 +503,64 @@ def same_parent(parents: Path, built: Path, iso3: str) -> bool:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--adm0", choices=ADM0_LAYERS, default="improved")
-    parser.add_argument("--only", help="Comma-separated iso3s")
+    parser.add_argument(
+        "--only", help="Comma-separated iso3s, rebuilt even when unchanged"
+    )
+    parser.add_argument(
+        "--merge-only", action="store_true", help="Skip the builds and merge again"
+    )
     args = parser.parse_args()
     out = BUILD / args.adm0
     out.mkdir(parents=True, exist_ok=True)
-    con = connect()
     parents = out / "parents.parquet"
-    write_parents(con, args.adm0, parents)
-    picks = dict(
-        con.execute(f"SELECT iso3, selected_source FROM {DECISIONS}").fetchall()
-    )
+    con = connect(threads=PROD_THREADS)
+    if not args.merge_only:
+        write_parents(con, args.adm0, parents)
+    picks = {
+        i: (s if s != "none" else None)
+        for i, s in con.execute(
+            f"SELECT iso3, selected_source FROM {DECISIONS}"
+        ).fetchall()
+    }
     iso3s = all_iso3s = [
         r[0]
         for r in con.execute(
             f"SELECT DISTINCT adm0_pcode FROM '{parents}' ORDER BY 1"
         ).fetchall()
     ]
+    rows = {} if args.merge_only else digests(con, parents, set(picks.values()))
     con.close()
-    if args.only:
+    folder = {i: out / "iso3" / i.lower() for i in all_iso3s}
+    files = ("admin1.parquet", "points.parquet", "lines.parquet", VALID_FROM_FILE)
+
+    def is_built(iso3: str) -> bool:
+        return all((folder[iso3] / f).exists() for f in (*files, FINGERPRINT_FILE))
+
+    def fp(iso3: str, source: str | None) -> str:
+        return fingerprint(iso3, source, rows)
+
+    if args.merge_only:
+        iso3s = []
+    elif args.only:
         only = args.only.upper().split(",")
         iso3s = [i for i in iso3s if i in only]
         print("not in this ADM0 layer:", sorted(set(only) - set(iso3s)))
-    print(
-        "picks without an ADM0 row:",
-        sorted(set(picks) - set(iso3s)) if not args.only else "-",
-    )
+    else:
+        current = [
+            i
+            for i in iso3s
+            if is_built(i)
+            and (folder[i] / FINGERPRINT_FILE).read_text() == fp(i, picks.get(i))
+        ]
+        # Dates sit outside the fingerprint, so an unchanged build still takes its current one.
+        for i in current:
+            (folder[i] / VALID_FROM_FILE).write_text(valid_from(picks.get(i), i))
+        iso3s = [i for i in iso3s if i not in current]
+        print(f"unchanged, skipped: {len(current)}, to build: {len(iso3s)}")
+        print("picks without an ADM0 row:", sorted(set(picks) - set(all_iso3s)))
     with ProcessPoolExecutor(WORKERS) as pool:
         jobs = {
-            pool.submit(
-                job, i, (picks.get(i) if picks.get(i) != "none" else None), parents, out
-            ): i
+            pool.submit(job, i, picks.get(i), parents, out, fp(i, picks.get(i))): i
             for i in iso3s
         }
         failed = {}
@@ -604,18 +576,13 @@ def main() -> None:
                 f"{iso3} ({picks.get(iso3)}, adm{lvl}) {secs:.0f}s ({done}/{len(jobs)})",
                 flush=True,
             )
-    files = ("admin1.parquet", "points.parquet", "lines.parquet", VALID_FROM_FILE)
-
-    def is_built(iso3: str) -> bool:
-        return all((out / "iso3" / iso3.lower() / f).exists() for f in files)
-
     # In this process, so a crashed worker that broke the pool still gets its fill.
     for iso3 in failed:
-        if is_built(iso3) and same_parent(parents, out / "iso3" / iso3.lower(), iso3):
+        if is_built(iso3) and same_parent(parents, folder[iso3], iso3):
             failed[iso3] += "; kept the last build"
             continue
         try:
-            job(iso3, None, parents, out)
+            job(iso3, None, parents, out, fp(iso3, None))
             failed[iso3] += "; ADM0 fill"
         except Exception as e:  # noqa: BLE001 (report every location before exiting)
             failed[iso3] += f"; ADM0 fill also failed: {type(e).__name__}: {e}"
@@ -624,8 +591,11 @@ def main() -> None:
     built = [i for i in all_iso3s if is_built(i)]
     missing = sorted(set(all_iso3s) - set(built))
     print("not built yet, left out of the merge:", missing)
-    for line in merge(out, built):
-        print(line)
+    if not args.merge_only and merged(out, built):
+        print("merged layers up to date")
+    else:
+        for line in merge(out, built):
+            print(line)
     if failed or missing:
         sys.exit(1)
 

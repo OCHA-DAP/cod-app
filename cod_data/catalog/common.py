@@ -143,12 +143,14 @@ def path_of(name: str, ext: str = "parquet") -> Path:
     return item_dir(name) / f"{name}.{ext}"
 
 
-def connect(db: Path | None = None) -> duckdb.DuckDBPyConnection:
-    """A DuckDB connection on half the cores and default memory that spills to DUCKDB_TMP."""
+def connect(
+    db: Path | None = None, threads: int | None = None
+) -> duckdb.DuckDBPyConnection:
+    """A DuckDB connection on threads (default half the cores) and default memory that spills to DUCKDB_TMP."""
     DUCKDB_TMP.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(db) if db else ":memory:")
     con.execute(
-        f"SET threads = {max(1, (os.cpu_count() or 2) // 2)}; "
+        f"SET threads = {threads or max(1, (os.cpu_count() or 2) // 2)}; "
         f"SET preserve_insertion_order = false; SET temp_directory = '{DUCKDB_TMP}'; LOAD spatial; SET geometry_always_xy = true"
     )
     return con

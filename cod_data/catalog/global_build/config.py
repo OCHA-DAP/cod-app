@@ -7,6 +7,9 @@ BUILD = Path("tmp/global")
 VERSION_FILE = "topo_tools_version.txt"
 # The location's valid_from: its source_updated in the explorer's source_provenance.
 VALID_FROM_FILE = "valid_from.txt"
+FINGERPRINT_FILE = "fingerprint.txt"
+# Row groups small enough for DuckDB to compress them in parallel.
+GLOBAL_ROW_GROUP = "32MB"
 EXPLORER = Path(os.environ.get("CATALOG", "catalog")) / "explorer"
 ADM0_CATALOG = Path(os.environ.get("ADM0_CATALOG", "../adm0-app/catalog"))
 # Read-only: OCHA picks take their extended geometry from its extended/ tier.
@@ -14,8 +17,10 @@ COD_AB_CATALOG = Path(
     os.environ.get("COD_AB_CATALOG", "../hdx-scraper-cod-ab-global/portolan")
 )
 MAX_LVL = 4
+# Production runs use every core; dev tools and tests keep connect()'s half.
+PROD_THREADS = os.cpu_count() or 4
 WORKERS = 2
-THREADS = max(1, (os.cpu_count() or 4) // (2 * WORKERS))
+THREADS = max(1, PROD_THREADS // WORKERS)
 
 NAME_FIELD = "adm{n}_name"
 CODE_FIELD = "adm{n}_pcode"
