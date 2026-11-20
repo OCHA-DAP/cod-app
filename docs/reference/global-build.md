@@ -93,7 +93,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   successful build when that build has every output the merge needs and
   its ADM0 rows match the current ADM0 layer, and otherwise MUST fall back
   to ADM0 fill, built in the main
-  process after the pool. A location whose fill also fails MUST count as
+  process after the pool. An error reading the ERM catalog MUST fail only
+  the ERM picks. A location whose fill also fails MUST count as
   unbuilt. It MUST be listed before the merge,
   and MUST make the run exit non-zero.
 - Each location's build MUST record a fingerprint of its inputs: its
@@ -125,8 +126,12 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
 - The catalog's `global` step MUST publish only the `improved` build, and
   MUST skip the step with a message when it has no merged build. It MUST
   fail when the merged layers don't hold every location's current build,
-  or when any build's fingerprint or `valid_from` differs from its current
-  inputs. It MUST
+  when any build's fingerprint or `valid_from` differs from its current
+  inputs (so an ADM0 fill or kept build of a failed pick blocks it), or
+  when the merged layers hold a location the ADM0 layer no longer has.
+  It therefore needs every build input: the adm0-app, cod-ab and ERM
+  catalogs and the explorer layers. A missing or unreadable
+  `parents.parquet` MUST count as not current. It MUST
   write `catalog/global/adm{n}-{geom}/adm{n}_{geom}.parquet` for levels 1
   to 4 and `polygons`, `points` and `lines`, each with PMTiles named after
   the file: `polygons` the merged layer, `points` the level-`n` points with

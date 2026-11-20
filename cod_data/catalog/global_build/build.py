@@ -477,7 +477,7 @@ def erm_stamp() -> str:
         return "\n".join(
             f"{p} {p.stat().st_size} {p.stat().st_mtime_ns}" for p in paths
         )
-    # layers() exits when the ERM catalog is missing; only the ERM builds then fail.
+    # A missing or unreadable ERM catalog fails only the ERM builds.
     except (Exception, SystemExit) as e:  # noqa: BLE001
         return f"erm layers unreadable: {type(e).__name__}: {e}"
 
@@ -562,17 +562,25 @@ def inputs(
 
 
 def stale(adm0: str) -> list[str]:
-    """Locations whose build is missing or doesn't match its current inputs and date."""
+    """Locations whose build is missing, behind its current inputs and date, or merged but dropped."""
     out = BUILD / adm0
     con = connect(threads=PROD_THREADS)
-    with tempfile.TemporaryDirectory(dir=out) as tmp:
-        parents = Path(tmp) / "parents.parquet"
-        write_parents(con, adm0, parents)
-        picks, iso3s = inputs(con, parents)
-        rows = digests(con, parents, set(picks.values()))
-    con.close()
+    try:
+        with tempfile.TemporaryDirectory(dir=out) as tmp:
+            parents = Path(tmp) / "parents.parquet"
+            write_parents(con, adm0, parents)
+            picks, iso3s = inputs(con, parents)
+            rows = digests(con, parents, set(picks.values()))
+        merged_iso3s = {
+            r[0]
+            for r in con.execute(
+                f"SELECT DISTINCT adm0_pcode FROM '{out / 'adm1_polygons.parquet'}'"
+            ).fetchall()
+        }
+    finally:
+        con.close()
     folders = {i: out / "iso3" / i.lower() for i in iso3s}
-    return [
+    behind = [
         i
         for i in iso3s
         if not is_built(folders[i])
@@ -580,6 +588,7 @@ def stale(adm0: str) -> list[str]:
         != fingerprint(i, picks.get(i), rows)
         or (folders[i] / VALID_FROM_FILE).read_text() != valid_from(picks.get(i), i)
     ]
+    return sorted({*behind, *(merged_iso3s - set(iso3s))})
 
 
 def main() -> None:
