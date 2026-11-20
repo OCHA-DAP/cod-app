@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import shutil
 import sys
+import tempfile
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -527,6 +528,60 @@ def same_parent(parents: Path, built: Path, iso3: str) -> bool:
     return diff == 0
 
 
+BUILT_FILES = (
+    "admin1.parquet",
+    "points.parquet",
+    "lines.parquet",
+    VALID_FROM_FILE,
+    FINGERPRINT_FILE,
+    BUILD_ID_FILE,
+)
+
+
+def is_built(folder: Path) -> bool:
+    return all((folder / f).exists() for f in BUILT_FILES)
+
+
+def inputs(
+    con: duckdb.DuckDBPyConnection, parents: Path
+) -> tuple[dict[str, str | None], list[str]]:
+    """Each iso3's pick (None for ADM0 fill) and every iso3 in parents, sorted."""
+    picks = {
+        i: (s if s != "none" else None)
+        for i, s in con.execute(
+            f"SELECT iso3, selected_source FROM {DECISIONS}"
+        ).fetchall()
+    }
+    iso3s = [
+        r[0]
+        for r in con.execute(
+            f"SELECT DISTINCT adm0_pcode FROM '{parents}' ORDER BY 1"
+        ).fetchall()
+    ]
+    return picks, iso3s
+
+
+def stale(adm0: str) -> list[str]:
+    """Locations whose build is missing or doesn't match its current inputs and date."""
+    out = BUILD / adm0
+    con = connect(threads=PROD_THREADS)
+    with tempfile.TemporaryDirectory(dir=out) as tmp:
+        parents = Path(tmp) / "parents.parquet"
+        write_parents(con, adm0, parents)
+        picks, iso3s = inputs(con, parents)
+        rows = digests(con, parents, set(picks.values()))
+    con.close()
+    folders = {i: out / "iso3" / i.lower() for i in iso3s}
+    return [
+        i
+        for i in iso3s
+        if not is_built(folders[i])
+        or (folders[i] / FINGERPRINT_FILE).read_text()
+        != fingerprint(i, picks.get(i), rows)
+        or (folders[i] / VALID_FROM_FILE).read_text() != valid_from(picks.get(i), i)
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--adm0", choices=ADM0_LAYERS, default="improved")
@@ -543,28 +598,11 @@ def main() -> None:
     con = connect(threads=PROD_THREADS)
     if not args.merge_only:
         write_parents(con, args.adm0, parents)
-    picks = {
-        i: (s if s != "none" else None)
-        for i, s in con.execute(
-            f"SELECT iso3, selected_source FROM {DECISIONS}"
-        ).fetchall()
-    }
-    iso3s = all_iso3s = [
-        r[0]
-        for r in con.execute(
-            f"SELECT DISTINCT adm0_pcode FROM '{parents}' ORDER BY 1"
-        ).fetchall()
-    ]
+    picks, all_iso3s = inputs(con, parents)
+    iso3s = all_iso3s
     rows = {} if args.merge_only else digests(con, parents, set(picks.values()))
     con.close()
     folder = {i: out / "iso3" / i.lower() for i in all_iso3s}
-    files = ("admin1.parquet", "points.parquet", "lines.parquet", VALID_FROM_FILE)
-
-    def is_built(iso3: str) -> bool:
-        return all(
-            (folder[iso3] / f).exists()
-            for f in (*files, FINGERPRINT_FILE, BUILD_ID_FILE)
-        )
 
     def fp(iso3: str, source: str | None) -> str:
         return fingerprint(iso3, source, rows)
@@ -579,7 +617,7 @@ def main() -> None:
         current = [
             i
             for i in iso3s
-            if is_built(i)
+            if is_built(folder[i])
             and (folder[i] / FINGERPRINT_FILE).read_text() == fp(i, picks.get(i))
         ]
         # Dates sit outside the fingerprint, so an unchanged build still takes its current one.
@@ -609,7 +647,7 @@ def main() -> None:
     # In this process, so a crashed worker that broke the pool still gets its fill.
     unusable = set()
     for iso3 in failed:
-        if is_built(iso3) and same_parent(parents, folder[iso3], iso3):
+        if is_built(folder[iso3]) and same_parent(parents, folder[iso3], iso3):
             failed[iso3] += "; kept the last build"
             continue
         try:
@@ -620,7 +658,7 @@ def main() -> None:
             unusable.add(iso3)
     for iso3, error in failed.items():
         print(f"failed {picks.get(iso3)} build: {iso3} {error}")
-    built = [i for i in all_iso3s if is_built(i) and i not in unusable]
+    built = [i for i in all_iso3s if is_built(folder[i]) and i not in unusable]
     missing = sorted(set(all_iso3s) - set(built))
     if missing:
         sys.exit(f"not built, so the merged layers stay as they are: {missing}")

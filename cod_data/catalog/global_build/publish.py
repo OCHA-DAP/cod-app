@@ -19,6 +19,7 @@ from cod_data.catalog.common import (
     write_yaml,
 )
 from cod_data.catalog.global_build import merge
+from cod_data.catalog.global_build.build import stale
 from cod_data.catalog.global_build.config import (
     BUILD,
     BUILD_ID_FILE,
@@ -257,6 +258,8 @@ def stage() -> None:
         raise RuntimeError(
             "merged layers don't match the current builds: run the build"
         )
+    if behind := stale(ADM0):
+        raise RuntimeError(f"builds behind their inputs, run the build: {behind}")
     record = BUILD / ADM0 / VERSION_FILE
     built_with = f" {record.read_text()}" if record.exists() else ""
     notes = f"Built with topo-tools{built_with}. Each location's picked source is cleaned, extended and edge-matched to a global ADM0 layer, coded to the COD-AB Specification, then tiled with tylertoo to zoom {TILE_MAX_ZOOM} with every feature kept at every zoom."
