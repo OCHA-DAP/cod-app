@@ -51,9 +51,14 @@ def clean_layer(
 
 
 def extend_layer(con: duckdb.DuckDBPyConnection, original: Path, work: Path) -> Path:
-    """Extend original past its coastline, cleaned on defects; cached by content, engine versions and this module."""
+    """Extend original past its coastline, cleaned on defects; cached by its rows, engine versions and this module."""
+    rows = con.execute(f"""
+        SELECT md5(string_agg(h, '' ORDER BY h)) FROM (
+            SELECT md5(t::VARCHAR) AS h
+            FROM (SELECT * REPLACE (hex(ST_AsWKB(geometry)) AS geometry) FROM '{original}') t)
+    """).fetchall()[0][0]
     digest = hashlib.sha256(
-        original.read_bytes() + engine().encode() + Path(__file__).read_bytes()
+        (rows + engine()).encode() + Path(__file__).read_bytes()
     ).hexdigest()[:16]
     out = EXTENDED / f"{original.stem}-{digest}.parquet"
     if out.exists():

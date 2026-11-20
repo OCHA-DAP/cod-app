@@ -86,8 +86,12 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
 - `lang1` to `lang3` MUST be constant within a location: the source's tag
   wherever any of its units has that `name{i}`, and null otherwise.
 - The merge MUST raise on duplicate or null P-codes, malformed P-codes,
-  P-codes not under their parent, and a `name{i}` without its `lang{i}`,
-  and MUST report rows missing a source `lang` and null names. It MUST
+  P-codes not under their parent, a `name{i}` without its `lang{i}`,
+  fields out of `schema.md` order, a location with more than one value,
+  or a mix of null and non-null, in `version`, `updated`, `valid_from`,
+  `valid_to`, `lang` or `lang1` to `lang3`, and `version` other than 1 or
+  a set `updated` or `valid_to`.
+  It MUST report rows missing a source `lang` and null names. It MUST
   replace the layers only after every layer passes.
 - Each location MUST build in a temporary folder that replaces its last
   build only on success. A location that fails MUST keep its last

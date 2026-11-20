@@ -10,6 +10,7 @@ import sys
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
 from functools import cache
 from importlib.metadata import version
 from pathlib import Path
@@ -290,7 +291,12 @@ def _copy_adm0(con: duckdb.DuckDBPyConnection, parents: Path, work: Path) -> Non
 
 
 def job(
-    iso3: str, source: str | None, parents_all: Path, out: Path, fingerprint: str
+    iso3: str,
+    source: str | None,
+    parents_all: Path,
+    out: Path,
+    fingerprint: str,
+    date: str,
 ) -> tuple[str, float, int]:
     """Build one location in a hidden folder, replacing its last build only on success."""
     final = out / "iso3" / iso3.lower()
@@ -299,7 +305,7 @@ def job(
     work.mkdir(parents=True)
     result = _build(iso3, source, parents_all, work)
     (work / VERSION_FILE).write_text(version("topo-tools"))
-    (work / VALID_FROM_FILE).write_text(valid_from(source, iso3))
+    (work / VALID_FROM_FILE).write_text(date)
     (work / FINGERPRINT_FILE).write_text(fingerprint)
     (work / BUILD_ID_FILE).write_text(uuid.uuid4().hex)
     shutil.rmtree(final, ignore_errors=True)
@@ -475,7 +481,7 @@ def same_parent(parents: Path, built: Path, iso3: str) -> bool:
 
 
 BUILT_FILES = (
-    "admin1.parquet",
+    *(f"admin{n}.parquet" for n in range(1, MAX_LVL + 1)),
     "points.parquet",
     "lines.parquet",
     VALID_FROM_FILE,
@@ -551,24 +557,44 @@ def main() -> None:
         iso3s = [i for i in iso3s if i not in current]
         print(f"unchanged, skipped: {len(current)}, to build: {len(iso3s)}")
         print("picks without an ADM0 row:", sorted(set(picks) - set(all_iso3s)))
-    with ProcessPoolExecutor(WORKERS) as pool:
-        jobs = {
-            pool.submit(job, i, picks.get(i), parents, out, fp(i, picks.get(i))): i
-            for i in iso3s
-        }
-        failed = {}
-        for done, fut in enumerate(as_completed(jobs), 1):
-            try:
-                iso3, secs, lvl = fut.result()
-            except (Exception, SystemExit) as e:  # noqa: BLE001 (one bad source must not stop the rest)
+    dates = {i: valid_from(picks.get(i), i) for i in iso3s}
+    failed: dict[str, str] = {}
+    pending, done = iso3s, 0
+    # A crashed worker breaks the whole pool: rerun what it cut short while each round finishes some.
+    while pending:
+        broken = []
+        with ProcessPoolExecutor(WORKERS) as pool:
+            jobs = {
+                pool.submit(
+                    job, i, picks.get(i), parents, out, fp(i, picks.get(i)), dates[i]
+                ): i
+                for i in pending
+            }
+            for fut in as_completed(jobs):
                 iso3 = jobs[fut]
-                failed[iso3] = f"{type(e).__name__}: {e}"
-                print(f"{iso3} FAILED ({done}/{len(jobs)}): {failed[iso3]}")
-                continue
-            print(
-                f"{iso3} ({picks.get(iso3)}, adm{lvl}) {secs:.0f}s ({done}/{len(jobs)})",
-                flush=True,
-            )
+                try:
+                    _, secs, lvl = fut.result()
+                except BrokenProcessPool as e:
+                    broken.append(iso3)
+                    failed[iso3] = f"{type(e).__name__}: {e}"
+                    continue
+                except (Exception, SystemExit) as e:  # noqa: BLE001 (one bad source must not stop the rest)
+                    done += 1
+                    failed[iso3] = f"{type(e).__name__}: {e}"
+                    print(f"{iso3} FAILED ({done}/{len(iso3s)}): {failed[iso3]}")
+                    continue
+                done += 1
+                print(
+                    f"{iso3} ({picks.get(iso3)}, adm{lvl}) {secs:.0f}s ({done}/{len(iso3s)})",
+                    flush=True,
+                )
+        if broken:
+            print(f"worker crashed, {len(broken)} locations cut short", flush=True)
+        if len(broken) == len(pending):
+            break
+        for i in broken:
+            del failed[i]
+        pending = sorted(broken)
     # In this process, so a crashed worker that broke the pool still gets its fill.
     unusable = set()
     for iso3 in failed:
@@ -576,7 +602,7 @@ def main() -> None:
             failed[iso3] += "; kept the last build"
             continue
         try:
-            job(iso3, None, parents, out, fp(iso3, None))
+            job(iso3, None, parents, out, fp(iso3, None), valid_from(None, iso3))
             failed[iso3] += "; ADM0 fill"
         except Exception as e:  # noqa: BLE001 (report every location before exiting)
             failed[iso3] += f"; ADM0 fill also failed: {type(e).__name__}: {e}"
