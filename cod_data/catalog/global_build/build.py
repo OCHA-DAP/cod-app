@@ -590,13 +590,14 @@ def main() -> None:
         print(f"failed {picks.get(iso3)} build: {iso3} {error}")
     built = [i for i in all_iso3s if is_built(i)]
     missing = sorted(set(all_iso3s) - set(built))
-    print("not built yet, left out of the merge:", missing)
+    if missing:
+        sys.exit(f"not built, so the merged layers stay as they are: {missing}")
     if not args.merge_only and merged(out, built):
         print("merged layers up to date")
     else:
         for line in merge(out, built):
             print(line)
-    if failed or missing:
+    if failed:
         sys.exit(1)
 
 

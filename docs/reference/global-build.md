@@ -102,9 +102,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   per-location build code and the topo-tools version. A run MUST skip a
   built location whose fingerprint is unchanged, rewriting only its
   `valid_from`.
-- The merge MUST include only locations with `admin1`, `points`, `lines`,
-  `valid_from.txt` and fingerprint outputs, listing the others, and the run
-  MUST exit non-zero when it leaves any location out.
+- The run MUST NOT merge while any location lacks its `admin1`, `points`,
+  `lines`, `valid_from.txt` or fingerprint output. It MUST list those
+  locations, leave the merged layers as they are and exit non-zero.
 - `--only` MUST rebuild the listed locations even when unchanged, and
   merge every location already built. `--merge-only` MUST skip the builds
   and merge again.
