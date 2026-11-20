@@ -14,30 +14,41 @@ FILES = "https://datacatalogfiles.worldbank.org/ddh-published/0038272"
 INDEX = f"{FILES}/3/DR0096331/DR0096331.csv"
 ATTRIBUTES = f"{FILES}/DR0095374/WB_GAD_adm2_additional_columns.csv"
 
-links = {
-    r["file_name"]: r["download_link"]
-    for r in csv.DictReader(io.StringIO(http.get(INDEX).text))
-}
-with scratch_dir() as tmp:
-    for level in (1, 2):
-        path = Path(tmp) / f"wb_adm{level}.parquet"
-        http.download(
-            links[f"World Bank Official Boundaries - Admin {level}.parquet"], path
-        )
-        write_boundary(f"SELECT * FROM read_parquet('{path}')", f"wb_adm{level}")
-        path.unlink()
-    attributes = Path(tmp) / "wb_adm2_attributes.csv"
-    http.download(ATTRIBUTES, attributes)
-    WB_DATES.parent.mkdir(parents=True, exist_ok=True)
-    con = connect()
-    con.execute(f"""
-        COPY (
-            SELECT b.ISO_A3 AS iso3, max(coalesce(
-                try_cast(a.P_DATE AS DATE), make_date(try_cast(a.P_DATE AS INTEGER), 1, 1)
-            )) AS produced
-            FROM read_parquet('{path_of("wb_adm2")}') b
-            JOIN read_csv('{attributes}', all_varchar=true) a USING (ADM2CD_c)
-            GROUP BY 1
-        ) TO '{WB_DATES}' {TABLE_OPTIONS}
-    """)
-    con.close()
+
+def layers() -> None:
+    links = {
+        r["file_name"]: r["download_link"]
+        for r in csv.DictReader(io.StringIO(http.get(INDEX).text))
+    }
+    with scratch_dir() as tmp:
+        for level in (1, 2):
+            path = Path(tmp) / f"wb_adm{level}.parquet"
+            http.download(
+                links[f"World Bank Official Boundaries - Admin {level}.parquet"], path
+            )
+            write_boundary(f"SELECT * FROM read_parquet('{path}')", f"wb_adm{level}")
+            path.unlink()
+
+
+def dates() -> None:
+    with scratch_dir() as tmp:
+        attributes = Path(tmp) / "wb_adm2_attributes.csv"
+        http.download(ATTRIBUTES, attributes)
+        WB_DATES.parent.mkdir(parents=True, exist_ok=True)
+        con = connect()
+        con.execute(f"""
+            COPY (
+                SELECT b.ISO_A3 AS iso3, max(coalesce(
+                    try_cast(a.P_DATE AS DATE), make_date(try_cast(a.P_DATE AS INTEGER), 1, 1)
+                )) AS produced
+                FROM read_parquet('{path_of("wb_adm2")}') b
+                JOIN read_csv('{attributes}', all_varchar=true) a USING (ADM2CD_c)
+                GROUP BY 1
+            ) TO '{WB_DATES}' {TABLE_OPTIONS}
+        """)
+        con.close()
+
+
+if __name__ == "__main__":
+    layers()
+    dates()
