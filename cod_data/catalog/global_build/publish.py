@@ -255,7 +255,7 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
                 "processing_notes": notes,
                 "keywords": [iso3, *([pick] if pick else [])],
                 "license": "other",
-                "license_url": "../../TERMS.md",
+                "license_url": "../TERMS.md",
             },
         )
     print(f"iso3: restaged {restaged} of {len(names)} locations")
