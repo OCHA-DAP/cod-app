@@ -4,7 +4,7 @@ summary: The fields every polygon layer carries, with their types. Each layer re
 order: 4
 ---
 
-Each polygon layer at level L carries all of the following fields. Fields whose names contain *{N}* repeat for every level from 0 through L, making each layer self-contained: upper-level units can be derived by dissolving on the embedded parent fields without reference to any other layer. All other fields except *area\_sqkm* and *level* are constant across all rows within a layer.
+Each polygon layer at level L carries all of the following fields. Fields whose names contain *{N}* repeat for every level from 0 through L, making each layer self-contained: upper-level units can be derived by dissolving on the embedded parent fields without reference to any other layer. The per-level fields run from level L down to level 0, before the other fields. All other fields except *area\_sqkm* and *level* are constant across all rows of one location within a layer.
 
 | Field | Type | Description |
 | :---- | :---- | :---- |
@@ -13,8 +13,8 @@ Each polygon layer at level L carries all of the following fields. Fields whose 
 | *adm{N}\_name1* | String | Alternate-language name. The language is declared in *lang1*. Null if *lang1* is null. |
 | *adm{N}\_name2* | String | Alternate-language name. The language is declared in *lang2*. Null if *lang2* is null. |
 | *adm{N}\_name3* | String | Alternate-language name. The language is declared in *lang3*. Null if *lang3* is null. |
-| *adm{N}\_type* | String*\-50* | Administrative unit type drawn from a controlled taxonomy. Values in the taxonomy may be translated into local languages. |
-| *adm{N}\_srcid* | String *\-20* | Source-assigned code (government, GADM, OSM, or other). Null where no source code exists. |
+| *adm{N}\_type* | String | Administrative unit type as the source names it (e.g., *Region*, *Commune*). Null where the source gives none. |
+| *adm{N}\_srcid* | String | Source-assigned code (government, GADM, OSM, or other). Null where no source code exists. |
 | *version* | Integer | Release version, identical across all rows and all levels for the same dataset release (e.g., *1*). |
 | *updated* | Date | Date of last name / metadata change to the dataset; empty on release and populated when a minor change has been made. |
 | *valid\_from* | Date | Date from which the dataset is valid for humanitarian use. Automatically set when a dataset is added to the global central registry. |

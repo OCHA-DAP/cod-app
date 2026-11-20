@@ -16,7 +16,7 @@ from cod_data.shared.geoparquet import TABLE_OPTIONS
 
 load_dotenv(".env")
 CATALOG = Path(os.environ.get("CATALOG", "catalog"))
-SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "erm", "basemap")
+SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "wb", "erm", "basemap")
 DECISIONS_CSV = Path("src/lib/explorer/decisions.csv")
 # Normalized as in src/lib/explorer/decisions.ts.
 DECISIONS = f"""(
@@ -28,6 +28,10 @@ DECISIONS = f"""(
 )"""
 COD_AB_BASE = "https://data.source.coop/hdx/cod-ab"
 COD_AB_CACHE = Path("tmp/catalog/cache/cod-ab")
+# The date FAO accessed each location's source, from GAUL's metadata spreadsheets.
+FAO_ACCESSED = Path("tmp/catalog/cache/fao_accessed.parquet")
+# The latest P_DATE of each location's World Bank admin 2 units.
+WB_DATES = Path("tmp/catalog/cache/wb_dates.parquet")
 DUCKDB_TMP = Path("tmp/catalog/duckdb-tmp")
 BASEMAP_BUILD = Path("tmp/catalog/basemap")
 TILE_MAX_ZOOM = 11
@@ -72,6 +76,12 @@ PARTNERS = {
         "url": "https://storage.googleapis.com/fao-maps-catalog-data/boundaries/",
         "source_url": "https://data.apps.fao.org/catalog/dataset/global-administrative-unit-layers-gaul-2025",
     },
+    "wb": {
+        "label": "World Bank",
+        "provider": "World Bank (Official Boundaries)",
+        "url": "https://datacatalogfiles.worldbank.org/ddh-published/0038272/",
+        "source_url": "https://datacatalog.worldbank.org/search/dataset/0038272",
+    },
     "erm": {
         "label": "EuroGeographics",
         "provider": "EuroGeographics (EuroRegionalMap)",
@@ -115,6 +125,9 @@ BOUNDARY_SOURCES = [
         "GAUL{level}_NAME",
         ["Waterbody", "Undefined", "Administrative Unit Not Available"],
     ),
+    BoundarySource(
+        "wb", "ISO_A3", [1, 2], "NAM_{level}", ["Administrative unit not available"]
+    ),
     BoundarySource("erm", "iso3", [1, 2, 3, 4]),
 ]
 
@@ -141,12 +154,14 @@ def path_of(name: str, ext: str = "parquet") -> Path:
     return item_dir(name) / f"{name}.{ext}"
 
 
-def connect(db: Path | None = None) -> duckdb.DuckDBPyConnection:
-    """A DuckDB connection on half the cores and default memory that spills to DUCKDB_TMP."""
+def connect(
+    db: Path | None = None, threads: int | None = None
+) -> duckdb.DuckDBPyConnection:
+    """A DuckDB connection on threads (default half the cores) and default memory that spills to DUCKDB_TMP."""
     DUCKDB_TMP.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(db) if db else ":memory:")
     con.execute(
-        f"SET threads = {max(1, (os.cpu_count() or 2) // 2)}; "
+        f"SET threads = {threads or max(1, (os.cpu_count() or 2) // 2)}; "
         f"SET preserve_insertion_order = false; SET temp_directory = '{DUCKDB_TMP}'; LOAD spatial; SET geometry_always_xy = true"
     )
     return con

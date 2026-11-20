@@ -10,6 +10,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   pick, MUST be ADM0 fill only: each level's polygon MUST be the ADM0
   polygon with the ADM0 name and code, written without schema-fill or
   package, with one point per level and no boundary lines.
+- The build MUST raise when a pick names a source it doesn't take.
+  World Bank layers are for comparison in the explorer only.
 - The build MUST read the ADM0 layer named by `--adm0` (`improved` by
   default, `gaul` or `fieldmaps`) from the adm0-app catalog
   (`ADM0_CATALOG`), and source layers from the explorer catalog.
@@ -50,7 +52,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   cleaned with `topo_clean` when `topo_detect` finds any defect.
 - Any other pick MUST then be extended with `edge_extend` and cleaned with
   `topo_clean` when `topo_detect` finds any defect. Extensions MUST be
-  cached by input content and topo-tools version.
+  cached by input content, the DuckDB, spatial extension and topo-tools
+  versions, and the extend code.
 - For locations in `PARTS`, each unit MUST go to the ADM0 part holding its
   maximum inscribed circle center, else its largest overlap, else the
   nearest part. The build MUST raise if a unit lands in a part not listed.
@@ -72,29 +75,71 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `lines` GeoParquet to `tmp/global/<adm0>/`, with the fields of
   `schema.md`. A location shallower than a layer MUST repeat its deepest
   units there with their own `level`, copying their fields down.
+- Polygon fields MUST run from the layer's level down to adm0, each level's
+  fields in `schema.md` order, before `version`.
+- `version` MUST be 1, and `updated` and `valid_to` MUST be null.
+  `valid_from` MUST be recorded when the location is built, as its
+  `source_updated` in the explorer's `source_provenance`: the latest
+  `valid_on` for OCHA (provenance MUST raise when a location has more than
+  one), `src_date` for ERM, `update_date` for UNHCR, `source_date` for WFP,
+  `start_date` for UNICEF, and the "Accessed on" date of GAUL's metadata
+  spreadsheets for FAO. It MUST be null on or before 1900-01-01, when
+  there is no date, and when the location is ADM0 fill.
+- `lang1` to `lang3` MUST be constant within a location: the source's tag
+  wherever any of its units has that `name{i}`, and null otherwise.
 - The merge MUST raise on duplicate or null P-codes, malformed P-codes,
-  P-codes not under their parent, and `name{i}`/`lang{i}` disagreements,
-  and MUST report srcids over 20 characters, rows missing a source `lang`,
-  and null names. It MUST replace the layers only after every layer
-  passes.
+  P-codes not under their parent, a `name{i}` without its `lang{i}`,
+  fields out of `schema.md` order, a location with more than one value,
+  or a mix of null and non-null, in `version`, `updated`, `valid_from`,
+  `valid_to`, `lang` or `lang1` to `lang3`, and `version` other than 1 or
+  a set `updated` or `valid_to`.
+  It MUST report rows missing a source `lang` and null names. It MUST
+  replace the layers only after every layer passes.
 - Each location MUST build in a temporary folder that replaces its last
   build only on success. A location that fails MUST keep its last
-  successful build when that build's ADM0 rows match the current ADM0
-  layer, and otherwise MUST fall back to ADM0 fill, built in the main
-  process after the pool. It MUST be listed before the merge,
+  successful build when that build has every output the merge needs and
+  its ADM0 rows match the current ADM0 layer, and otherwise MUST fall back
+  to ADM0 fill, built in the main
+  process after the pool. An error reading the ERM catalog MUST fail only
+  the ERM picks. A location whose fill also fails MUST count as
+  unbuilt. It MUST be listed before the merge,
   and MUST make the run exit non-zero.
-- The merge MUST include only locations with `admin1`, `points` and
-  `lines` outputs, listing the others.
-- `--only` MUST rebuild only the listed locations and merge every location
-  already built.
+- Each location's build MUST record a fingerprint of its inputs: its
+  pick, its rows in the ADM0 layer and in each of the pick's explorer
+  layers, the cod-ab extended layers (OCHA), the ERM original layers' size
+  and modification time (ERM), the pick's `BOUNDARY_SOURCES` entry, the
+  code its build runs (the global build modules except the merge and
+  staging, `common.py`, `erm.py` and `geoparquet.py`), and the DuckDB,
+  spatial extension and topo-tools versions. A run MUST skip a
+  built location whose fingerprint is unchanged, rewriting only its
+  `valid_from`.
+- The run MUST NOT merge while any location lacks its `admin1`, `points`,
+  `lines`, `valid_from.txt`, fingerprint or build id output. It MUST list those
+  locations, leave the merged layers as they are and exit non-zero.
+- `--only` MUST rebuild the listed locations even when unchanged, then
+  merge every location, stopping when any is unbuilt. `--merge-only` MUST skip the builds
+  and merge again.
+- Each build MUST record a unique build id. The run MUST skip the merge
+  when every merged layer exists and the merge code (with the build
+  settings and `geoparquet.py`) and each location's build id and
+  `valid_from` are unchanged.
 - The merge MUST write each `adm{n}` polygon layer ordered by
-  `adm{n}_pcode`, and `points` and `lines` in Hilbert order.
+  `adm{n}_pcode`, `points` by `pcode` and `lines` in Hilbert order, with
+  row groups of at most 32 MB.
 - Each location's build MUST record the installed topo-tools version,
   including ADM0 fill builds and OCHA picks whose geometry comes from the
   cod-ab catalog. The global collections MUST name the merged locations'
   versions only when every one of them has a record.
 - The catalog's `global` step MUST publish only the `improved` build, and
   MUST skip the step with a message when it has no merged build. It MUST
+  fail when the merged layers don't hold every location's current build,
+  when any build's fingerprint or `valid_from` differs from its current
+  inputs (so an ADM0 fill or kept build of a failed pick blocks it), or
+  when the merged layers hold a location the ADM0 layer no longer has, or
+  lack one it has.
+  It therefore needs every build input: the adm0-app, cod-ab and ERM
+  catalogs and the explorer layers. A missing or unreadable
+  `parents.parquet` MUST count as not current. It MUST
   write `catalog/global/adm{n}-{geom}/adm{n}_{geom}.parquet` for levels 1
   to 4 and `polygons`, `points` and `lines`, each with PMTiles named after
   the file: `polygons` the merged layer, `points` the level-`n` points with
@@ -104,11 +149,17 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `catalog/global/iso3/<iso3>/`, polygons cut from the merged layer by
   `adm0_pcode` and points and lines from the location's build, and MUST
   remove the folder of a location the merge no longer has.
-- Every published GeoParquet MUST be in Hilbert order, over the world box
-  in the global layers and over the location's extent per location, with
-  row groups of at most 32 MB in the global layers and 8 MB per location. A layer MUST
-  be rewritten only when its merged source is newer, and tiled only when
-  its tiles are missing or older.
+- Published polygons MUST be ordered by `adm{n}_pcode` and points by
+  `pcode`. Lines MUST be in Hilbert order, over the world box in the global
+  layers and over the location's extent per location. Row groups MUST be
+  at most 32 MB in the global layers and 8 MB per location.
+- The catalog check MUST pass apart from PTL-DAT-006 (rows not spatially
+  ordered) on published polygons, which P-code order can raise.
+- A global layer MUST be rewritten only when its merged source is newer,
+  polygons as a copy of the merged layer. A location's layers MUST be
+  rewritten only when its build id, its `valid_from`, the merge code (with
+  the build settings and `geoparquet.py`) or the staging code changed since they were last written, or a layer is
+  missing. A layer MUST be tiled only when its tiles are missing or older.
 - Each level's points MUST pair 1:1 with its polygons by P-code, or the
   step MUST fail.
 - It MUST write the portolan `metadata.yaml` for `global/`,
