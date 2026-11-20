@@ -6,7 +6,7 @@ import { toolsBase } from "$lib/utils/paths";
 import PageLayout from "../../layouts/PageLayout.astro";
 
 const summary =
-  "These tools take a raw administrative boundary delivery through to a clean, coded, packaged COD-AB release. Run them in your browser, from the command line, or with an AI agent.";
+  "Six steps take a raw administrative boundary delivery to a COD-AB release. You can run them in your browser or on your own machine.";
 
 const rows = steps.map((s) => ({ ...s, tool: tools.find((t) => t.slug === s.slug)!.name }));
 const appHref = `${toolsBase}app/`;
@@ -18,7 +18,7 @@ const docsHref = `${toolsBase}docs/`;
     <section class="mirror" aria-label="Two ways to run the six steps">
       <header class="head web">
         <h2>In your browser</h2>
-        <p>The web app. Nothing to install, and your files never leave your device.</p>
+        <p>The web app needs no install, and your files stay on your device.</p>
       </header>
       <a class="pane web" href={appHref} aria-label="Open the web app">
         <span class="chrome">
@@ -50,8 +50,8 @@ const docsHref = `${toolsBase}docs/`;
       <header class="head cli">
         <h2>On your machine</h2>
         <p>
-          The Python CLI, for scripting, batch runs and files too large for the browser. An AI agent
-          can drive it for you.
+          The Python CLI suits batch runs and files too large for the browser, and an AI agent can
+          run it for you.
         </p>
       </header>
       <a class="pane cli" href={docsHref} aria-label="Read the CLI docs">
@@ -80,7 +80,7 @@ const docsHref = `${toolsBase}docs/`;
     </section>
 
     <p class="slides">
-      Presenting the tools? <a href={`${toolsBase}slides`}>View the slides</a>
+      To present the tools, use <a href={`${toolsBase}slides`}>the slides</a>.
     </p>
   </div>
 </PageLayout>
