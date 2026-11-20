@@ -1,5 +1,6 @@
 """Stage the global build in catalog/global/: adm{n}-{geom} collections and one iso3/<iso3>/ collection per location."""
 
+import hashlib
 import json
 import shutil
 from itertools import product
@@ -17,7 +18,16 @@ from cod_data.catalog.common import (
     tile_parquet,
     write_yaml,
 )
-from cod_data.catalog.global_build.config import BUILD, MAX_LVL, VERSION_FILE
+from cod_data.catalog.global_build import merge
+from cod_data.catalog.global_build.config import (
+    BUILD,
+    FINGERPRINT_FILE,
+    GLOBAL_ROW_GROUP,
+    MAX_LVL,
+    PROD_THREADS,
+    VALID_FROM_FILE,
+    VERSION_FILE,
+)
 from cod_data.shared.geoparquet import HILBERT, write_geoparquet
 
 GLOBAL = CATALOG / "global"
@@ -26,11 +36,14 @@ ISO3 = GLOBAL / "iso3"
 ADM0 = "improved"
 GEOMS = ("polygons", "points", "lines")
 LAYERS = list(product(range(1, MAX_LVL + 1), GEOMS))
-GLOBAL_ROW_GROUP = "32MB"
 ISO3_ROW_GROUP = "8MB"
-# A location's layers follow the Hilbert curve over its own extent, which splits small
+# A location's lines follow the Hilbert curve over its own extent, which splits small
 # locations into compact row groups where the world curve can straddle them.
 LOCAL_HILBERT = "ST_Hilbert(geometry, ST_Extent(ST_Extent_Agg(geometry) OVER ()))"
+# Polygons and points by P-code, so a level's global polygons are the merged file as is.
+ORDER = {"polygons": "adm{n}_pcode", "points": "pcode", "lines": HILBERT}
+# Digest per location of what its iso3 layers were last staged from.
+STAGED = BUILD / ADM0 / "staged.json"
 PROVIDER = {**HOST, "roles": ["producer", "processor", "host"]}
 TERMS = "Each producer's terms of use apply to its locations. Check them before reusing the data."
 DESCRIPTIONS = {
@@ -122,9 +135,14 @@ def stage_global(con: duckdb.DuckDBPyConnection, notes: str) -> None:
             src / "lines.parquet",
         )
         collection.mkdir(parents=True, exist_ok=True)
-        if not newer(parquet, *inputs(n, geom, *files)):
+        stale = not newer(parquet, *inputs(n, geom, *files))
+        if stale and geom == "polygons":
+            tmp = parquet.with_name(f".{parquet.name}")
+            shutil.copy2(files[0], tmp)
+            tmp.replace(parquet)
+        elif stale:
             query = layer_sql(n, geom, *(f"'{f}'" for f in files))
-            write(con, query, parquet, HILBERT, GLOBAL_ROW_GROUP)
+            write(con, query, parquet, ORDER[geom], GLOBAL_ROW_GROUP)
         tile(con, parquet, name(n, geom))
         write_yaml(
             collection / ".portolan" / "metadata.yaml",
@@ -163,9 +181,20 @@ def write_stats(con: duckdb.DuckDBPyConnection) -> None:
     (GLOBAL / "stats.json").write_text(json.dumps(stats, indent=2) + "\n")
 
 
+def staged_digest(folder: Path) -> str:
+    """Hash of a location's build, its date and the code that merges and cuts it."""
+    h = hashlib.sha256()
+    for f in (folder / FINGERPRINT_FILE, folder / VALID_FROM_FILE):
+        h.update(f.read_bytes())
+    for f in (Path(merge.__file__), Path(__file__)):
+        h.update(f.read_bytes())
+    return h.hexdigest()
+
+
 def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
     src = BUILD / ADM0
     work = src / "iso3"
+    staged = json.loads(STAGED.read_text()) if STAGED.exists() else {}
     picks = dict(
         con.execute(f"SELECT iso3, selected_source FROM {DECISIONS}").fetchall()
     )
@@ -180,20 +209,30 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
         if old.name.upper() not in names:
             print(f"global/iso3/{old.name}: no longer built, removing")
             shutil.rmtree(old)
+            staged.pop(old.name.upper(), None)
+    restaged = 0
     for iso3, adm0_name in sorted(names.items()):
         folder = ISO3 / iso3.lower()
         folder.mkdir(parents=True, exist_ok=True)
-        for n, geom in LAYERS:
-            parquet = folder / f"{name(n, geom)}.parquet"
-            source = src / f"adm{n}_polygons.parquet"
-            points, lines = (work / iso3.lower() / f"{g}.parquet" for g in GEOMS[1:])
-            if not newer(parquet, *inputs(n, geom, source, points, lines)):
+        digest = staged_digest(work / iso3.lower())
+        parquets = {(n, g): folder / f"{name(n, g)}.parquet" for n, g in LAYERS}
+        if staged.get(iso3) != digest or not all(p.exists() for p in parquets.values()):
+            restaged += 1
+            for (n, geom), parquet in parquets.items():
+                source = src / f"adm{n}_polygons.parquet"
+                points, lines = (
+                    work / iso3.lower() / f"{g}.parquet" for g in GEOMS[1:]
+                )
                 polygons = f"(SELECT * FROM '{source}' WHERE adm0_pcode = '{iso3}')"
                 query = layer_sql(n, geom, polygons, f"'{points}'", f"'{lines}'")
-                write(con, query, parquet, LOCAL_HILBERT, ISO3_ROW_GROUP)
+                order = LOCAL_HILBERT if geom == "lines" else ORDER[geom].format(n=n)
+                write(con, query, parquet, order, ISO3_ROW_GROUP)
+            for n in range(1, MAX_LVL + 1):
+                check(con, *(parquets[(n, g)] for g in GEOMS[:2]), n)
+            staged[iso3] = digest
+            STAGED.write_text(json.dumps(staged, indent=1, sort_keys=True) + "\n")
+        for (n, geom), parquet in parquets.items():
             tile(con, parquet, name(n, geom))
-        for n in range(1, MAX_LVL + 1):
-            check(con, *(folder / f"{name(n, g)}.parquet" for g in GEOMS[:2]), n)
         pick = picks.get(iso3)
         label = PARTNERS.get(pick, {}).get("provider") if pick else None
         source = f" Source: {label}." if label else ""
@@ -209,6 +248,7 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
                 "license_url": "../../TERMS.md",
             },
         )
+    print(f"global/iso3: restaged {restaged} of {len(names)} locations")
 
 
 def stage() -> None:
@@ -233,7 +273,7 @@ def stage() -> None:
     (GLOBAL / "TERMS.md").write_text(
         f"# Terms\n\nThe layers in `global/` combine admin boundaries published by several producers, one per location, as picked in the Boundaries Explorer. {TERMS}\n"
     )
-    con = connect()
+    con = connect(threads=PROD_THREADS)
     try:
         stage_global(con, notes)
         write_stats(con)
