@@ -32,7 +32,9 @@ with scratch_dir() as tmp:
     con = connect()
     con.execute(f"""
         COPY (
-            SELECT b.ISO_A3 AS iso3, max(try_cast(a.P_DATE AS DATE)) AS produced
+            SELECT b.ISO_A3 AS iso3, max(coalesce(
+                try_cast(a.P_DATE AS DATE), make_date(try_cast(a.P_DATE AS INTEGER), 1, 1)
+            )) AS produced
             FROM read_parquet('{path_of("wb_adm2")}') b
             JOIN read_csv('{attributes}', all_varchar=true) a USING (ADM2CD_c)
             GROUP BY 1
