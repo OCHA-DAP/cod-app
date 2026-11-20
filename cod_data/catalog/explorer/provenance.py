@@ -12,6 +12,8 @@ RAW_DIR = Path(__file__).parent / "data" / "provenance"
 OUT = path_of("source_provenance")
 
 
+if not FAO_ACCESSED.exists():
+    raise FileNotFoundError(f"{FAO_ACCESSED} missing: run the fao step first")
 con = connect()
 multi = con.execute(f"""
     SELECT iso3 FROM read_parquet('{path_of("ocha_adm1")}')
