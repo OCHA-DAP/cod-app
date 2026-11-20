@@ -1,14 +1,14 @@
 import { asyncBufferFromUrl, parquetRead } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
 import { parseCsv } from "$lib/explorer/csv";
-import { globalUrl } from "$lib/utils/data";
+import { iso3Url } from "$lib/utils/data";
 import { base } from "$lib/utils/paths";
 
 export const LEVELS = [1, 2, 3, 4] as const;
 export type Level = (typeof LEVELS)[number];
 
 export const polygonsUrl = (iso3: string, n: number, ext = "parquet") =>
-  globalUrl(`iso3/${iso3.toLowerCase()}/adm${n}_polygons.${ext}`);
+  iso3Url(iso3, `adm${n}_polygons.${ext}`);
 
 // Status data the deploy fetches into public/status/data/ (npm run fetch:status).
 async function statusCsv(file: string): Promise<Record<string, string>[]> {
