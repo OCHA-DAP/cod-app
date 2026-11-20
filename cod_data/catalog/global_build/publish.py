@@ -186,7 +186,7 @@ def staged_digest(folder: Path) -> str:
     h = hashlib.sha256()
     for f in (folder / BUILD_ID_FILE, folder / VALID_FROM_FILE):
         h.update(f.read_bytes())
-    for f in (Path(merge.__file__), Path(__file__)):
+    for f in (*merge.CODE, Path(__file__)):
         h.update(f.read_bytes())
     return h.hexdigest()
 

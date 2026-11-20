@@ -473,10 +473,12 @@ def erm_stamp() -> str:
     """Size and modification time of each ERM original layer, which erm_langs reads."""
     try:
         paths = [Path(p) for p, *_ in erm_layers()]
+        return "\n".join(
+            f"{p} {p.stat().st_size} {p.stat().st_mtime_ns}" for p in paths
+        )
     # layers() exits when the ERM catalog is missing; only the ERM builds then fail.
-    except SystemExit as e:
-        return f"erm layers missing: {e}"
-    return "\n".join(f"{p} {p.stat().st_size} {p.stat().st_mtime_ns}" for p in paths)
+    except (Exception, SystemExit) as e:  # noqa: BLE001
+        return f"erm layers unreadable: {type(e).__name__}: {e}"
 
 
 def fingerprint(
