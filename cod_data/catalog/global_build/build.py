@@ -7,7 +7,6 @@ import argparse
 import hashlib
 import shutil
 import sys
-import tempfile
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -18,11 +17,8 @@ from pathlib import Path
 import duckdb
 from topo_tools.api import (
     code_create,
-    edge_extend,
     edge_mosaic,
     package,
-    topo_clean,
-    topo_detect,
 )
 
 from cod_data.catalog.common import (
@@ -53,17 +49,17 @@ from cod_data.catalog.global_build.config import (
     WORKERS,
 )
 from cod_data.catalog.global_build.conform import COLUMNS, depth, layer, stage_sql
+from cod_data.catalog.global_build.extend import clean_layer, engine, extend_layer
 from cod_data.catalog.global_build.merge import merge, merged
 from cod_data.shared.geoparquet import write_geoparquet
 
 LEVEL_COLS = ("name", "name1", "name2", "name3", "pcode", "srcid", "type")
 FILL = {"adm0_pcode": "adm0_pcode", "adm0_name": "adm0_name"}
-EXTENDED = BUILD / "extended"
 # Code a location's build runs; merge.py and publish.py stay out so editing them rebuilds nothing.
 CODE = [
     *(
         Path(__file__).with_name(f)
-        for f in ("build.py", "conform.py", "config.py", "adm0.py")
+        for f in ("build.py", "conform.py", "config.py", "adm0.py", "extend.py")
     ),
     Path(__file__).parents[1] / "common.py",
     Path(__file__).parents[1] / "explorer" / "erm.py",
@@ -125,46 +121,6 @@ def _punch(con: duckdb.DuckDBPyConnection, path: Path, work: Path) -> Path:
     return out
 
 
-def _clean(
-    con: duckdb.DuckDBPyConnection,
-    path: Path,
-    work: Path,
-    kinds: str = "true",
-    gap: str | None = None,
-) -> Path:
-    """path, or its topo_clean output when topo_detect finds defects matching kinds."""
-    issues = work / f"{path.stem}_detect.parquet"
-    topo_detect(path, issues, threads=THREADS, tmp_dir=work)
-    found = f"SELECT count(*) FROM '{issues}' WHERE {kinds}"
-    if not con.execute(found).fetchall()[0][0]:
-        return path
-    clean = work / f"{path.stem}_clean.parquet"
-    topo_clean(
-        path,
-        clean,
-        work / f"{path.stem}_clean_issues.parquet",
-        maximum_gap_width=gap,
-        threads=THREADS,
-        tmp_dir=work,
-    )
-    return clean
-
-
-def _extend(con: duckdb.DuckDBPyConnection, original: Path, work: Path) -> Path:
-    """Extend original past its coastline, cleaned on defects; cached by content and topo-tools version."""
-    digest = hashlib.sha256(
-        original.read_bytes() + version("topo-tools").encode()
-    ).hexdigest()[:16]
-    out = EXTENDED / f"{original.stem}-{digest}.parquet"
-    if out.exists():
-        return out
-    EXTENDED.mkdir(parents=True, exist_ok=True)
-    extended = work / f"{original.stem}_extended.parquet"
-    edge_extend(original, extended, threads=THREADS, tmp_dir=work)
-    shutil.move(_clean(con, extended, work), out)
-    return out
-
-
 def _cod_ab_path(iso3: str, lvl: int) -> Path:
     key = iso3.lower()
     name = f"{key}_admin{lvl}"
@@ -203,7 +159,7 @@ def _cod_ab_extended(
         if want != got:
             raise ValueError(f"{iso3}: {want - got} units missing from {src}")
         matched += got
-        outs.append(_clean(con, out, work))
+        outs.append(clean_layer(con, out, work))
     if matched != rows:
         raise ValueError(
             f"{iso3}: {rows - matched} units in {src} not in the OCHA layer"
@@ -365,7 +321,7 @@ def _build(
     if source:
         # Partner sources can overlap or leave gaps, which edge_extend rejects.
         originals = [
-            _clean(
+            clean_layer(
                 con,
                 _punch(con, o, work),
                 work,
@@ -378,7 +334,7 @@ def _build(
         inputs = (
             _cod_ab_extended(con, iso3, originals, lvl, work)
             if source == "ocha"
-            else [_extend(con, o, work) for o in originals]
+            else [extend_layer(con, o, work) for o in originals]
         )
         edge_mosaic(
             input_paths=inputs,
@@ -457,16 +413,6 @@ def digests(
 
 def file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-@cache
-def engine() -> str:
-    con = connect()
-    spatial = con.execute(
-        "SELECT extension_version FROM duckdb_extensions() WHERE extension_name = 'spatial'"
-    ).fetchall()[0][0]
-    con.close()
-    return f"duckdb {duckdb.__version__} spatial {spatial} topo-tools {version('topo-tools')}"
 
 
 @cache
@@ -559,36 +505,6 @@ def inputs(
         ).fetchall()
     ]
     return picks, iso3s
-
-
-def stale(adm0: str) -> list[str]:
-    """Locations whose build is missing, behind its current inputs and date, or merged but dropped."""
-    out = BUILD / adm0
-    con = connect(threads=PROD_THREADS)
-    try:
-        with tempfile.TemporaryDirectory(dir=out) as tmp:
-            parents = Path(tmp) / "parents.parquet"
-            write_parents(con, adm0, parents)
-            picks, iso3s = inputs(con, parents)
-            rows = digests(con, parents, set(picks.values()))
-        merged_iso3s = {
-            r[0]
-            for r in con.execute(
-                f"SELECT DISTINCT adm0_pcode FROM '{out / 'adm1_polygons.parquet'}'"
-            ).fetchall()
-        }
-    finally:
-        con.close()
-    folders = {i: out / "iso3" / i.lower() for i in iso3s}
-    behind = [
-        i
-        for i in iso3s
-        if not is_built(folders[i])
-        or (folders[i] / FINGERPRINT_FILE).read_text()
-        != fingerprint(i, picks.get(i), rows)
-        or (folders[i] / VALID_FROM_FILE).read_text() != valid_from(picks.get(i), i)
-    ]
-    return sorted({*behind, *(merged_iso3s - set(iso3s))})
 
 
 def main() -> None:

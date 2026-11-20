@@ -50,7 +50,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   cleaned with `topo_clean` when `topo_detect` finds any defect.
 - Any other pick MUST then be extended with `edge_extend` and cleaned with
   `topo_clean` when `topo_detect` finds any defect. Extensions MUST be
-  cached by input content and topo-tools version.
+  cached by input content, the DuckDB, spatial extension and topo-tools
+  versions, and the extend code.
 - For locations in `PARTS`, each unit MUST go to the ADM0 part holding its
   maximum inscribed circle center, else its largest overlap, else the
   nearest part. The build MUST raise if a unit lands in a part not listed.
@@ -128,7 +129,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   fail when the merged layers don't hold every location's current build,
   when any build's fingerprint or `valid_from` differs from its current
   inputs (so an ADM0 fill or kept build of a failed pick blocks it), or
-  when the merged layers hold a location the ADM0 layer no longer has.
+  when the merged layers hold a location the ADM0 layer no longer has, or
+  lack one it has.
   It therefore needs every build input: the adm0-app, cod-ab and ERM
   catalogs and the explorer layers. A missing or unreadable
   `parents.parquet` MUST count as not current. It MUST

@@ -3,6 +3,7 @@
 import hashlib
 import json
 import shutil
+import tempfile
 from itertools import product
 from pathlib import Path
 
@@ -19,10 +20,18 @@ from cod_data.catalog.common import (
     write_yaml,
 )
 from cod_data.catalog.global_build import merge
-from cod_data.catalog.global_build.build import stale
+from cod_data.catalog.global_build.adm0 import write_parents
+from cod_data.catalog.global_build.build import (
+    digests,
+    fingerprint,
+    is_built,
+    valid_from,
+)
+from cod_data.catalog.global_build.build import inputs as picks_and_iso3s
 from cod_data.catalog.global_build.config import (
     BUILD,
     BUILD_ID_FILE,
+    FINGERPRINT_FILE,
     GLOBAL_ROW_GROUP,
     MAX_LVL,
     PROD_THREADS,
@@ -250,6 +259,36 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
             },
         )
     print(f"global/iso3: restaged {restaged} of {len(names)} locations")
+
+
+def stale(adm0: str) -> list[str]:
+    """Locations whose build is missing or behind its current inputs and date, or that the merge and ADM0 layer disagree on."""
+    out = BUILD / adm0
+    con = connect(threads=PROD_THREADS)
+    try:
+        with tempfile.TemporaryDirectory(dir=out) as tmp:
+            parents = Path(tmp) / "parents.parquet"
+            write_parents(con, adm0, parents)
+            picks, iso3s = picks_and_iso3s(con, parents)
+            rows = digests(con, parents, set(picks.values()))
+        merged_iso3s = {
+            r[0]
+            for r in con.execute(
+                f"SELECT DISTINCT adm0_pcode FROM '{out / 'adm1_polygons.parquet'}'"
+            ).fetchall()
+        }
+    finally:
+        con.close()
+    folders = {i: out / "iso3" / i.lower() for i in iso3s}
+    behind = [
+        i
+        for i in iso3s
+        if not is_built(folders[i])
+        or (folders[i] / FINGERPRINT_FILE).read_text()
+        != fingerprint(i, picks.get(i), rows)
+        or (folders[i] / VALID_FROM_FILE).read_text() != valid_from(picks.get(i), i)
+    ]
+    return sorted({*behind, *(merged_iso3s ^ set(iso3s))})
 
 
 def stage() -> None:
