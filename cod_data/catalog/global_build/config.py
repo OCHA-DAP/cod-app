@@ -8,6 +8,8 @@ VERSION_FILE = "topo_tools_version.txt"
 # The location's valid_from: its source_updated in the explorer's source_provenance.
 VALID_FROM_FILE = "valid_from.txt"
 FINGERPRINT_FILE = "fingerprint.txt"
+# Unique per build, so a forced rebuild reaches the merge and staging.
+BUILD_ID_FILE = "build_id.txt"
 # Row groups small enough for DuckDB to compress them in parallel.
 GLOBAL_ROW_GROUP = "32MB"
 EXPLORER = Path(os.environ.get("CATALOG", "catalog")) / "explorer"

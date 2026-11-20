@@ -8,7 +8,7 @@ from packaging.version import Version
 
 from cod_data.catalog.common import connect
 from cod_data.catalog.global_build.config import (
-    FINGERPRINT_FILE,
+    BUILD_ID_FILE,
     GLOBAL_ROW_GROUP,
     MAX_LVL,
     PROD_THREADS,
@@ -122,11 +122,11 @@ def outputs(out: Path) -> list[Path]:
 
 
 def fingerprint(out: Path, iso3s: list[str]) -> str:
-    """Hash of this module and each location's build fingerprint and valid_from."""
+    """Hash of this module and each location's build id and valid_from."""
     h = hashlib.sha256(Path(__file__).read_bytes())
     for i in iso3s:
         folder = out / "iso3" / i.lower()
-        for f in (FINGERPRINT_FILE, VALID_FROM_FILE):
+        for f in (BUILD_ID_FILE, VALID_FROM_FILE):
             h.update(f"{i}/{f}:{(folder / f).read_text()}\n".encode())
     return h.hexdigest()
 

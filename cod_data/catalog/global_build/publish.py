@@ -21,7 +21,7 @@ from cod_data.catalog.common import (
 from cod_data.catalog.global_build import merge
 from cod_data.catalog.global_build.config import (
     BUILD,
-    FINGERPRINT_FILE,
+    BUILD_ID_FILE,
     GLOBAL_ROW_GROUP,
     MAX_LVL,
     PROD_THREADS,
@@ -184,7 +184,7 @@ def write_stats(con: duckdb.DuckDBPyConnection) -> None:
 def staged_digest(folder: Path) -> str:
     """Hash of a location's build, its date and the code that merges and cuts it."""
     h = hashlib.sha256()
-    for f in (folder / FINGERPRINT_FILE, folder / VALID_FROM_FILE):
+    for f in (folder / BUILD_ID_FILE, folder / VALID_FROM_FILE):
         h.update(f.read_bytes())
     for f in (Path(merge.__file__), Path(__file__)):
         h.update(f.read_bytes())

@@ -9,6 +9,7 @@ import inspect
 import shutil
 import sys
 import time
+import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from importlib.metadata import version
 from pathlib import Path
@@ -35,6 +36,7 @@ from cod_data.catalog.global_build.adm0 import write_parents
 from cod_data.catalog.global_build.config import (
     ADM0_LAYERS,
     BUILD,
+    BUILD_ID_FILE,
     COD_AB_CATALOG,
     CODE_FIELD,
     FINGERPRINT_FILE,
@@ -337,6 +339,7 @@ def job(
     (work / VERSION_FILE).write_text(version("topo-tools"))
     (work / VALID_FROM_FILE).write_text(valid_from(source, iso3))
     (work / FINGERPRINT_FILE).write_text(fingerprint)
+    (work / BUILD_ID_FILE).write_text(uuid.uuid4().hex)
     shutil.rmtree(final, ignore_errors=True)
     work.rename(final)
     return result
@@ -534,7 +537,10 @@ def main() -> None:
     files = ("admin1.parquet", "points.parquet", "lines.parquet", VALID_FROM_FILE)
 
     def is_built(iso3: str) -> bool:
-        return all((folder[iso3] / f).exists() for f in (*files, FINGERPRINT_FILE))
+        return all(
+            (folder[iso3] / f).exists()
+            for f in (*files, FINGERPRINT_FILE, BUILD_ID_FILE)
+        )
 
     def fp(iso3: str, source: str | None) -> str:
         return fingerprint(iso3, source, rows)

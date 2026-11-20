@@ -103,14 +103,14 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   built location whose fingerprint is unchanged, rewriting only its
   `valid_from`.
 - The run MUST NOT merge while any location lacks its `admin1`, `points`,
-  `lines`, `valid_from.txt` or fingerprint output. It MUST list those
+  `lines`, `valid_from.txt`, fingerprint or build id output. It MUST list those
   locations, leave the merged layers as they are and exit non-zero.
 - `--only` MUST rebuild the listed locations even when unchanged, and
   merge every location already built. `--merge-only` MUST skip the builds
   and merge again.
-- The run MUST skip the merge when every merged layer exists and the merge
-  code and each merged location's fingerprint and `valid_from` are
-  unchanged.
+- Each build MUST record a unique build id. The run MUST skip the merge
+  when every merged layer exists and the merge code and each location's
+  build id and `valid_from` are unchanged.
 - The merge MUST write each `adm{n}` polygon layer ordered by
   `adm{n}_pcode`, `points` by `pcode` and `lines` in Hilbert order, with
   row groups of at most 32 MB.
@@ -135,7 +135,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   at most 32 MB in the global layers and 8 MB per location.
 - A global layer MUST be rewritten only when its merged source is newer,
   polygons as a copy of the merged layer. A location's layers MUST be
-  rewritten only when its fingerprint, its `valid_from` or the merge or
+  rewritten only when its build id, its `valid_from` or the merge or
   staging code changed since they were last written, or a layer is
   missing. A layer MUST be tiled only when its tiles are missing or older.
 - Each level's points MUST pair 1:1 with its polygons by P-code, or the
