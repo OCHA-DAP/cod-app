@@ -95,13 +95,25 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   to ADM0 fill, built in the main
   process after the pool. It MUST be listed before the merge,
   and MUST make the run exit non-zero.
-- The merge MUST include only locations with `admin1`, `points`, `lines`
-  and `valid_from.txt` outputs, listing the others, and the run MUST exit
-  non-zero when it leaves any location out.
-- `--only` MUST rebuild only the listed locations and merge every location
-  already built.
+- Each location's build MUST record a fingerprint of its inputs: its
+  pick, its rows in the ADM0 layer and in each of the pick's explorer
+  layers, the cod-ab extended layers (OCHA), the ERM original layers' size
+  and modification time (ERM), the pick's `BOUNDARY_SOURCES` entry, the
+  per-location build code and the topo-tools version. A run MUST skip a
+  built location whose fingerprint is unchanged, rewriting only its
+  `valid_from`.
+- The merge MUST include only locations with `admin1`, `points`, `lines`,
+  `valid_from.txt` and fingerprint outputs, listing the others, and the run
+  MUST exit non-zero when it leaves any location out.
+- `--only` MUST rebuild the listed locations even when unchanged, and
+  merge every location already built. `--merge-only` MUST skip the builds
+  and merge again.
+- The run MUST skip the merge when every merged layer exists and the merge
+  code and each merged location's fingerprint and `valid_from` are
+  unchanged.
 - The merge MUST write each `adm{n}` polygon layer ordered by
-  `adm{n}_pcode`, and `points` and `lines` in Hilbert order.
+  `adm{n}_pcode`, `points` by `pcode` and `lines` in Hilbert order, with
+  row groups of at most 32 MB.
 - Each location's build MUST record the installed topo-tools version,
   including ADM0 fill builds and OCHA picks whose geometry comes from the
   cod-ab catalog. The global collections MUST name the merged locations'
@@ -117,11 +129,15 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `catalog/global/iso3/<iso3>/`, polygons cut from the merged layer by
   `adm0_pcode` and points and lines from the location's build, and MUST
   remove the folder of a location the merge no longer has.
-- Every published GeoParquet MUST be in Hilbert order, over the world box
-  in the global layers and over the location's extent per location, with
-  row groups of at most 32 MB in the global layers and 8 MB per location. A layer MUST
-  be rewritten only when its merged source is newer, and tiled only when
-  its tiles are missing or older.
+- Published polygons MUST be ordered by `adm{n}_pcode` and points by
+  `pcode`. Lines MUST be in Hilbert order, over the world box in the global
+  layers and over the location's extent per location. Row groups MUST be
+  at most 32 MB in the global layers and 8 MB per location.
+- A global layer MUST be rewritten only when its merged source is newer,
+  polygons as a copy of the merged layer. A location's layers MUST be
+  rewritten only when its fingerprint, its `valid_from` or the merge or
+  staging code changed since they were last written, or a layer is
+  missing. A layer MUST be tiled only when its tiles are missing or older.
 - Each level's points MUST pair 1:1 with its polygons by P-code, or the
   step MUST fail.
 - It MUST write the portolan `metadata.yaml` for `global/`,
