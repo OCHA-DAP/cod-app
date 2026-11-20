@@ -605,6 +605,7 @@ def main() -> None:
                 flush=True,
             )
     # In this process, so a crashed worker that broke the pool still gets its fill.
+    unusable = set()
     for iso3 in failed:
         if is_built(iso3) and same_parent(parents, folder[iso3], iso3):
             failed[iso3] += "; kept the last build"
@@ -614,9 +615,10 @@ def main() -> None:
             failed[iso3] += "; ADM0 fill"
         except Exception as e:  # noqa: BLE001 (report every location before exiting)
             failed[iso3] += f"; ADM0 fill also failed: {type(e).__name__}: {e}"
+            unusable.add(iso3)
     for iso3, error in failed.items():
         print(f"failed {picks.get(iso3)} build: {iso3} {error}")
-    built = [i for i in all_iso3s if is_built(i)]
+    built = [i for i in all_iso3s if is_built(i) and i not in unusable]
     missing = sorted(set(all_iso3s) - set(built))
     if missing:
         sys.exit(f"not built, so the merged layers stay as they are: {missing}")
