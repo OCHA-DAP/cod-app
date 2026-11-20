@@ -1,19 +1,20 @@
 """Per-source provenance (data provider, source date) per location. Run after every source download.
 OCHA and FAO providers come from hand-maintained CSVs in data/provenance/. Each date is the latest value
 of the source's date field: OCHA valid_on, ERM src_date, UNHCR update_date, WFP source_date, UNICEF
-start_date, and FAO's "Accessed on" from GAUL's metadata spreadsheets."""
+start_date, FAO's "Accessed on" from GAUL's metadata spreadsheets, and World Bank's latest admin 2 P_DATE."""
 
 from pathlib import Path
 
-from cod_data.catalog.common import FAO_ACCESSED, PARTNERS, connect, path_of
+from cod_data.catalog.common import FAO_ACCESSED, PARTNERS, WB_DATES, connect, path_of
 from cod_data.shared.geoparquet import TABLE_OPTIONS
 
 RAW_DIR = Path(__file__).parent / "data" / "provenance"
 OUT = path_of("source_provenance")
 
 
-if not FAO_ACCESSED.exists():
-    raise FileNotFoundError(f"{FAO_ACCESSED} missing: run the fao step first")
+for dates, step in ((FAO_ACCESSED, "fao"), (WB_DATES, "wb")):
+    if not dates.exists():
+        raise FileNotFoundError(f"{dates} missing: run the {step} step first")
 con = connect()
 multi = con.execute(f"""
     SELECT iso3 FROM read_parquet('{path_of("ocha_adm1")}')
@@ -51,6 +52,11 @@ con.execute(f"""
             max(update_date) AS source_updated
         FROM read_parquet('{path_of("unhcr_adm1")}')
         GROUP BY iso3
+    UNION ALL
+        SELECT 'wb' AS source, ISO_A3 AS iso3,
+            '{PARTNERS["wb"]["provider"]}' AS provider, d.produced AS source_updated
+        FROM (SELECT DISTINCT ISO_A3 FROM read_parquet('{path_of("wb_adm1")}'))
+        LEFT JOIN read_parquet('{WB_DATES}') d ON d.iso3 = ISO_A3
     UNION ALL
         SELECT 'erm' AS source, iso3,
             array_to_string(list_sort(list_distinct(list(src_name))), '; ') AS provider,

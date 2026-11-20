@@ -16,7 +16,7 @@ from cod_data.shared.geoparquet import TABLE_OPTIONS
 
 load_dotenv(".env")
 CATALOG = Path(os.environ.get("CATALOG", "catalog"))
-SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "erm", "basemap")
+SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "wb", "erm", "basemap")
 DECISIONS_CSV = Path("src/lib/explorer/decisions.csv")
 # Normalized as in src/lib/explorer/decisions.ts.
 DECISIONS = f"""(
@@ -30,6 +30,8 @@ COD_AB_BASE = "https://data.source.coop/hdx/cod-ab"
 COD_AB_CACHE = Path("tmp/catalog/cache/cod-ab")
 # The date FAO accessed each location's source, from GAUL's metadata spreadsheets.
 FAO_ACCESSED = Path("tmp/catalog/cache/fao_accessed.parquet")
+# The latest P_DATE of each location's World Bank admin 2 units.
+WB_DATES = Path("tmp/catalog/cache/wb_dates.parquet")
 DUCKDB_TMP = Path("tmp/catalog/duckdb-tmp")
 BASEMAP_BUILD = Path("tmp/catalog/basemap")
 TILE_MAX_ZOOM = 11
@@ -74,6 +76,12 @@ PARTNERS = {
         "url": "https://storage.googleapis.com/fao-maps-catalog-data/boundaries/",
         "source_url": "https://data.apps.fao.org/catalog/dataset/global-administrative-unit-layers-gaul-2025",
     },
+    "wb": {
+        "label": "World Bank",
+        "provider": "World Bank (Official Boundaries)",
+        "url": "https://datacatalogfiles.worldbank.org/ddh-published/0038272/",
+        "source_url": "https://datacatalog.worldbank.org/search/dataset/0038272",
+    },
     "erm": {
         "label": "EuroGeographics",
         "provider": "EuroGeographics (EuroRegionalMap)",
@@ -116,6 +124,9 @@ BOUNDARY_SOURCES = [
         [1, 2],
         "GAUL{level}_NAME",
         ["Waterbody", "Undefined", "Administrative Unit Not Available"],
+    ),
+    BoundarySource(
+        "wb", "ISO_A3", [1, 2], "NAM_{level}", ["Administrative unit not available"]
     ),
     BoundarySource("erm", "iso3", [1, 2, 3, 4]),
 ]

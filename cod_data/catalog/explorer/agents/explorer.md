@@ -13,6 +13,7 @@ Each `{{source}}/{{source}}_adm{{n}}/` collection holds `{{source}}_adm{{n}}.par
 | `unicef` | `adm0_ucode` (starts with the ISO3 code) | `name` | `Source_ID` | 1 to 4 |
 | `unhcr` | `iso3` | `gis_name` | `adm{{n}}_source_code` | 1 to 2 |
 | `fao` | `ISO3_CODE` | `GAUL{{n}}_NAME` | `GAUL{{n}}_CODE` | 1 to 2 |
+| `wb` | `ISO_A3` | `NAM_{{n}}` | `ADM{{n}}CD_c` | 1 to 2 |
 | `erm` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 4 |
 
 Some sources include filler units such as "Under National Administration", "N/A" or "Waterbody" that aren't real subdivisions.

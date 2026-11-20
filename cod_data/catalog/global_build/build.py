@@ -504,6 +504,8 @@ def inputs(
             f"SELECT iso3, selected_source FROM {DECISIONS}"
         ).fetchall()
     }
+    if unbuildable := {i: s for i, s in picks.items() if s and s not in COLUMNS}:
+        raise ValueError(f"picks of sources the build doesn't take: {unbuildable}")
     iso3s = [
         r[0]
         for r in con.execute(

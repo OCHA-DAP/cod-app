@@ -21,6 +21,7 @@ EXPLORER_STEPS = [
     "unhcr",
     "basemap",
     "fao",
+    "wb",
     "unicef",
     "erm",
     "ocha",
