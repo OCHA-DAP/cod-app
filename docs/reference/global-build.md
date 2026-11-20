@@ -93,7 +93,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   successful build when that build has every output the merge needs and
   its ADM0 rows match the current ADM0 layer, and otherwise MUST fall back
   to ADM0 fill, built in the main
-  process after the pool. It MUST be listed before the merge,
+  process after the pool. A location whose fill also fails MUST count as
+  unbuilt. It MUST be listed before the merge,
   and MUST make the run exit non-zero.
 - Each location's build MUST record a fingerprint of its inputs: its
   pick, its rows in the ADM0 layer and in each of the pick's explorer
@@ -107,8 +108,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
 - The run MUST NOT merge while any location lacks its `admin1`, `points`,
   `lines`, `valid_from.txt`, fingerprint or build id output. It MUST list those
   locations, leave the merged layers as they are and exit non-zero.
-- `--only` MUST rebuild the listed locations even when unchanged, and
-  merge every location already built. `--merge-only` MUST skip the builds
+- `--only` MUST rebuild the listed locations even when unchanged, then
+  merge every location, stopping when any is unbuilt. `--merge-only` MUST skip the builds
   and merge again.
 - Each build MUST record a unique build id. The run MUST skip the merge
   when every merged layer exists and the merge code (with the build
@@ -123,7 +124,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   versions only when every one of them has a record.
 - The catalog's `global` step MUST publish only the `improved` build, and
   MUST skip the step with a message when it has no merged build. It MUST
-  fail when the merged layers don't hold every location's current build. It MUST
+  fail when the merged layers don't hold every location's current build,
+  or when any build's fingerprint or `valid_from` differs from its current
+  inputs. It MUST
   write `catalog/global/adm{n}-{geom}/adm{n}_{geom}.parquet` for levels 1
   to 4 and `polygons`, `points` and `lines`, each with PMTiles named after
   the file: `polygons` the merged layer, `points` the level-`n` points with
@@ -139,8 +142,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   at most 32 MB in the global layers and 8 MB per location.
 - A global layer MUST be rewritten only when its merged source is newer,
   polygons as a copy of the merged layer. A location's layers MUST be
-  rewritten only when its build id, its `valid_from` or the merge or
-  staging code changed since they were last written, or a layer is
+  rewritten only when its build id, its `valid_from`, the merge code (with
+  the build settings and `geoparquet.py`) or the staging code changed since they were last written, or a layer is
   missing. A layer MUST be tiled only when its tiles are missing or older.
 - Each level's points MUST pair 1:1 with its polygons by P-code, or the
   step MUST fail.
