@@ -141,6 +141,22 @@ def merged(out: Path, iso3s: list[str]) -> bool:
     )
 
 
+def current(out: Path) -> bool:
+    """Whether the merged layers hold every location in parents.parquet as built now."""
+    con = connect()
+    iso3s = [
+        r[0]
+        for r in con.execute(
+            f"SELECT DISTINCT adm0_pcode FROM '{out / 'parents.parquet'}' ORDER BY 1"
+        ).fetchall()
+    ]
+    con.close()
+    try:
+        return merged(out, iso3s)
+    except FileNotFoundError:
+        return False
+
+
 def merge(out: Path, iso3s: list[str]) -> list[str]:
     con = connect(threads=PROD_THREADS)
     report, staged = [], []

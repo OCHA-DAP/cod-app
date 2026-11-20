@@ -120,6 +120,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   versions only when every one of them has a record.
 - The catalog's `global` step MUST publish only the `improved` build, and
   MUST skip the step with a message when it has no merged build. It MUST
+  fail when the merged layers don't hold every location's current build. It MUST
   write `catalog/global/adm{n}-{geom}/adm{n}_{geom}.parquet` for levels 1
   to 4 and `polygons`, `points` and `lines`, each with PMTiles named after
   the file: `polygons` the merged layer, `points` the level-`n` points with

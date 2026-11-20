@@ -253,6 +253,10 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
 
 def stage() -> None:
     """Write each layer when the build is newer, tile it, and write its metadata."""
+    if not merge.current(BUILD / ADM0):
+        raise RuntimeError(
+            "merged layers don't match the current builds: run the build"
+        )
     record = BUILD / ADM0 / VERSION_FILE
     built_with = f" {record.read_text()}" if record.exists() else ""
     notes = f"Built with topo-tools{built_with}. Each location's picked source is cleaned, extended and edge-matched to a global ADM0 layer, coded to the COD-AB Specification, then tiled with tylertoo to zoom {TILE_MAX_ZOOM} with every feature kept at every zoom."
