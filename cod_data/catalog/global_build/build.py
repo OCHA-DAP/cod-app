@@ -5,12 +5,12 @@ Run from the repo root: uv run -m cod_data.catalog.global_build.build --adm0 gau
 
 import argparse
 import hashlib
-import inspect
 import shutil
 import sys
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import cache
 from importlib.metadata import version
 from pathlib import Path
 
@@ -28,7 +28,6 @@ from cod_data.catalog.common import (
     BOUNDARY_SOURCES,
     DECISIONS,
     connect,
-    junk_filter,
     path_of,
 )
 from cod_data.catalog.explorer.erm import layers as erm_layers
@@ -41,6 +40,7 @@ from cod_data.catalog.global_build.config import (
     CODE_FIELD,
     FINGERPRINT_FILE,
     GAP_WIDTH,
+    LANG,
     MATCH_KEY,
     MAX_LVL,
     NAME_FIELD,
@@ -52,16 +52,21 @@ from cod_data.catalog.global_build.config import (
     WORKERS,
 )
 from cod_data.catalog.global_build.conform import COLUMNS, depth, layer, stage_sql
-from cod_data.catalog.global_build.merge import LANG, merge, merged
+from cod_data.catalog.global_build.merge import merge, merged
 from cod_data.shared.geoparquet import write_geoparquet
 
 LEVEL_COLS = ("name", "name1", "name2", "name3", "pcode", "srcid", "type")
 FILL = {"adm0_pcode": "adm0_pcode", "adm0_name": "adm0_name"}
 EXTENDED = BUILD / "extended"
-# The per-location build code; merge.py and publish.py stay out so editing them rebuilds nothing.
+# Code a location's build runs; merge.py and publish.py stay out so editing them rebuilds nothing.
 CODE = [
-    Path(__file__).with_name(f)
-    for f in ("build.py", "conform.py", "config.py", "adm0.py")
+    *(
+        Path(__file__).with_name(f)
+        for f in ("build.py", "conform.py", "config.py", "adm0.py")
+    ),
+    Path(__file__).parents[1] / "common.py",
+    Path(__file__).parents[1] / "explorer" / "erm.py",
+    Path(__file__).parents[2] / "shared" / "geoparquet.py",
 ]
 
 
@@ -453,16 +458,36 @@ def file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+@cache
+def engine() -> str:
+    con = connect()
+    spatial = con.execute(
+        "SELECT extension_version FROM duckdb_extensions() WHERE extension_name = 'spatial'"
+    ).fetchall()[0][0]
+    con.close()
+    return f"duckdb {duckdb.__version__} spatial {spatial} topo-tools {version('topo-tools')}"
+
+
+@cache
+def erm_stamp() -> str:
+    """Size and modification time of each ERM original layer, which erm_langs reads."""
+    try:
+        paths = [Path(p) for p, *_ in erm_layers()]
+    # layers() exits when the ERM catalog is missing; only the ERM builds then fail.
+    except SystemExit as e:
+        return f"erm layers missing: {e}"
+    return "\n".join(f"{p} {p.stat().st_size} {p.stat().st_mtime_ns}" for p in paths)
+
+
 def fingerprint(
     iso3: str, source: str | None, rows: dict[tuple[str, int], dict[str, str]]
 ) -> str:
-    """Hash of everything a location's build reads: its rows, the build code and topo-tools."""
+    """Hash of everything a location's build reads: its rows, the build code and the engines."""
     parts = [
         f"source {source}",
-        f"topo-tools {version('topo-tools')}",
+        engine(),
         f"parents {rows[('parents', 0)].get(iso3)}",
         *(f"{p.name} {file_hash(p)}" for p in CODE),
-        inspect.getsource(junk_filter),
     ]
     if source:
         entry = next(s for s in BOUNDARY_SOURCES if s.name == source)
@@ -475,10 +500,7 @@ def fingerprint(
             if (p := _cod_ab_path(iso3, n)).exists()
         ]
     if source == "erm":
-        parts += [
-            f"{p} {Path(p).stat().st_size} {Path(p).stat().st_mtime_ns}"
-            for p, *_ in erm_layers()
-        ]
+        parts.append(erm_stamp())
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
@@ -573,7 +595,7 @@ def main() -> None:
         for done, fut in enumerate(as_completed(jobs), 1):
             try:
                 iso3, secs, lvl = fut.result()
-            except Exception as e:  # noqa: BLE001 (one bad source must not stop the rest)
+            except (Exception, SystemExit) as e:  # noqa: BLE001 (one bad source must not stop the rest)
                 iso3 = jobs[fut]
                 failed[iso3] = f"{type(e).__name__}: {e}"
                 print(f"{iso3} FAILED ({done}/{len(jobs)}): {failed[iso3]}")

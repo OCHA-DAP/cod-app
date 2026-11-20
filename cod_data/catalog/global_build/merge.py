@@ -10,6 +10,7 @@ from cod_data.catalog.common import connect
 from cod_data.catalog.global_build.config import (
     BUILD_ID_FILE,
     GLOBAL_ROW_GROUP,
+    LANG,
     MAX_LVL,
     PROD_THREADS,
     VALID_FROM_FILE,
@@ -17,8 +18,12 @@ from cod_data.catalog.global_build.config import (
 )
 from cod_data.shared.geoparquet import HILBERT, write_geoparquet
 
-LANG = ("lang", "lang1", "lang2", "lang3")
 MERGE_FINGERPRINT = "merge_fingerprint.txt"
+CODE = [
+    Path(__file__),
+    Path(__file__).with_name("config.py"),
+    Path(__file__).parents[2] / "shared" / "geoparquet.py",
+]
 AREA = "ST_Area(ST_Transform(geometry, 'OGC:CRS84', 'EPSG:8857')) / 1e6"
 
 
@@ -122,8 +127,10 @@ def outputs(out: Path) -> list[Path]:
 
 
 def fingerprint(out: Path, iso3s: list[str]) -> str:
-    """Hash of this module and each location's build id and valid_from."""
-    h = hashlib.sha256(Path(__file__).read_bytes())
+    """Hash of the merge code and each location's build id and valid_from."""
+    h = hashlib.sha256()
+    for code in CODE:
+        h.update(code.read_bytes())
     for i in iso3s:
         folder = out / "iso3" / i.lower()
         for f in (BUILD_ID_FILE, VALID_FROM_FILE):

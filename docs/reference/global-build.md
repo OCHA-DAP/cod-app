@@ -99,7 +99,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   pick, its rows in the ADM0 layer and in each of the pick's explorer
   layers, the cod-ab extended layers (OCHA), the ERM original layers' size
   and modification time (ERM), the pick's `BOUNDARY_SOURCES` entry, the
-  per-location build code and the topo-tools version. A run MUST skip a
+  code its build runs (the global build modules except the merge and
+  staging, `common.py`, `erm.py` and `geoparquet.py`), and the DuckDB,
+  spatial extension and topo-tools versions. A run MUST skip a
   built location whose fingerprint is unchanged, rewriting only its
   `valid_from`.
 - The run MUST NOT merge while any location lacks its `admin1`, `points`,
@@ -109,8 +111,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   merge every location already built. `--merge-only` MUST skip the builds
   and merge again.
 - Each build MUST record a unique build id. The run MUST skip the merge
-  when every merged layer exists and the merge code and each location's
-  build id and `valid_from` are unchanged.
+  when every merged layer exists and the merge code (with the build
+  settings and `geoparquet.py`) and each location's build id and
+  `valid_from` are unchanged.
 - The merge MUST write each `adm{n}` polygon layer ordered by
   `adm{n}_pcode`, `points` by `pcode` and `lines` in Hilbert order, with
   row groups of at most 32 MB.

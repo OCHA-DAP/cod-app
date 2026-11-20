@@ -19,6 +19,7 @@ COD_AB_CATALOG = Path(
     os.environ.get("COD_AB_CATALOG", "../hdx-scraper-cod-ab-global/portolan")
 )
 MAX_LVL = 4
+LANG = ("lang", "lang1", "lang2", "lang3")
 # Production runs use every core; dev tools and tests keep connect()'s half.
 PROD_THREADS = os.cpu_count() or 4
 WORKERS = 2
