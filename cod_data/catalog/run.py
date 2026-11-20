@@ -1,6 +1,7 @@
 """Build the site's portolan catalog in catalog/ and optionally push it to PORTOLAN_REMOTE."""
 
 import argparse
+import re
 import runpy
 import sys
 from datetime import UTC, datetime
@@ -157,7 +158,19 @@ def main() -> None:
     annotate_catalog(TOOLS.resolve(), CACHE)
     apply_titles(CATALOG)
     source_publish.run(CATALOG, "readme")
-    source_publish.run(CATALOG, "check", "--fix", "--data-scope", "local")
+    check = source_publish.run(
+        CATALOG, "check", "--fix", "--data-scope", "local", strict=False
+    )
+    # Global polygons keep P-code order, which PTL-DAT-006 flags in large files.
+    if errors := [
+        e
+        for e in check["errors"]
+        if not (
+            e.get("type") == "PTL-DAT-006"
+            and re.search(r"asset 'adm\d_polygons'", e.get("message", ""))
+        )
+    ]:
+        raise RuntimeError(f"portolan check failed: {errors}")
     if args.push:
         source_publish.push(CATALOG)
 

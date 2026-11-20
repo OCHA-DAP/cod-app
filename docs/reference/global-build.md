@@ -153,6 +153,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `pcode`. Lines MUST be in Hilbert order, over the world box in the global
   layers and over the location's extent per location. Row groups MUST be
   at most 32 MB in the global layers and 8 MB per location.
+- The catalog check MUST pass apart from PTL-DAT-006 (rows not spatially
+  ordered) on published polygons, which P-code order can raise.
 - A global layer MUST be rewritten only when its merged source is newer,
   polygons as a copy of the merged layer. A location's layers MUST be
   rewritten only when its build id, its `valid_from`, the merge code (with
