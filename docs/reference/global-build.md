@@ -146,7 +146,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   their polygon's `level`, `lines` every line with `adm_lvl <= n` and
   `adm_lvl` written as `level`.
 - It MUST write the same twelve layers for each merged location to
-  `catalog/global/iso3/<iso3>/`, polygons cut from the merged layer by
+  `catalog/iso3/<iso3>/`, polygons cut from the merged layer by
   `adm0_pcode` and points and lines from the location's build, and MUST
   remove the folder of a location the merge no longer has.
 - Published polygons MUST be ordered by `adm{n}_pcode` and points by
@@ -163,6 +163,6 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
 - Each level's points MUST pair 1:1 with its polygons by P-code, or the
   step MUST fail.
 - It MUST write the portolan `metadata.yaml` for `global/`,
-  `global/iso3/`, each collection and each location (titled with its
+  `iso3/`, each collection and each location (titled with its
   `adm0_name`, naming its picked source's provider), and
-  `global/TERMS.md`.
+  `global/TERMS.md` and `iso3/TERMS.md`.

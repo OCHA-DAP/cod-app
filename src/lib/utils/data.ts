@@ -4,9 +4,13 @@ export const DATA_BASE =
     ? `${globalThis.location.origin}/catalog`
     : "https://data.source.coop/hdx/cod-site";
 
-// Mirrors cod_data/catalog/global_build/publish.py: global/ holds adm{n}-{geom}/ and iso3/<iso3>/.
+// Mirrors cod_data/catalog/global_build/publish.py: global/adm{n}-{geom}/ for the world, iso3/<iso3>/ per location.
 export function globalUrl(path: string): string {
   return `${DATA_BASE}/global/${path}`;
+}
+
+export function iso3Url(iso3: string, file: string): string {
+  return `${DATA_BASE}/iso3/${iso3.toLowerCase()}/${file}`;
 }
 
 // Mirrors item_dir in cod_data/catalog/common.py: explorer/<source>/<layer>/ holds each boundary layer.

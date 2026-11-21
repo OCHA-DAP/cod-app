@@ -9,7 +9,7 @@
   import { labelsEnabled, selectedIso3 } from "$lib/explorer/map/store";
   import { COUNTRY_LAYERS, COUNTRY_SOURCES } from "$lib/explorer/map/style";
   import { loadMaplibre, loadStyle } from "$lib/utils/mapStyle";
-  import { globalUrl } from "$lib/utils/data";
+  import { iso3Url } from "$lib/utils/data";
   import { polygonsUrl } from "./metadata";
 
   let {
@@ -73,7 +73,7 @@
       });
       m.addSource(`${id}-labels`, {
         type: "vector",
-        url: `pmtiles://${globalUrl(`iso3/${u.iso3.toLowerCase()}/${points}.pmtiles`)}`,
+        url: `pmtiles://${iso3Url(u.iso3, `${points}.pmtiles`)}`,
       });
       const specs = adminLayers({
         id,

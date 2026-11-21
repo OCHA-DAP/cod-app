@@ -1,4 +1,4 @@
-"""Stage the global build in catalog/global/: adm{n}-{geom} collections and one iso3/<iso3>/ collection per location."""
+"""Stage the global build: adm{n}-{geom} collections in catalog/global/ and one collection per location in catalog/iso3/<iso3>/."""
 
 import hashlib
 import json
@@ -41,7 +41,7 @@ from cod_data.catalog.global_build.config import (
 from cod_data.shared.geoparquet import HILBERT, write_geoparquet
 
 GLOBAL = CATALOG / "global"
-ISO3 = GLOBAL / "iso3"
+ISO3 = CATALOG / "iso3"
 # The ADM0 layer the published build is edge-matched to.
 ADM0 = "improved"
 GEOMS = ("polygons", "points", "lines")
@@ -217,7 +217,7 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
         p for p in ISO3.glob("*/") if p.is_dir() and not p.name.startswith(".")
     ):
         if old.name.upper() not in names:
-            print(f"global/iso3/{old.name}: no longer built, removing")
+            print(f"iso3/{old.name}: no longer built, removing")
             shutil.rmtree(old)
             staged.pop(old.name.upper(), None)
     restaged = 0
@@ -255,10 +255,10 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
                 "processing_notes": notes,
                 "keywords": [iso3, *([pick] if pick else [])],
                 "license": "other",
-                "license_url": "../../TERMS.md",
+                "license_url": "../TERMS.md",
             },
         )
-    print(f"global/iso3: restaged {restaged} of {len(names)} locations")
+    print(f"iso3: restaged {restaged} of {len(names)} locations")
 
 
 def stale(adm0: str) -> list[str]:
@@ -306,7 +306,7 @@ def stage() -> None:
         GLOBAL / ".portolan" / "metadata.yaml",
         {
             "title": "Global COD-AB layers",
-            "description": "Admin 1 to 4 polygons, label points and boundary lines for every location, built from each location's pick in the Boundaries Explorer and edge-matched with no gaps or overlaps. Each layer covers the world, and iso3/ holds the same layers cut by location.",
+            "description": "Admin 1 to 4 polygons, label points and boundary lines for every location, built from each location's pick in the Boundaries Explorer and edge-matched with no gaps or overlaps. Each layer covers the world. The same layers cut by location are in iso3/.",
         },
     )
     write_yaml(
@@ -316,9 +316,10 @@ def stage() -> None:
             "description": "The global layers cut by ISO3 code, one collection per location.",
         },
     )
-    (GLOBAL / "TERMS.md").write_text(
-        f"# Terms\n\nThe layers in `global/` combine admin boundaries published by several producers, one per location, as picked in the Boundaries Explorer. {TERMS}\n"
-    )
+    for folder in (GLOBAL, ISO3):
+        (folder / "TERMS.md").write_text(
+            f"# Terms\n\nThe layers in `{folder.name}/` combine admin boundaries published by several producers, one per location, as picked in the Boundaries Explorer. {TERMS}\n"
+        )
     con = connect(threads=PROD_THREADS)
     try:
         stage_global(con, notes)
