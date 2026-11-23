@@ -48,9 +48,9 @@
       "description": "Date of last name / metadata change to the dataset; empty on release and populated when a minor change has been made."
     },
     "valid_from": {
-      "type": "string",
+      "type": ["string", "null"],
       "format": "date",
-      "description": "Date from which the dataset is valid for humanitarian use. Automatically set when a dataset is added to the global central registry."
+      "description": "Date from which the dataset is valid for humanitarian use. Automatically set when a dataset is added to the global central registry. Null where the source gives no date and for area no unit covers."
     },
     "valid_to": {
       "type": ["string", "null"],
