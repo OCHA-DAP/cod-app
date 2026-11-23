@@ -1,0 +1,14 @@
+---
+import { SCHEMA_FIELDS } from "./schemaFields";
+---
+
+<table>
+  <thead>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    {SCHEMA_FIELDS.map((f) => (
+      <tr><td><em>{f.name}</em></td><td>{f.type}</td><td>{f.description}</td></tr>
+    ))}
+  </tbody>
+</table>

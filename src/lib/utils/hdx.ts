@@ -13,6 +13,7 @@ const FORMATS: [string, string][] = [
   ["geodatabase", "Geodatabase"],
   ["shp", "Shapefile"],
   ["geojson", "GeoJSON"],
+  ["xlsx", "Excel"],
 ];
 
 // Read at view time, so a dataset update that replaces a resource never leaves a stale link.

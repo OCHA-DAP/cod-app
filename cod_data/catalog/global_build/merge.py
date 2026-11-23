@@ -16,40 +16,31 @@ from cod_data.catalog.global_build.config import (
     VALID_FROM_FILE,
     VERSION_FILE,
 )
+from cod_data.catalog.global_build.schema import (
+    SCHEMA_JSON,
+    level_cols,
+    not_null,
+    spec,
+    tail,
+)
 from cod_data.shared.geoparquet import HILBERT, write_geoparquet
 
 MERGE_FINGERPRINT = "merge_fingerprint.txt"
 CODE = [
     Path(__file__),
     Path(__file__).with_name("config.py"),
+    Path(__file__).with_name("schema.py"),
+    SCHEMA_JSON,
     Path(__file__).parents[2] / "shared" / "geoparquet.py",
 ]
 AREA = "ST_Area(ST_Transform(geometry, 'OGC:CRS84', 'EPSG:8857')) / 1e6"
 
 
-def level_cols(n: int) -> list[str]:
-    """schema.md's per-level fields, level n first, down to adm0."""
-    return [
-        f"adm{k}_{c}"
-        for k in range(n, -1, -1)
-        for c in ("pcode", "name", "name1", "name2", "name3", "type", "srcid")
-    ]
-
-
-SPEC_TAIL = [
-    "version",
-    "updated",
-    "valid_from",
-    "valid_to",
-    *LANG,
-    "area_sqkm",
-    "level",
-]
 CONSTANT = ["version", "updated", "valid_from", "valid_to", *LANG]
 
 
 def polygons_sql(work: Path, n: int) -> str:
-    """Level-n polygons in schema.md's field order, deepest level first, with spec metadata."""
+    """Level-n polygons in the schema's field order, deepest level first, with spec metadata."""
     cols = level_cols(n)
     valid_from = (work / VALID_FROM_FILE).read_text().strip()
     valid_from = f"DATE '{valid_from}'" if valid_from else "NULL::DATE"
@@ -80,7 +71,6 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
     t = f"read_parquet('{path}')"
     hard = {
         "duplicate or null pcode": f"SELECT count(*) - count(DISTINCT adm{n}_pcode) + count(*) FILTER (adm{n}_pcode IS NULL) FROM {t}",
-        "pcode format": f"SELECT count(*) FROM {t} WHERE NOT regexp_full_match(adm{n}_pcode, '[A-Z]{{3}}(\\.\\d{{3,}})*')",
         "pcode not under parent": " + ".join(
             f"(SELECT count(*) FROM {t} WHERE NOT coalesce(starts_with(adm{k}_pcode, adm{k - 1}_pcode || '.')"
             f" OR (level < {k} AND adm{k}_pcode = adm{k - 1}_pcode), false))"
@@ -97,9 +87,17 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
         for k, q in hard.items()
     }
     cols = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {t}").fetchall()]
-    errors["fields not in schema.md order"] = int(
-        cols != [*level_cols(n), *SPEC_TAIL, "geometry"]
-    )
+    fields = [*level_cols(n), *tail()]
+    if cols != [*fields, "geometry"]:
+        raise ValueError(f"{path}: fields not in schema order: {cols}")
+    patterns = [(c, s["pattern"]) for c in fields if "pattern" in (s := spec(c))]
+    errors["fields not matching their pattern"] = con.execute(
+        "SELECT "
+        + " + ".join(
+            f"count(*) FILTER (NOT regexp_matches({c}, '{p}'))" for c, p in patterns
+        )
+        + f" FROM {t}"
+    ).fetchall()[0][0]
     errors["metadata not constant per location"] = con.execute(
         f"SELECT count(*) FROM (SELECT adm0_pcode FROM {t} GROUP BY 1 HAVING "
         + " OR ".join(
@@ -112,12 +110,14 @@ def check(con: duckdb.DuckDBPyConnection, path: Path, n: int) -> list[str]:
     ).fetchall()[0][0]
     if any(errors.values()):
         raise ValueError(f"{path}: {errors}")
-    lang = con.execute(f"SELECT count(*) FROM {t} WHERE lang IS NULL").fetchall()[0][0]
-    names = con.execute(
-        f"SELECT count(*) FROM {t} WHERE "
-        + " OR ".join(f"(adm{k}_name IS NULL AND level >= {k})" for k in range(n + 1))
-    ).fetchall()[0][0]
-    return [f"adm{n}: {lang} rows without lang, {names} rows with a null name"]
+    required = [c for c in fields if not_null(c)]
+    nulls = con.execute(
+        "SELECT "
+        + ", ".join(f"count(*) FILTER ({c} IS NULL)" for c in required)
+        + f" FROM {t}"
+    ).fetchall()[0]
+    found = ", ".join(f"{k} {c}" for c, k in zip(required, nulls, strict=True) if k)
+    return [f"adm{n}: null in a not-null field: {found or 'none'}"]
 
 
 def outputs(out: Path) -> list[Path]:

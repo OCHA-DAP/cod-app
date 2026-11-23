@@ -19,7 +19,7 @@ from cod_data.catalog.common import (
     tile_parquet,
     write_yaml,
 )
-from cod_data.catalog.global_build import merge
+from cod_data.catalog.global_build import merge, schema
 from cod_data.catalog.global_build.adm0 import write_parents
 from cod_data.catalog.global_build.build import (
     digests,
@@ -170,6 +170,30 @@ def stage_global(con: duckdb.DuckDBPyConnection, notes: str) -> None:
             GLOBAL / f"adm{n}-{g}" / f"{name(n, g)}.parquet" for g in GEOMS[:2]
         )
         check(con, poly, pts, n)
+
+
+def column_description(col: str, level: bool) -> str | None:
+    """The schema's description of a layer column; lines carry a_/b_ fields for the units on each side."""
+    if col == "level":
+        return schema.description(col) if level else None
+    if col[:2] in ("a_", "b_") and (d := schema.description(col[2:])):
+        return f"Unit on side {col[0]}. {d}"
+    return schema.description(col)
+
+
+def describe_columns() -> None:
+    """Fill each global and iso3 collection's table:columns descriptions from the schema."""
+    for path in [
+        *GLOBAL.glob("adm*-*/collection.json"),
+        *ISO3.glob("*/collection.json"),
+    ]:
+        stac = json.loads(path.read_text())
+        # Lines' level is the boundary's, and iso3 collections mix lines with the rest.
+        level = path.parent.parent == GLOBAL and not path.parent.name.endswith("-lines")
+        for c in stac.get("table:columns", []):
+            if d := column_description(c["name"], level):
+                c["description"] = d
+        path.write_text(json.dumps(stac, indent=2, ensure_ascii=False) + "\n")
 
 
 def write_stats(con: duckdb.DuckDBPyConnection) -> None:

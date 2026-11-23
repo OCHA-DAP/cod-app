@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cod.unocha.org/standards/specification/schema.json",
+  "title": "COD-AB polygon layer",
+  "description": "The properties of one feature in a COD-AB polygon layer at level L. Fields named adm{N}_* repeat for every level N from L down to 0, before the other fields, in the order listed here.",
+  "type": "object",
+  "patternProperties": {
+    "^adm\\d_pcode$": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}(\\.\\d{3,})*$",
+      "description": "OCHA P-code. Format: ISO3 country prefix, dot delimiter, 3-digit zero-padded integer groups (e.g., AFG, AFG.001, AFG.001.012). See P-code format.",
+      "examples": ["AFG", "AFG.001", "AFG.001.012"]
+    },
+    "^adm\\d_name$": {
+      "type": "string",
+      "description": "Official romanized name. The language is declared in lang. Not null."
+    },
+    "^adm\\d_name1$": {
+      "type": ["string", "null"],
+      "description": "Alternate-language name. The language is declared in lang1. Null if lang1 is null."
+    },
+    "^adm\\d_name2$": {
+      "type": ["string", "null"],
+      "description": "Alternate-language name. The language is declared in lang2. Null if lang2 is null."
+    },
+    "^adm\\d_name3$": {
+      "type": ["string", "null"],
+      "description": "Alternate-language name. The language is declared in lang3. Null if lang3 is null."
+    },
+    "^adm\\d_type$": {
+      "type": ["string", "null"],
+      "description": "Administrative unit type as the source names it (e.g., Region, Commune). Null where the source gives none."
+    },
+    "^adm\\d_srcid$": {
+      "type": ["string", "null"],
+      "description": "Source-assigned code (government, GADM, OSM, or other). Null where no source code exists."
+    }
+  },
+  "properties": {
+    "version": {
+      "type": "integer",
+      "description": "Release version, identical across all rows and all levels for the same dataset release (e.g., 1).",
+      "examples": [1]
+    },
+    "updated": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Date of last name / metadata change to the dataset; empty on release and populated when a minor change has been made."
+    },
+    "valid_from": {
+      "type": "string",
+      "format": "date",
+      "description": "Date from which the dataset is valid for humanitarian use. Automatically set when a dataset is added to the global central registry."
+    },
+    "valid_to": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "End of validity period. Null for the current release."
+    },
+    "lang": {
+      "type": "string",
+      "description": "BCP 47 language code for adm{N}_name. Must identify a romanized script."
+    },
+    "lang1": {
+      "type": ["string", "null"],
+      "description": "BCP 47 language code for adm{N}_name1. Null if the name column is unused."
+    },
+    "lang2": {
+      "type": ["string", "null"],
+      "description": "BCP 47 language code for adm{N}_name2. Null if the name column is unused."
+    },
+    "lang3": {
+      "type": ["string", "null"],
+      "description": "BCP 47 language code for adm{N}_name3. Null if the name column is unused."
+    },
+    "area_sqkm": {
+      "type": "number",
+      "description": "Polygon area in square kilometers, computed in an equal-area projection. WGS84 area is not used."
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Administrative level of the unit. A location without units at the layer's level repeats its deepest units, copying their fields down, and area no unit covers is an admin 0 unit (e.g., level 1 or 0 in the admin 2 layer)."
+    }
+  },
+  "required": ["version", "updated", "valid_from", "valid_to", "lang", "lang1", "lang2", "lang3", "area_sqkm", "level"],
+  "additionalProperties": false
+}
