@@ -29,7 +29,9 @@ def known_iso3() -> set[str]:
 
 def current_iso3() -> set[str]:
     with DECISIONS_CSV.open(newline="") as f:
-        return {r["iso3"].strip().upper() for r in csv.DictReader(f)}
+        return {
+            r["iso3"].strip().upper() for r in csv.DictReader(f) if r["iso3"].strip()
+        }
 
 
 def main() -> None:
