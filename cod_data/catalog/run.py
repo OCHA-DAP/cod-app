@@ -154,6 +154,9 @@ def main() -> None:
     annotate_catalog(TOOLS.resolve(), CACHE, metadata_only=True)
     tile_tools(force=args.force_pmtiles)
     add_all()
+    from cod_data.catalog.global_build.publish import describe_columns
+
+    describe_columns()
 
     annotate_catalog(TOOLS.resolve(), CACHE)
     apply_titles(CATALOG)

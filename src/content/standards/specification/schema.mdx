@@ -1,0 +1,17 @@
+---
+title: Field schema
+summary: The fields every polygon layer carries, with their types. Each layer repeats its parents' fields, so it works on its own.
+order: 4
+---
+
+import SchemaTable from "$lib/standards/SchemaTable.astro";
+
+Each polygon layer at level L carries all of the following fields. Fields whose names contain *\{N\}* repeat for every level from 0 through L, making each layer self-contained: upper-level units can be derived by dissolving on the embedded parent fields without reference to any other layer. The per-level fields run from level L down to level 0, before the other fields. All other fields except *area\_sqkm* and *level* are constant across all rows of one location within a layer.
+
+<SchemaTable />
+
+*latest* (Boolean / Integer) is a virtual field: true where *valid\_to* is null.
+
+The same fields are published as a [JSON Schema](../schema.json) of one feature's properties.
+
+Language codes MUST be valid BCP 47 tags. For each language, look up its entry in the IANA Language Subtag Registry (Type: language). If that entry defines a 2-letter Subtag (ISO 639-1), it MUST be used. A 3-letter Subtag (ISO 639-2/639-3) MUST NOT be used unless no 2-letter Subtag exists for that language.

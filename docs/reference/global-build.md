@@ -72,11 +72,11 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
 ## Outputs
 
 - The build MUST write `adm1_polygons` to `adm4_polygons`, `points` and
-  `lines` GeoParquet to `tmp/global/<adm0>/`, with the fields of
-  `schema.md`. A location shallower than a layer MUST repeat its deepest
+  `lines` GeoParquet to `tmp/global/<adm0>/`, with the fields of the
+  Specification's JSON Schema, `src/lib/standards/schema.json`. A location shallower than a layer MUST repeat its deepest
   units there with their own `level`, copying their fields down.
 - Polygon fields MUST run from the layer's level down to adm0, each level's
-  fields in `schema.md` order, before `version`.
+  fields in the JSON Schema's order, before `version`.
 - `version` MUST be 1, and `updated` and `valid_to` MUST be null.
   `valid_from` MUST be recorded when the location is built, as its
   `source_updated` in the explorer's `source_provenance`: the latest
@@ -87,14 +87,16 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   there is no date, and when the location is ADM0 fill.
 - `lang1` to `lang3` MUST be constant within a location: the source's tag
   wherever any of its units has that `name{i}`, and null otherwise.
-- The merge MUST raise on duplicate or null P-codes, malformed P-codes,
-  P-codes not under their parent, a `name{i}` without its `lang{i}`,
-  fields out of `schema.md` order, a location with more than one value,
+- The merge MUST raise on duplicate or null P-codes, fields not matching
+  their JSON Schema `pattern`, P-codes not under their parent, a `name{i}`
+  without its `lang{i}`, fields out of the JSON Schema's order, a location with more than one value,
   or a mix of null and non-null, in `version`, `updated`, `valid_from`,
   `valid_to`, `lang` or `lang1` to `lang3`, and `version` other than 1 or
   a set `updated` or `valid_to`.
-  It MUST report rows missing a source `lang` and null names. It MUST
+  It MUST report nulls in fields the JSON Schema types as not null. It MUST
   replace the layers only after every layer passes.
+- Staging MUST fill each global and iso3 collection's `table:columns`
+  descriptions from the JSON Schema.
 - Each location MUST build in a temporary folder that replaces its last
   build only on success. A location that fails MUST keep its last
   successful build when that build has every output the merge needs and

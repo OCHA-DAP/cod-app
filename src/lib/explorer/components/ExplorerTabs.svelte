@@ -4,8 +4,8 @@
   let { current, iso3 }: { current: "cod-ab" | "partners"; iso3: string } = $props();
 
   const TABS = [
-    { id: "cod-ab", label: "Current boundaries", path: "explorer/", blurb: "Each location's COD-AB, to download or compare with your own version" },
-    { id: "partners", label: "Compare sources", path: "explorer/compare/", blurb: "Boundaries from partner agencies, compared side by side" },
+    { id: "cod-ab", label: "Current boundaries", path: "explorer/", blurb: "Each location's COD-AB from 2027 on" },
+    { id: "partners", label: "Compare sources", path: "explorer/compare/", blurb: "How partner agencies' boundaries compared in 2026" },
   ] as const;
   const href = (path: string) => `${base}${path}${iso3 ? `?iso3=${iso3}` : ""}`;
 </script>

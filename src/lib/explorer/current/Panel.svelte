@@ -54,7 +54,7 @@
     <div class="hdx">
       {#if meta}
         <details class="download">
-          <summary>HDX <span aria-hidden="true">▾</span></summary>
+          <summary>Download <span aria-hidden="true">▾</span></summary>
           <ul>
             {#if downloads === null}
               <li class="muted">Loading formats…</li>
