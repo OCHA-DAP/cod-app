@@ -52,6 +52,7 @@ uv sync          # Python env for the cod_data package (pyproject.toml, uv.lock,
 npm run fetch:status  # Fetch /status CSVs (needs ARCGIS_* and JIRA_* in .env)
 uv run -m cod_data.about.pcode_figures  # Render /about/ Morafeno and P-code level SVGs and the /standards/ migration maps
 uv run -m cod_data.about.population_maps <cod_population_admin2.csv>  # Render /about/ population maps
+uv run -m cod_data.catalog.explorer.decisions_sheet  # Pull the explorer picks from the Google Sheet (DECISIONS_SHEET_URL in .env) into src/lib/explorer/decisions.csv; writes nothing if a row fails validation
 uv run -m cod_data.catalog.run [--step <name>] [--skip-build] [--push]  # Build the data catalog in catalog/ (push needs the service account in .env, see Publishing)
 uv run -m cod_data.catalog.global_build.build [--adm0 <improved|gaul|fieldmaps>] [--only AFG,DEU] [--merge-only]  # Build global COD-AB layers from the explorer picks into tmp/global/<adm0>/ (default improved, the one the catalog publishes); unchanged locations are skipped, --only forces a rebuild
 ```

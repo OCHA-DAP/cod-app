@@ -65,7 +65,7 @@ DNK,erm,true,"EuroRegionalMap, from the national mapping agency"
 DOM,wfp,false,"WFP sources OCHA, but ADM1 apears to have 32 units"
 DZA,wfp,false,"WFP ADM3 -> ADM2 correctly georeferenced, but use UNHCR for AMD1 aggregation"
 ECU,ocha,false,"All similar sources, defaulting to OCHA. Note HDX has ADM4"
-EGY,ocha,false,"Very little consensus between datasets, OCHA chosen by default"
+EGY,wfp,false,WFP identified as best positioned to provide data
 ERI,ocha,true,"Mostly same sources, defaulting to OCHA"
 ESH,ocha,false,"OCHA, but uses GADM"
 ESP,erm,true,"EuroRegionalMap, from the national mapping agency"
