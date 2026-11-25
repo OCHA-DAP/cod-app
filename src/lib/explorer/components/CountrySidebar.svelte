@@ -7,6 +7,7 @@
   import { decisions, type Decision } from "$lib/explorer/decisions";
   import { ADMIN_SOURCES } from "$lib/explorer/sources";
   import ToolHeader from "$lib/components/ToolHeader.svelte";
+  import { choiceParam, syncParam } from "$lib/utils/syncParam.svelte";
   import { base } from "$lib/utils/paths";
   import { onMount, tick } from "svelte";
   import { get } from "svelte/store";
@@ -29,6 +30,12 @@
   let filter = $state("");
   let sortKey: "officeType" | "relevance" | "name" = $state("officeType");
   let listEl: HTMLUListElement | undefined = $state();
+  // "" shows every location, "none" the ones where no source was suitable.
+  let picked = $state("");
+  const PICKED_VALUES = ["none", ...ADMIN_SOURCES.map((s) => s.id)];
+  if (view === "partners") {
+    syncParam("picked", choiceParam(PICKED_VALUES), () => picked, (v) => (picked = v));
+  }
   let skipNextCenter = false;
 
   onMount(async () => {
@@ -86,8 +93,22 @@
     return a.name.localeCompare(b.name);
   }
 
+  function pickedValue(r: Row): string {
+    if (r.decision?.noSourceSuitable) return "none";
+    return r.decision?.selectedSource ?? "";
+  }
+
+  let pickedOptions = $derived(
+    PICKED_VALUES.map((value) => ({
+      value,
+      label: value === "none" ? "None suitable" : sourceLabel(value),
+      count: rows.filter((r) => pickedValue(r) === value).length,
+    })).filter((o) => o.count > 0),
+  );
+
   let filtered: Row[] = $derived(
     rows.filter((r) => {
+      if (picked && pickedValue(r) !== picked) return false;
       const q = filter.trim().toLowerCase();
       if (!q) return true;
       return r.name.toLowerCase().includes(q) || r.iso3.toLowerCase().includes(q);
@@ -141,16 +162,27 @@
   </ToolHeader>
   <ExplorerTabs current={view} iso3={$selectedIso3} />
 
-  <div class="toolbar">
-    <input type="text" placeholder="Filter by name or ISO3…" bind:value={filter} />
-    <div class="field">
-      <label for="sort-select">Sort by</label>
-      <select id="sort-select" bind:value={sortKey}>
-        <option value="officeType">OCHA office type</option>
-        <option value="relevance">Humanitarian relevance</option>
-        <option value="name">Country name</option>
+  <div class="toolbar" class:partners={view === "partners"}>
+    <input
+      type="text"
+      class="search"
+      placeholder="Filter by name or ISO3…"
+      aria-label="Filter by name or ISO3"
+      bind:value={filter}
+    />
+    <select aria-label="Sort by" title="Sort by" bind:value={sortKey}>
+      <option value="officeType">Sort: Office type</option>
+      <option value="relevance">Sort: Relevance</option>
+      <option value="name">Sort: Name</option>
+    </select>
+    {#if view === "partners"}
+      <select aria-label="Picked source" title="Picked source" bind:value={picked}>
+        <option value="">All sources</option>
+        {#each pickedOptions as o (o.value)}
+          <option value={o.value}>{o.label} ({o.count})</option>
+        {/each}
       </select>
-    </div>
+    {/if}
   </div>
 
   {#if loading}
@@ -215,37 +247,25 @@
   }
 
   .toolbar {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 8px;
-    padding: 16px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--cd-grey--400);
   }
 
-  .toolbar input[type="text"] {
+  .toolbar.partners {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .toolbar.partners .search {
+    grid-column: 1 / -1;
+  }
+
+  .toolbar input,
+  .toolbar select {
+    min-width: 0;
     padding: 6px 8px;
-    border: 1px solid var(--brand-grey--border);
-    border-radius: 4px;
-    font-size: 13px;
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  label {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--cd-grey--700);
-  }
-
-  select {
-    padding-block: 6px;
-    padding-left: 8px;
     border: 1px solid var(--brand-grey--border);
     border-radius: 4px;
     font-size: 13px;
