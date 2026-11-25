@@ -6,7 +6,7 @@ from functools import cache
 import duckdb
 
 from cod_data.catalog.common import BOUNDARY_SOURCES, connect, junk_filter
-from cod_data.catalog.explorer.erm import layers as erm_layers
+from cod_data.catalog.explorer.eurogeographics import layers as eg_layers
 from cod_data.catalog.global_build.config import (
     DEPTH,
     EXPLORER,
@@ -26,7 +26,7 @@ class Columns:
     srcid: str
     alts: tuple[str, ...] = ()
     type: str = "NULL"
-    # SQL for lang..lang3, or None to read them from ERM's subnational layers.
+    # SQL for lang..lang3, or None to read them from EuroGeographics' subnational layers.
     langs: tuple[str, ...] | None = ("'en'", "NULL", "NULL", "NULL")
     # Key units by their id path from level 1 (rows carry every parent's id).
     chain: bool = False
@@ -45,7 +45,7 @@ _ADM = Columns(
 # Alternate names without a declared language stay out (schema.md: name1 needs lang1).
 COLUMNS = {
     "ocha": Columns(**{**_ADM.__dict__, "langs": ("lang", "lang1", "lang2", "lang3")}),
-    "erm": Columns(**{**_ADM.__dict__, "langs": None}),
+    "eurogeographics": Columns(**{**_ADM.__dict__, "langs": None}),
     "wfp": Columns(
         "iso3",
         "adm{n}_id",
@@ -76,10 +76,10 @@ SOURCE_LEVELS = {s.name: s.levels for s in BOUNDARY_SOURCES}
 
 
 @cache
-def erm_langs(iso3: str) -> tuple[str, ...]:
-    """lang..lang3 as SQL literals from iso3's ERM original layers (one set per iso3)."""
+def eurogeographics_langs(iso3: str) -> tuple[str, ...]:
+    """lang..lang3 as SQL literals from iso3's EuroGeographics original layers (one set per iso3)."""
     con = connect()
-    paths = [p for p, *_ in erm_layers()]
+    paths = [p for p, *_ in eg_layers()]
     rows = con.execute(
         "SELECT DISTINCT lang, lang1, lang2, lang3 "
         f"FROM read_parquet({paths}, union_by_name = true) WHERE iso3 = ?",
@@ -87,7 +87,7 @@ def erm_langs(iso3: str) -> tuple[str, ...]:
     ).fetchall()
     con.close()
     if len(rows) != 1:
-        raise ValueError(f"{iso3}: {len(rows)} ERM lang sets")
+        raise ValueError(f"{iso3}: {len(rows)} EuroGeographics lang sets")
     return tuple("NULL" if v is None else f"'{v}'" for v in rows[0])
 
 
@@ -112,7 +112,7 @@ def units(source: str, n: int, iso3: str) -> str:
         else f"WHERE {c.iso3} = '{iso3}'"
     )
     name, alt_cols = c.name, list(c.alts)
-    langs = list(c.langs or erm_langs(iso3))
+    langs = list(c.langs or eurogeographics_langs(iso3))
     if iso3 in PRIMARY_NAME1:
         name, alt_cols[0] = alt_cols[0], name
         langs[0], langs[1] = langs[1], langs[0]

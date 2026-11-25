@@ -81,9 +81,8 @@ export const ADMIN_SOURCES = [
     junkNameValues: ["Administrative unit not available"],
   },
   {
-    id: "erm",
+    id: "eurogeographics",
     label: "EuroGeographics",
-    shortLabel: "ERM",
     levels: [1, 2, 3, 4] as AdminLevel[],
     nameField: "adm{level}_name",
     codeField: "adm{level}_pcode",

@@ -1,10 +1,12 @@
-"""OCHA admin 1-4 boundaries from COD-AB's per-location original layers on source.coop."""
+"""OCHA admin 1-4 boundaries from COD-AB's per-location original layers on source.coop, plus
+the legacy COD-AB layers in a local fieldmaps/subnational checkout for locations COD-AB lacks."""
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from cod_data.catalog.common import COD_AB_BASE, COD_AB_CACHE, connect
 from cod_data.catalog.explorer.boundaries import write_boundary
+from cod_data.catalog.explorer.subnational import SOURCE, check_all, dissolved, rows
 from cod_data.shared import http
 
 ORIGINAL = f"{COD_AB_BASE}/original"
@@ -44,6 +46,13 @@ def columns(level: int) -> list[str]:
 
 
 locations = [href.split("/")[1] for href in children(f"{ORIGINAL}/catalog.json")]
+legacy = [
+    v for k, v in sorted(rows(SOURCE, ["cod-ab-legacy"]).items()) if k not in locations
+]
+check_all(legacy)
+LEGACY_COLUMNS = (
+    "lang, lang1, lang2, lang3, src_date AS valid_on, valid_to, version, src_name"
+)
 with ThreadPoolExecutor(8) as pool:
     layers = dict(
         zip(
@@ -68,7 +77,7 @@ with ThreadPoolExecutor(8) as pool:
         }
         con.close()
         keep = ", ".join(f'"{c}"' for c in columns(level) if c in present)
-        write_boundary(
-            f"SELECT upper(parse_filename(filename)[:3]) AS iso3, {keep}, geometry FROM {source}",
-            f"ocha_adm{level}",
-        )
+        current = f"SELECT upper(parse_filename(filename)[:3]) AS iso3, {keep}, NULL::VARCHAR AS src_name, geometry FROM {source}"
+        if any(lvl >= level for _, lvl, *_ in legacy):
+            current = f"({current}) UNION ALL BY NAME ({dissolved(legacy, level, LEGACY_COLUMNS)})"
+        write_boundary(current, f"ocha_adm{level}")
