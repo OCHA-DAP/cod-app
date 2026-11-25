@@ -186,10 +186,11 @@ def column_description(col: str, level: bool) -> str | None:
 
 
 def describe_columns() -> None:
-    """Fill each global and iso3 collection's table:columns descriptions from the schema."""
+    """Fill each global, iso3 and source collection's table:columns descriptions from the schema."""
     for path in [
         *GLOBAL.glob("adm*-*/collection.json"),
         *ISO3.glob("*/collection.json"),
+        *SOURCE.glob("*/collection.json"),
     ]:
         stac = json.loads(path.read_text())
         # Lines' level is the boundary's, and iso3 collections mix lines with the rest.
@@ -318,7 +319,10 @@ def stage_source(con: duckdb.DuckDBPyConnection, notes: str) -> None:
         key, src = iso3.lower(), picks[iso3]
         folder = SOURCE / key
         folder.mkdir(parents=True, exist_ok=True)
-        digest = staged_digest(work / key)
+        provider, updated = provenance.get((src, iso3), (None, None))
+        digest = hashlib.sha256(
+            f"{staged_digest(work / key)}{provider}{updated}".encode()
+        ).hexdigest()
         layers = {t: folder / f"{key}_{t}.parquet" for t in TIERS}
         meta = folder / f"{key}_metadata.json"
         if staged.get(f"source/{iso3}") != digest or not all(
@@ -332,7 +336,6 @@ def stage_source(con: duckdb.DuckDBPyConnection, notes: str) -> None:
                 for r in con.execute(f"DESCRIBE FROM '{layers['original']}'").fetchall()
             }
             lvl = max(n for n in range(1, MAX_LVL + 1) if f"adm{n}_pcode" in cols)
-            provider, updated = provenance.get((src, iso3), (None, None))
             rows = [
                 {
                     "key": key,

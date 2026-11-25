@@ -159,7 +159,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `catalog/source/<iso3>/<iso3>_{original,extended}.parquet` with a
   `<iso3>_metadata.json` holding one row per tier (`key`, `tier`, `iso3`,
   `src`, `src_lvl`, `src_name`, `src_date`, the last two from
-  `source_provenance`), and MUST remove the folder of a location with no
+  `source_provenance`, with `src_name` falling back to the source's
+  provider), MUST rewrite them when those two values change, and MUST remove the folder of a location with no
   source layers. A `none` pick MUST have no folder.
 - Published polygons MUST be ordered by `adm{n}_pcode` and points by
   `pcode`. Lines MUST be in Hilbert order, over the world box in the global
