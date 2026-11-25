@@ -1,4 +1,5 @@
-"""Stage the global build: adm{n}-{geom} collections in catalog/global/ and one collection per location in catalog/iso3/<iso3>/."""
+"""Stage the global build: adm{n}-{geom} collections in catalog/global/, one collection per location in
+catalog/iso3/<iso3>/, and each picked location's source layers in catalog/source/<iso3>/."""
 
 import hashlib
 import json
@@ -16,6 +17,7 @@ from cod_data.catalog.common import (
     PARTNERS,
     TILE_MAX_ZOOM,
     connect,
+    path_of,
     tile_parquet,
     write_yaml,
 )
@@ -42,6 +44,8 @@ from cod_data.shared.geoparquet import HILBERT, write_geoparquet
 
 GLOBAL = CATALOG / "global"
 ISO3 = CATALOG / "iso3"
+SOURCE = CATALOG / "source"
+TIERS = ("original", "extended")
 # The ADM0 layer the published build is edge-matched to.
 ADM0 = "improved"
 GEOMS = ("polygons", "points", "lines")
@@ -285,6 +289,81 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
     print(f"iso3: restaged {restaged} of {len(names)} locations")
 
 
+def stage_source(con: duckdb.DuckDBPyConnection, notes: str) -> None:
+    """Copy each picked location's source layers and write their metadata sidecar."""
+    work = BUILD / ADM0 / "iso3"
+    staged = json.loads(STAGED.read_text()) if STAGED.exists() else {}
+    picks = dict(
+        con.execute(f"SELECT iso3, selected_source FROM {DECISIONS}").fetchall()
+    )
+    built = {
+        p.name.upper()
+        for p in work.glob("*/")
+        if (p / "source_original.parquet").exists() and p.name.upper() in picks
+    }
+    for old in sorted(p for p in SOURCE.glob("*/") if not p.name.startswith(".")):
+        if old.name.upper() not in built:
+            print(f"source/{old.name}: no longer picked, removing")
+            shutil.rmtree(old)
+            staged.pop(f"source/{old.name.upper()}", None)
+    provenance = {
+        (s, i): (p, d)
+        for s, i, p, d in con.execute(
+            "SELECT source, iso3, provider, source_updated::VARCHAR "
+            f"FROM '{path_of('source_provenance')}'"
+        ).fetchall()
+    }
+    restaged = 0
+    for iso3 in sorted(built):
+        key, src = iso3.lower(), picks[iso3]
+        folder = SOURCE / key
+        folder.mkdir(parents=True, exist_ok=True)
+        digest = staged_digest(work / key)
+        layers = {t: folder / f"{key}_{t}.parquet" for t in TIERS}
+        meta = folder / f"{key}_metadata.json"
+        if staged.get(f"source/{iso3}") != digest or not all(
+            p.exists() for p in (*layers.values(), meta)
+        ):
+            restaged += 1
+            for tier, out in layers.items():
+                shutil.copyfile(work / key / f"source_{tier}.parquet", out)
+            cols = {
+                r[0]
+                for r in con.execute(f"DESCRIBE FROM '{layers['original']}'").fetchall()
+            }
+            lvl = max(n for n in range(1, MAX_LVL + 1) if f"adm{n}_pcode" in cols)
+            provider, updated = provenance.get((src, iso3), (None, None))
+            rows = [
+                {
+                    "key": key,
+                    "tier": tier,
+                    "iso3": iso3,
+                    "src": src,
+                    "src_lvl": lvl,
+                    "src_name": provider or PARTNERS.get(src, {}).get("provider"),
+                    "src_date": updated,
+                }
+                for tier in TIERS
+            ]
+            meta.write_text(json.dumps({"rows": rows}, indent=2) + "\n")
+            staged[f"source/{iso3}"] = digest
+            STAGED.write_text(json.dumps(staged, indent=1, sort_keys=True) + "\n")
+        label = PARTNERS.get(src, {}).get("provider", src)
+        write_yaml(
+            folder / ".portolan" / "metadata.yaml",
+            {
+                "title": f"{iso3} source layers",
+                "description": f"The picked source's admin boundaries for {iso3}, cleaned and coded to the COD-AB Specification ({key}_original), and the same units extended past the coastline and borders, not yet edge-matched ({key}_extended). Source: {label}.",
+                "providers": [PROVIDER],
+                "processing_notes": notes,
+                "keywords": [iso3, src],
+                "license": "other",
+                "license_url": "../TERMS.md",
+            },
+        )
+    print(f"source: restaged {restaged} of {len(built)} locations")
+
+
 def stale(adm0: str) -> list[str]:
     """Locations whose build is missing or behind its current inputs and date, or that the merge and ADM0 layer disagree on."""
     out = BUILD / adm0
@@ -340,7 +419,14 @@ def stage() -> None:
             "description": "The global layers cut by ISO3 code, one collection per location.",
         },
     )
-    for folder in (GLOBAL, ISO3):
+    write_yaml(
+        SOURCE / ".portolan" / "metadata.yaml",
+        {
+            "title": "Source layers by location",
+            "description": "Each location's picked source before edge-matching: cleaned and coded originals, and the same units extended. Locations with no pick have no folder.",
+        },
+    )
+    for folder in (GLOBAL, ISO3, SOURCE):
         (folder / "TERMS.md").write_text(
             f"# Terms\n\nThe layers in `{folder.name}/` combine admin boundaries published by several producers, one per location, as picked in the Boundaries Explorer. {TERMS}\n"
         )
@@ -349,5 +435,6 @@ def stage() -> None:
         stage_global(con, notes)
         write_stats(con)
         stage_iso3(con, notes)
+        stage_source(con, notes)
     finally:
         con.close()
