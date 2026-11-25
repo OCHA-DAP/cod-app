@@ -81,7 +81,7 @@
 
   function sourceLabel(id: string): string {
     const src = ADMIN_SOURCES.find((s) => s.id === id);
-    return src?.shortLabel ?? src?.label ?? id;
+    return src?.label ?? id;
   }
 
   const OFFICE_TYPE_RANK: Record<OfficeType, number> = { CO: 0, RO: 1, HAT: 2 };

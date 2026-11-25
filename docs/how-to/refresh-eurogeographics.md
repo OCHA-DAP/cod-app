@@ -17,9 +17,10 @@ sources that have no stable download URL.
    uv run -m cod_data.catalog.run --step eurogeographics
    ```
 
-   It rewrites `tmp/catalog/cache/eurogeographics/` when a GeoPackage or
-   `eurogeographics.py` is newer than the last ingest, then dissolves the
-   explorer layers. A new release that adds orders or renames layers makes
+   It rewrites `tmp/catalog/cache/eurogeographics/` when a GeoPackage, an ERM
+   country metadata file, `iso3166`, `eurogeographics.py` or the clean code
+   is newer than the last ingest, or topo-tools changed. Then it dissolves
+   the explorer layers. A new release that adds orders or renames layers makes
    the step exit with the location and the cause. Adjust `skip`, `merge`,
    `split` or `extra` in `eurogeographics.py` to match.
 4. Run `provenance`, `comparison` and `bbox`, and rebuild the global layers

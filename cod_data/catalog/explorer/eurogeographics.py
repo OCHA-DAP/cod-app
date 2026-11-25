@@ -1,6 +1,7 @@
 """EuroGeographics admin 1-4 boundaries: EuroRegionalMap (ERM_DIR) per country, EuroGlobalMap
 (EGM_DIR) for BIH, GRL and SRB, each ingested from its GeoPackage and dissolved per level."""
 
+import importlib.metadata
 import json
 import os
 import re
@@ -16,6 +17,7 @@ import duckdb
 from cod_data.catalog.common import connect, path_of
 from cod_data.catalog.explorer.boundaries import write_boundary
 from cod_data.catalog.explorer.dissolve import check_all, dissolved, quote, rows
+from cod_data.catalog.global_build import extend
 from cod_data.catalog.global_build.extend import clean_layer
 from cod_data.shared.geoparquet import write_geoparquet
 
@@ -392,11 +394,20 @@ def _write(
 
 
 def ingest(product: Product, iso3: dict[str, str]) -> None:
-    """Rewrite product's CACHE layers unless they are newer than its GeoPackage and this module."""
+    """Rewrite product's CACHE layers unless they are newer than every input and were
+    cleaned with the installed topo-tools."""
     gpkg = _gpkg(product)
     stamp = CACHE / f".{product.src}.done"
-    newest = max(gpkg.stat().st_mtime, Path(__file__).stat().st_mtime)
-    if stamp.exists() and stamp.stat().st_mtime > newest:
+    inputs = [
+        gpkg,
+        Path(__file__),
+        Path(extend.__file__),
+        path_of("iso3166"),
+        *product.root.glob("Metadata/Countries/*.xml"),
+    ]
+    newest = max(p.stat().st_mtime for p in inputs)
+    tools = importlib.metadata.version("topo-tools")
+    if stamp.exists() and stamp.stat().st_mtime > newest and stamp.read_text() == tools:
         return
     for key in rows(CACHE, [product.src]):
         shutil.rmtree(CACHE / key)
@@ -441,7 +452,7 @@ def ingest(product: Product, iso3: dict[str, str]) -> None:
             _write(con, product, icc, iso3[icc], names, lvl, agencies)
             print(f"{product.src} {icc}: orders {orders}")
     con.close()
-    stamp.touch()
+    stamp.write_text(tools)
 
 
 def main() -> None:
