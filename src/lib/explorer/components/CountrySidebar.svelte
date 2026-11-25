@@ -32,7 +32,10 @@
   let listEl: HTMLUListElement | undefined = $state();
   // "" shows every location, "none" the ones where no source was suitable.
   let picked = $state("");
-  const PICKED_VALUES = ["none", ...ADMIN_SOURCES.map((s) => s.id)];
+  const pickedIds = new Set(
+    [...decisions.values()].map((d) => (d.noSourceSuitable ? "none" : d.selectedSource)),
+  );
+  const PICKED_VALUES = ["none", ...ADMIN_SOURCES.map((s) => s.id)].filter((v) => pickedIds.has(v));
   if (view === "partners") {
     syncParam("picked", choiceParam(PICKED_VALUES), () => picked, (v) => (picked = v));
   }
@@ -103,7 +106,7 @@
       value,
       label: value === "none" ? "None suitable" : sourceLabel(value),
       count: rows.filter((r) => pickedValue(r) === value).length,
-    })).filter((o) => o.count > 0),
+    })),
   );
 
   let filtered: Row[] = $derived(

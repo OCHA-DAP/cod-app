@@ -52,6 +52,7 @@
     if (!iso3 || kiosk) return;
     const page = new URL(location.href);
     page.hash = "";
+    page.searchParams.delete("country");
     page.searchParams.set("iso3", iso3);
     page.searchParams.set("source", source);
     page.searchParams.set("level", String(level));
