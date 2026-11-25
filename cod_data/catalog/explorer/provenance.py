@@ -1,6 +1,6 @@
 """Per-source provenance (data provider, source date) per location. Run after every source download.
 OCHA and FAO providers come from hand-maintained CSVs in data/provenance/, legacy OCHA ones from the
-subnational metadata. Each date is the latest value of the source's date field: OCHA valid_on,
+legacy layers' metadata. Each date is the latest value of the source's date field: OCHA valid_on,
 EuroGeographics src_date, UNHCR update_date, WFP source_date, UNICEF start_date, FAO's "Accessed on" from GAUL's metadata spreadsheets, and World Bank's latest admin 2 P_DATE."""
 
 from pathlib import Path

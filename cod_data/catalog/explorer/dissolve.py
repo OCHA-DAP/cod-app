@@ -1,22 +1,17 @@
-"""Source layers in a local fieldmaps/subnational checkout: its catalog (SUBNATIONAL_CATALOG)
-and its archive of layers the catalog now sources elsewhere."""
+"""Per-level dissolve of per-location source layers, and the metadata sidecars that list them."""
 
-import os
 import sys
 from pathlib import Path
 
 from cod_data.catalog.common import connect
 
-CATALOG = Path(
-    os.environ.get("SUBNATIONAL_CATALOG", "../../fieldmaps/subnational/catalog")
-)
-SOURCE = CATALOG / "source"
 NAMES = ("name", "name1", "name2", "name3", "pcode")
-ARCHIVE = CATALOG.parent / "archive"
 
 
 def rows(root: Path, srcs: list[str]) -> dict[str, tuple[str, int, str, str]]:
     """key -> (path, src_lvl, src_name, src_date) of each original layer of srcs under root."""
+    if not any(root.glob("*/*_metadata.json")):
+        return {}
     con = connect()
     found = con.execute(
         f"""

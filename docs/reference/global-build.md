@@ -31,8 +31,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `DEPTH` sets it for that location and source. For a
   current COD-AB pick it MUST NOT exceed the deepest level that has a cod-ab extended
   layer, and only units in that layer MUST be kept.
-- `lang` MUST come from the source for OCHA, from the subnational layers
-  for EuroGeographics, and MUST be `en` for every other source and for fill rows.
+- `lang` MUST come from the source for OCHA and EuroGeographics, and MUST
+  be `en` for every other source and for fill rows.
   Locations in `PRIMARY_NAME1` MUST swap `name` with `name1` and `lang`
   with `lang1`.
 - Each row MUST carry one `lang1`..`lang3`, the tag nearest the deepest
@@ -103,16 +103,14 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   successful build when that build has every output the merge needs and
   its ADM0 rows match the current ADM0 layer, and otherwise MUST fall back
   to ADM0 fill, built in the main
-  process after the pool. An error reading the subnational catalog MUST fail only
-  the EuroGeographics picks. A location whose fill also fails MUST count as
+  process after the pool. A location whose fill also fails MUST count as
   unbuilt. It MUST be listed before the merge,
   and MUST make the run exit non-zero.
 - Each location's build MUST record a fingerprint of its inputs: its
   pick, its rows in the ADM0 layer and in each of the pick's explorer
-  layers, the cod-ab extended layers (OCHA), the EuroGeographics original layers' size
-  and modification time (EuroGeographics), the pick's `BOUNDARY_SOURCES` entry, the
+  layers, the cod-ab extended layers (OCHA), the pick's `BOUNDARY_SOURCES` entry, the
   code its build runs (the global build modules except the merge and
-  staging, `common.py`, `eurogeographics.py`, `subnational.py` and `geoparquet.py`), and the DuckDB,
+  staging, `common.py`, `eurogeographics.py` and `geoparquet.py`), and the DuckDB,
   spatial extension and topo-tools versions. A run MUST skip a
   built location whose fingerprint is unchanged, rewriting only its
   `valid_from`.
@@ -140,7 +138,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   inputs (so an ADM0 fill or kept build of a failed pick blocks it), or
   when the merged layers hold a location the ADM0 layer no longer has, or
   lack one it has.
-  It therefore needs every build input: the adm0-app, cod-ab and subnational
+  It therefore needs every build input: the adm0-app and cod-ab
   catalogs and the explorer layers. A missing or unreadable
   `parents.parquet` MUST count as not current. It MUST
   write `catalog/global/adm{n}-{geom}/adm{n}_{geom}.parquet` for levels 1

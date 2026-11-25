@@ -11,7 +11,6 @@ import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures.process import BrokenProcessPool
-from functools import cache
 from importlib.metadata import version
 from pathlib import Path
 
@@ -28,7 +27,6 @@ from cod_data.catalog.common import (
     connect,
     path_of,
 )
-from cod_data.catalog.explorer.eurogeographics import layers as eg_layers
 from cod_data.catalog.global_build.adm0 import write_parents
 from cod_data.catalog.global_build.config import (
     ADM0_LAYERS,
@@ -64,7 +62,6 @@ CODE = [
     ),
     Path(__file__).parents[1] / "common.py",
     Path(__file__).parents[1] / "explorer" / "eurogeographics.py",
-    Path(__file__).parents[1] / "explorer" / "subnational.py",
     Path(__file__).parents[2] / "shared" / "geoparquet.py",
 ]
 
@@ -434,19 +431,6 @@ def file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-@cache
-def eurogeographics_stamp() -> str:
-    """Size and modification time of each EuroGeographics original layer, which eurogeographics_langs reads."""
-    try:
-        paths = [Path(p) for p, *_ in eg_layers()]
-        return "\n".join(
-            f"{p} {p.stat().st_size} {p.stat().st_mtime_ns}" for p in paths
-        )
-    # A missing or unreadable subnational catalog fails only the EuroGeographics builds.
-    except (Exception, SystemExit) as e:  # noqa: BLE001
-        return f"eurogeographics layers unreadable: {type(e).__name__}: {e}"
-
-
 def fingerprint(
     iso3: str, source: str | None, rows: dict[tuple[str, int], dict[str, str]]
 ) -> str:
@@ -467,8 +451,6 @@ def fingerprint(
             for n in range(1, MAX_LVL + 1)
             if (p := _cod_ab_path(iso3, n)).exists()
         ]
-    if source == "eurogeographics":
-        parts.append(eurogeographics_stamp())
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 

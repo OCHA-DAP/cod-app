@@ -1,17 +1,20 @@
-"""OCHA admin 1-4 boundaries from COD-AB's per-location original layers on source.coop, plus
-the legacy COD-AB layers in a local fieldmaps/subnational checkout for locations COD-AB lacks."""
+"""OCHA admin 1-4 boundaries from COD-AB's per-location original layers on source.coop, plus the
+legacy COD-AB layers in COD_AB_LEGACY_DIR (copied once from fieldmaps/subnational) for locations COD-AB lacks."""
 
+import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from cod_data.catalog.common import COD_AB_BASE, COD_AB_CACHE, connect
 from cod_data.catalog.explorer.boundaries import write_boundary
-from cod_data.catalog.explorer.subnational import SOURCE, check_all, dissolved, rows
+from cod_data.catalog.explorer.dissolve import check_all, dissolved, rows
 from cod_data.shared import http
 
 ORIGINAL = f"{COD_AB_BASE}/original"
 CACHE = COD_AB_CACHE / "original"
 LEVELS = (1, 2, 3, 4)
+LEGACY_DIR = Path(os.environ.get("COD_AB_LEGACY_DIR", "tmp/cod-ab-legacy"))
 
 
 def children(url: str) -> list[str]:
@@ -46,8 +49,12 @@ def columns(level: int) -> list[str]:
 
 
 locations = [href.split("/")[1] for href in children(f"{ORIGINAL}/catalog.json")]
+if not LEGACY_DIR.is_dir():
+    sys.exit(f"{LEGACY_DIR} not found, set COD_AB_LEGACY_DIR to the legacy COD-AB copy")
 legacy = [
-    v for k, v in sorted(rows(SOURCE, ["cod-ab-legacy"]).items()) if k not in locations
+    v
+    for k, v in sorted(rows(LEGACY_DIR, ["cod-ab-legacy"]).items())
+    if k not in locations
 ]
 check_all(legacy)
 LEGACY_COLUMNS = (
