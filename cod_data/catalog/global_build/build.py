@@ -11,7 +11,6 @@ import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures.process import BrokenProcessPool
-from functools import cache
 from importlib.metadata import version
 from pathlib import Path
 
@@ -28,7 +27,6 @@ from cod_data.catalog.common import (
     connect,
     path_of,
 )
-from cod_data.catalog.explorer.erm import layers as erm_layers
 from cod_data.catalog.global_build.adm0 import write_parents
 from cod_data.catalog.global_build.config import (
     ADM0_LAYERS,
@@ -63,7 +61,7 @@ CODE = [
         for f in ("build.py", "conform.py", "config.py", "adm0.py", "extend.py")
     ),
     Path(__file__).parents[1] / "common.py",
-    Path(__file__).parents[1] / "explorer" / "erm.py",
+    Path(__file__).parents[1] / "explorer" / "eurogeographics.py",
     Path(__file__).parents[2] / "shared" / "geoparquet.py",
 ]
 
@@ -182,12 +180,24 @@ def _cod_ab_extended(
     return outs
 
 
+def _cod_ab(con: duckdb.DuckDBPyConnection, source: str | None, iso3: str) -> bool:
+    """Whether the pick is a current COD-AB, which takes its geometry from the cod-ab catalog."""
+    if source != "ocha":
+        return False
+    legacy = con.execute(
+        f"SELECT bool_or(src_name IS NOT NULL) FROM {layer('ocha', 1)} WHERE iso3 = ?",
+        [iso3],
+    ).fetchall()[0][0]
+    return not legacy
+
+
 def _stage(
     con: duckdb.DuckDBPyConnection, iso3: str, source: str, parents: Path, work: Path
 ) -> list[Path]:
     """Write the pick's coded original per match key; return the originals."""
     lvl = depth(con, source, iso3)
-    if source == "ocha":
+    cod_ab = _cod_ab(con, source, iso3)
+    if cod_ab:
         # The cod-ab catalog extends only the levels clean enough to use.
         lvl = max(n for n in range(1, lvl + 1) if _cod_ab_path(iso3, n).exists())
     name = con.execute(
@@ -195,7 +205,7 @@ def _stage(
     ).fetchall()[0][0]
     raw = work / "raw.parquet"
     keep = None
-    if source == "ocha":
+    if cod_ab:
         # Units the cod-ab catalog leaves out of its extended layer (e.g. Abyei) are dropped.
         keep = f"SELECT adm{lvl}_pcode FROM '{_cod_ab_path(iso3, lvl)}'"
     write_geoparquet(con, stage_sql(source, iso3, lvl, name, keep), raw)
@@ -353,7 +363,7 @@ def _build(
         lvl = con.execute(f"SELECT max(src_lvl) FROM '{originals[0]}'").fetchall()[0][0]
         inputs = (
             _cod_ab_extended(con, iso3, originals, lvl, work)
-            if source == "ocha"
+            if _cod_ab(con, source, iso3)
             else [extend_layer(con, o, work) for o in originals]
         )
         for tier, paths in (("original", originals), ("extended", inputs)):
@@ -437,19 +447,6 @@ def file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-@cache
-def erm_stamp() -> str:
-    """Size and modification time of each ERM original layer, which erm_langs reads."""
-    try:
-        paths = [Path(p) for p, *_ in erm_layers()]
-        return "\n".join(
-            f"{p} {p.stat().st_size} {p.stat().st_mtime_ns}" for p in paths
-        )
-    # A missing or unreadable ERM catalog fails only the ERM builds.
-    except (Exception, SystemExit) as e:  # noqa: BLE001
-        return f"erm layers unreadable: {type(e).__name__}: {e}"
-
-
 def fingerprint(
     iso3: str, source: str | None, rows: dict[tuple[str, int], dict[str, str]]
 ) -> str:
@@ -470,8 +467,6 @@ def fingerprint(
             for n in range(1, MAX_LVL + 1)
             if (p := _cod_ab_path(iso3, n)).exists()
         ]
-    if source == "erm":
-        parts.append(erm_stamp())
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 

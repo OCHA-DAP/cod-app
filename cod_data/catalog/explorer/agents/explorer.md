@@ -4,7 +4,7 @@ Admin boundaries from OCHA and several partner sources, one collection per sourc
 
 ## Boundaries
 
-Each `{{source}}/{{source}}_adm{{n}}/` collection holds `{{source}}_adm{{n}}.parquet`, its polygon tiles (layer `{{source}}_adm{{n}}`) and label points (layer `{{source}}_adm{{n}}_labels`). `hover_id` is a row index, not an admin code. `ocha` merges COD-AB's per-location original layers (https://source.coop/hdx/cod-ab), keeping partial levels. `erm` dissolves EuroGeographics EuroRegionalMap's per-location layers (https://www.mapsforeurope.org/datasets/euro-regional-map) to each level, keeping partial levels. Columns differ by source:
+Each `{{source}}/{{source}}_adm{{n}}/` collection holds `{{source}}_adm{{n}}.parquet`, its polygon tiles (layer `{{source}}_adm{{n}}`) and label points (layer `{{source}}_adm{{n}}_labels`). `hover_id` is a row index, not an admin code. `ocha` merges COD-AB's per-location original layers (https://source.coop/hdx/cod-ab), keeping partial levels, and adds legacy COD-AB layers for locations COD-AB lacks, with their provider in `src_name`. `eurogeographics` dissolves EuroGeographics EuroRegionalMap and EuroGlobalMap (https://www.mapsforeurope.org/datasets) to each level, keeping partial levels, with each location's languages in `lang` to `lang3`. Columns differ by source:
 
 | Source | Location column | Name column | Code column | Levels |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ Each `{{source}}/{{source}}_adm{{n}}/` collection holds `{{source}}_adm{{n}}.par
 | `unhcr` | `iso3` | `gis_name` | `adm{{n}}_source_code` | 1 to 2 |
 | `fao` | `ISO3_CODE` | `GAUL{{n}}_NAME` | `GAUL{{n}}_CODE` | 1 to 2 |
 | `wb` | `ISO_A3` | `NAM_{{n}}` | `ADM{{n}}CD_c` | 1 to 2 |
-| `erm` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 4 |
+| `eurogeographics` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 4 |
 
 Some sources include filler units such as "Under National Administration", "N/A" or "Waterbody" that aren't real subdivisions.
 

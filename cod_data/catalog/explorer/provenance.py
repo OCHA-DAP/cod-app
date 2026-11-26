@@ -1,7 +1,7 @@
 """Per-source provenance (data provider, source date) per location. Run after every source download.
-OCHA and FAO providers come from hand-maintained CSVs in data/provenance/. Each date is the latest value
-of the source's date field: OCHA valid_on, ERM src_date, UNHCR update_date, WFP source_date, UNICEF
-start_date, FAO's "Accessed on" from GAUL's metadata spreadsheets, and World Bank's latest admin 2 P_DATE."""
+OCHA and FAO providers come from hand-maintained CSVs in data/provenance/, legacy OCHA ones from the
+legacy layers' metadata. Each date is the latest value of the source's date field: OCHA valid_on,
+EuroGeographics src_date, UNHCR update_date, WFP source_date, UNICEF start_date, FAO's "Accessed on" from GAUL's metadata spreadsheets, and World Bank's latest admin 2 P_DATE."""
 
 from pathlib import Path
 
@@ -26,10 +26,12 @@ if multi:
     )
 con.execute(f"""
     CREATE TABLE provenance AS
-        SELECT 'ocha' AS source, iso3, provider, v.valid_on::DATE AS source_updated
-        FROM read_csv('{RAW_DIR / "ocha.csv"}', header=true)
-        LEFT JOIN (
-            SELECT iso3, max(valid_on) AS valid_on FROM read_parquet('{path_of("ocha_adm1")}') GROUP BY iso3
+        SELECT 'ocha' AS source, iso3, coalesce(c.provider, v.src_name) AS provider,
+            v.valid_on::DATE AS source_updated
+        FROM read_csv('{RAW_DIR / "ocha.csv"}', header=true) c
+        FULL JOIN (
+            SELECT iso3, max(valid_on) AS valid_on, any_value(src_name) AS src_name
+            FROM read_parquet('{path_of("ocha_adm1")}') GROUP BY iso3
         ) v USING (iso3)
     UNION ALL
         SELECT 'fao' AS source, iso3, provider, a.accessed AS source_updated
@@ -58,10 +60,10 @@ con.execute(f"""
         FROM (SELECT DISTINCT ISO_A3 FROM read_parquet('{path_of("wb_adm1")}'))
         LEFT JOIN read_parquet('{WB_DATES}') d ON d.iso3 = ISO_A3
     UNION ALL
-        SELECT 'erm' AS source, iso3,
+        SELECT 'eurogeographics' AS source, iso3,
             array_to_string(list_sort(list_distinct(list(src_name))), '; ') AS provider,
             max(src_date) AS source_updated
-        FROM read_parquet('{path_of("erm_adm1")}')
+        FROM read_parquet('{path_of("eurogeographics_adm1")}')
         GROUP BY iso3;
 
     -- UNHCR fills unknown dates with spreadsheet placeholders (1899-12-30, 1900-01-01).

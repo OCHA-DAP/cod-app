@@ -16,7 +16,7 @@ from cod_data.shared.geoparquet import TABLE_OPTIONS
 
 load_dotenv(".env")
 CATALOG = Path(os.environ.get("CATALOG", "catalog"))
-SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "wb", "erm", "basemap")
+SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "wb", "eurogeographics", "basemap")
 DECISIONS_CSV = Path("src/lib/explorer/decisions.csv")
 # Normalized as in src/lib/explorer/decisions.ts.
 DECISIONS = f"""(
@@ -82,11 +82,11 @@ PARTNERS = {
         "url": "https://datacatalogfiles.worldbank.org/ddh-published/0038272/",
         "source_url": "https://datacatalog.worldbank.org/search/dataset/0038272",
     },
-    "erm": {
+    "eurogeographics": {
         "label": "EuroGeographics",
-        "provider": "EuroGeographics (EuroRegionalMap)",
+        "provider": "EuroGeographics (EuroRegionalMap, EuroGlobalMap)",
         "url": "https://www.mapsforeurope.org/",
-        "source_url": "https://www.mapsforeurope.org/datasets/euro-regional-map",
+        "source_url": "https://www.mapsforeurope.org/datasets",
     },
 }
 
@@ -128,7 +128,7 @@ BOUNDARY_SOURCES = [
     BoundarySource(
         "wb", "ISO_A3", [1, 2], "NAM_{level}", ["Administrative unit not available"]
     ),
-    BoundarySource("erm", "iso3", [1, 2, 3, 4]),
+    BoundarySource("eurogeographics", "iso3", [1, 2, 3, 4]),
 ]
 
 

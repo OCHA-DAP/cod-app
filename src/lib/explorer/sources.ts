@@ -70,7 +70,6 @@ export const ADMIN_SOURCES = [
     junkNameValues: ["Waterbody", "Undefined", "Administrative Unit Not Available"],
   },
   {
-    // Shown for comparison only, never picked for the global build.
     id: "wb",
     label: "World Bank",
     levels: [1, 2] as AdminLevel[],
@@ -81,9 +80,9 @@ export const ADMIN_SOURCES = [
     junkNameValues: ["Administrative unit not available"],
   },
   {
-    id: "erm",
+    id: "eurogeographics",
     label: "EuroGeographics",
-    shortLabel: "ERM",
+    shortLabel: "EuroGeo",
     levels: [1, 2, 3, 4] as AdminLevel[],
     nameField: "adm{level}_name",
     codeField: "adm{level}_pcode",

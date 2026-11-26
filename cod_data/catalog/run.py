@@ -24,7 +24,7 @@ EXPLORER_STEPS = [
     "fao",
     "wb",
     "unicef",
-    "erm",
+    "eurogeographics",
     "ocha",
     "provenance",
     "stats",
