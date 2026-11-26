@@ -24,7 +24,7 @@ sources that have no stable download URL.
    the explorer layers. A new release that adds orders or renames layers makes
    the step exit with the location and the cause. Adjust `skip`, `merge`,
    `split` or `extra` in `eurogeographics.py` to match.
-4. Run `provenance`, `comparison` and `bbox`, and rebuild the global layers
+4. Run `source_metadata`, `comparison` and `bbox`, and rebuild the global layers
    for EuroGeographics picks.
 
 ## Legacy COD-AB

@@ -79,8 +79,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   fields in the JSON Schema's order, before `version`.
 - `version` MUST be 1, and `updated` and `valid_to` MUST be null.
   `valid_from` MUST be recorded when the location is built, as its
-  `source_updated` in the explorer's `source_provenance`: the latest
-  `valid_on` for OCHA (provenance MUST raise when a location has more than
+  `valid_from` in the explorer's `source_metadata`: the latest
+  `valid_on` for OCHA (`source_metadata` MUST raise when a location has more than
   one), `src_date` for EuroGeographics, `update_date` for UNHCR, `source_date` for WFP,
   `start_date` for UNICEF, the "Accessed on" date of GAUL's metadata
   spreadsheets for FAO, and the latest admin 2 `P_DATE` for World Bank. It MUST be null on or before 1900-01-01, when
@@ -154,12 +154,16 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   units extended, before edge-matching) to its build folder, with the
   level columns from `adm{n}` down to `adm0` and `lang` to `lang3`, ordered
   by `adm{n}_pcode`. Staging MUST copy them to
-  `catalog/source/<iso3>/<iso3>_{original,extended}.parquet` with a
-  `<iso3>_metadata.json` holding one row per tier (`key`, `tier`, `iso3`,
-  `src`, `src_lvl`, `src_name`, `src_date`, the last two from
-  `source_provenance`, with `src_name` falling back to the source's
-  provider), MUST rewrite them when those two values change, and MUST remove the folder of a location with no
+  `catalog/source/<iso3>/<iso3>_{original,extended}.parquet`, with no
+  other data file, and MUST remove the folder of a location with no
   source layers. A `none` pick MUST have no folder.
+- The explorer's `source_metadata` MUST hold one row per `source` and
+  `iso3`, upper case for every location with a pick, with `product` (`COD`, `ERM`, `EGM` or null),
+  `producer`, `publisher`, `licence`, `url`, `valid_from`, `updated` and
+  `picked`. `picked` MUST be true on exactly the row of each location's
+  `decisions.csv` pick. A partner's `publisher` and `licence` MUST come
+  from `data/provenance/licences.csv`, null where the publisher's page
+  states no licence.
 - Published polygons MUST be ordered by `adm{n}_pcode` and points by
   `pcode`. Lines MUST be in Hilbert order, over the world box in the global
   layers and over the location's extent per location. Row groups MUST be

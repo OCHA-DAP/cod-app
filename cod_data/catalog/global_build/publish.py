@@ -17,7 +17,6 @@ from cod_data.catalog.common import (
     PARTNERS,
     TILE_MAX_ZOOM,
     connect,
-    path_of,
     tile_parquet,
     write_yaml,
 )
@@ -291,7 +290,7 @@ def stage_iso3(con: duckdb.DuckDBPyConnection, notes: str) -> None:
 
 
 def stage_source(con: duckdb.DuckDBPyConnection, notes: str) -> None:
-    """Copy each picked location's source layers and write their metadata sidecar."""
+    """Copy each picked location's source layers into source/<iso3>/."""
     work = BUILD / ADM0 / "iso3"
     staged = json.loads(STAGED.read_text()) if STAGED.exists() else {}
     picks = dict(
@@ -307,48 +306,19 @@ def stage_source(con: duckdb.DuckDBPyConnection, notes: str) -> None:
             print(f"source/{old.name}: no longer picked, removing")
             shutil.rmtree(old)
             staged.pop(f"source/{old.name.upper()}", None)
-    provenance = {
-        (s, i): (p, d)
-        for s, i, p, d in con.execute(
-            "SELECT source, iso3, provider, source_updated::VARCHAR "
-            f"FROM '{path_of('source_provenance')}'"
-        ).fetchall()
-    }
     restaged = 0
     for iso3 in sorted(built):
         key, src = iso3.lower(), picks[iso3]
         folder = SOURCE / key
         folder.mkdir(parents=True, exist_ok=True)
-        provider, updated = provenance.get((src, iso3), (None, None))
-        digest = hashlib.sha256(
-            f"{staged_digest(work / key)}{provider}{updated}".encode()
-        ).hexdigest()
+        digest = staged_digest(work / key)
         layers = {t: folder / f"{key}_{t}.parquet" for t in TIERS}
-        meta = folder / f"{key}_metadata.json"
         if staged.get(f"source/{iso3}") != digest or not all(
-            p.exists() for p in (*layers.values(), meta)
+            p.exists() for p in layers.values()
         ):
             restaged += 1
             for tier, out in layers.items():
                 shutil.copyfile(work / key / f"source_{tier}.parquet", out)
-            cols = {
-                r[0]
-                for r in con.execute(f"DESCRIBE FROM '{layers['original']}'").fetchall()
-            }
-            lvl = max(n for n in range(1, MAX_LVL + 1) if f"adm{n}_pcode" in cols)
-            rows = [
-                {
-                    "key": key,
-                    "tier": tier,
-                    "iso3": iso3,
-                    "src": src,
-                    "src_lvl": lvl,
-                    "src_name": provider or PARTNERS.get(src, {}).get("provider"),
-                    "src_date": updated,
-                }
-                for tier in TIERS
-            ]
-            meta.write_text(json.dumps({"rows": rows}, indent=2) + "\n")
             staged[f"source/{iso3}"] = digest
             STAGED.write_text(json.dumps(staged, indent=1, sort_keys=True) + "\n")
         label = PARTNERS.get(src, {}).get("provider", src)

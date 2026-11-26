@@ -28,6 +28,9 @@ DECISIONS = f"""(
 )"""
 COD_AB_BASE = "https://data.source.coop/hdx/cod-ab"
 COD_AB_CACHE = Path("tmp/catalog/cache/cod-ab")
+# Licence, publisher and update date of each current COD-AB location, from its collection.json.
+COD_AB_COLLECTIONS = COD_AB_CACHE / "collections.parquet"
+COD_AB_LEGACY_DIR = Path(os.environ.get("COD_AB_LEGACY_DIR", "tmp/cod-ab-legacy"))
 # The date FAO accessed each location's source, from GAUL's metadata spreadsheets.
 FAO_ACCESSED = Path("tmp/catalog/cache/fao_accessed.parquet")
 # The latest P_DATE of each location's World Bank admin 2 units.

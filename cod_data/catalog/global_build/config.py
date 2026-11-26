@@ -5,7 +5,7 @@ from pathlib import Path
 
 BUILD = Path("tmp/global")
 VERSION_FILE = "topo_tools_version.txt"
-# The location's valid_from: its source_updated in the explorer's source_provenance.
+# The location's valid_from: its valid_from in the explorer's source_metadata.
 VALID_FROM_FILE = "valid_from.txt"
 FINGERPRINT_FILE = "fingerprint.txt"
 # Unique per build, so a forced rebuild reaches the merge and staging.

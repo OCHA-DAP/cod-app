@@ -7,7 +7,7 @@
     type MapboxBoundaries,
   } from "$lib/explorer/parquet/mapboxBoundaries";
   import { getMatchForCountry, type SourceMatch } from "$lib/explorer/parquet/sourceMatch";
-  import { getProvenanceForCountry, type SourceProvenance } from "$lib/explorer/parquet/sourceProvenance";
+  import { getSourceMetadataForCountry, type SourceMetadata } from "$lib/explorer/parquet/sourceMetadata";
   import { getStatsForCountry, type SourceStat } from "$lib/explorer/parquet/sourceStats";
   import { getDecision } from "$lib/explorer/decisions";
   import { formatDate } from "$lib/utils/date";
@@ -22,7 +22,7 @@
   let stats: SourceStat[] = $state([]);
   let loading = $state(true);
   const decision = $derived(getDecision(iso3));
-  let provenance: SourceProvenance[] = $state([]);
+  let metadata: SourceMetadata[] = $state([]);
   let iso3166: Iso3166 | null = $state(null);
   let mapboxBoundaries: MapboxBoundaries | null = $state(null);
   let matches: SourceMatch[] = $state([]);
@@ -92,9 +92,9 @@
   $effect(() => {
     const current = iso3;
     let cancelled = false;
-    getProvenanceForCountry(current).then((p) => {
+    getSourceMetadataForCountry(current).then((m) => {
       if (cancelled) return;
-      provenance = p;
+      metadata = m;
     });
 
     return () => {
@@ -146,7 +146,7 @@
     label: string;
     levels: Record<number, SourceStat | undefined>;
     matches: Record<number, SourceMatch | undefined>;
-    provenance: SourceProvenance | undefined;
+    metadata: SourceMetadata | undefined;
   }
 
   // A stored match row is only trusted while its preferredSource still matches the
@@ -172,7 +172,7 @@
           ),
         ]),
       ),
-      provenance: provenance.find((p) => p.source === source.id),
+      metadata: metadata.find((m) => m.source === source.id),
     })),
   );
 </script>
@@ -209,8 +209,8 @@
                     : "Team's selected source (not yet accepted)"}>✓</span
                 >
               {/if}
-              {#if col.provenance?.sourceUpdated}
-                <span class="source-updated">{formatDate(col.provenance.sourceUpdated)}</span>
+              {#if col.metadata?.validFrom}
+                <span class="source-updated">{formatDate(col.metadata.validFrom)}</span>
               {/if}
             </button>
           </th>
@@ -240,8 +240,8 @@
         </td>
         {#each cols as col (col.id)}
           <td class="provider-cell" class:active-col={col.id === $selectedSource}>
-            {#if col.provenance?.provider}
-              {col.provenance.provider}
+            {#if col.metadata?.producer}
+              {col.metadata.producer}
             {:else}
               <span class="muted">—</span>
             {/if}

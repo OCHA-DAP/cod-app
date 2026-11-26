@@ -25,7 +25,7 @@ REFERENCE = {
     "office_type": "OCHA office type per location: country office, regional office or humanitarian advisory team.",
     "mapbox_boundaries": "Mapbox Boundaries admin unit counts per location and level, from Mapbox's public Boundaries Explorer demo.",
     "source_stats": "Feature and vertex counts per source, location and level.",
-    "source_provenance": "Provider and source date per source and location.",
+    "source_metadata": "Product, producer, publisher, licence, URL, source and update dates, and whether it is the pick, per source and location.",
     "source_match": "Polygon match rate of each source against the team's selected source per location.",
     "source_comparison": "Stats, provenance, match rates, reference counts and team decisions, one row per location, source and level.",
     "country_bbox": "Antimeridian-aware map-fit bounding box per location.",
