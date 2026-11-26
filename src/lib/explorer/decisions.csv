@@ -4,7 +4,7 @@ AFG,ocha,true,OCHA updated in 2026
 AGO,ocha,false,OCHA will be updating in 2026
 AIA,wfp,false,"No source is good, but WFP is ok"
 ALA,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-ALB,unhcr,false,"UNHCR for ADM2, WFP/HDX for ADM3"
+ALB,ocha,false,"UNHCR for ADM2, OCHA for ADM3"
 AND,unhcr,false,UNHCR most detailed
 ARE,ocha,false,"Mostly same source, default to OCHA"
 ARG,unhcr,false,"UNHCR seems to have detailed source, but it doesn't match Mapbox"
@@ -25,7 +25,7 @@ BGD,ocha,false,"OCHA updated in 2025, but WFP has ADM4"
 BGR,ocha,false,"OCHA and UNHCR has same source, default to OCHA"
 BHR,unhcr,false,"UNHCR matches ISO and Mapbox, only ADM1"
 BHS,fao,false,"FAO, but it uses GADM"
-BIH,unhcr,false,UNHCR only one to get ADM1 correct
+BIH,eurogeographics,true,"EuroGlobalMap, from the national mapping agency"
 BLM,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 BLR,ocha,false,"Mostly same sources, defaulting to OCHA"
 BLZ,wfp,false,WFP has highest quality source
@@ -90,7 +90,7 @@ GNB,ocha,false,OCHA matches mapbox
 GNQ,ocha,false,"No sources are ideal, OCHA by default"
 GRC,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 GRD,ocha,false,OCHA source needs cleaning to match ISO/Mapbox
-GRL,unhcr,false,UNHCR closest to Mapbox
+GRL,eurogeographics,true,"EuroGlobalMap, from the national mapping agency"
 GTM,ocha,false,"All similar sources, defaulting to OCHA"
 GUF,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 GUM,none,false,No subnational units available
@@ -199,11 +199,11 @@ SHN,fao,false,FAO matches ISO and Mapbox most closely
 SJM,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 SLB,wfp,false,"WFP only one with ADM3, original data on HDX"
 SLE,ocha,false,"OCHA, but it's curious that WFP modified OCHA data"
-SLV,unhcr,false,UNHCR most closely matches Mapbox source
+SLV,ocha,false,"OCHA for admin levels, UNHCR for precision"
 SMR,unhcr,false,UNHCR matches Mapbox and ISO most closely
 SOM,ocha,false,"OCHA selected based on CO presence, but verify data differences"
 SPM,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-SRB,wfp,false,"WFP, but it doesn't match ISO or Mapbox representation"
+SRB,eurogeographics,true,"EuroGlobalMap, from the national mapping agency"
 SSD,ocha,true,OCHA will be updating in 2026
 STP,ocha,false,OCHA updated in 2026 with new structure but still GADM
 SUR,unhcr,false,"UNHCR closest to Mapbox, but source could be improved"
