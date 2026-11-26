@@ -9,9 +9,9 @@
   import { getMatchForCountry, type SourceMatch } from "$lib/explorer/parquet/sourceMatch";
   import { getSourceMetadataForCountry, type SourceMetadata } from "$lib/explorer/parquet/sourceMetadata";
   import { getStatsForCountry, type SourceStat } from "$lib/explorer/parquet/sourceStats";
-  import { getDecision } from "$lib/explorer/decisions";
+  import { getDecision, pickSource } from "$lib/explorer/decisions";
   import { formatDate } from "$lib/utils/date";
-  import { ADMIN_SOURCES } from "$lib/explorer/sources";
+  import { ADMIN_SOURCES, PICK_SOURCES } from "$lib/explorer/sources";
   import { get } from "svelte/store";
 
   interface Props {
@@ -27,12 +27,21 @@
   let mapboxBoundaries: MapboxBoundaries | null = $state(null);
   let matches: SourceMatch[] = $state([]);
 
+  const pickable = new Set(PICK_SOURCES.map((s) => s.id));
+
+  // In dev, viewing a source the global build takes also makes it the pick.
+  function devPick(sourceId: string) {
+    if (import.meta.env.DEV && pickable.has(sourceId)) pickSource(iso3, sourceId);
+  }
+
   function onSourceClick(sourceId: string) {
     selectSource(get(mapStore), iso3, sourceId);
+    devPick(sourceId);
   }
 
   function onCellClick(sourceId: string, level: number) {
     selectSourceLevel(get(mapStore), iso3, sourceId, level);
+    devPick(sourceId);
   }
 
   const LEVELS = [1, 2, 3, 4];

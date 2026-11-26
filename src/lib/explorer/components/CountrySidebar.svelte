@@ -51,7 +51,9 @@
       iso3: c.iso3,
       name: c.name,
       plan: plans.get(c.iso3) ?? null,
-      decision: decisions.get(c.iso3) ?? null,
+      get decision() {
+        return decisions.get(c.iso3) ?? null;
+      },
       officeType: officeTypes.get(c.iso3) ?? null,
     }));
     loading = false;

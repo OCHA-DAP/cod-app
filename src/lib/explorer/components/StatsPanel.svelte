@@ -1,9 +1,10 @@
 <script lang="ts">
   import { downloadBlob } from "$lib/utils/download";
   import { sourceComparisonCsv } from "$lib/explorer/parquet/comparisonCsv";
-  import { getDecision } from "$lib/explorer/decisions";
+  import { getDecision, pickEdits, pickEditsCsv } from "$lib/explorer/decisions";
   import LabelsToggle from "./LabelsToggle.svelte";
   import StatsComparisonTable from "./StatsComparisonTable.svelte";
+  import PickEditor from "./PickEditor.svelte";
 
   interface Props {
     iso3: string;
@@ -41,6 +42,16 @@
       >
         CSV
       </button>
+      {#if import.meta.env.DEV && pickEdits.size}
+        <button
+          class="download-link"
+          onclick={() =>
+            downloadBlob(new Blob([pickEditsCsv()], { type: "text/csv" }), "pick_edits.csv")}
+          title="Download edited picks (dev)"
+        >
+          Edited picks ({pickEdits.size})
+        </button>
+      {/if}
       {#if iso3}
         <p class="hint">
           <kbd>[</kbd> <kbd>]</kbd>
@@ -51,6 +62,9 @@
     </div>
   </div>
   {#if iso3}
+    {#if import.meta.env.DEV}
+      <PickEditor {iso3} />
+    {/if}
     <StatsComparisonTable {iso3} />
   {:else}
     <p class="muted">Select a country to compare sources.</p>

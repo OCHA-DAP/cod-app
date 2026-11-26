@@ -89,6 +89,7 @@ export const ADMIN_SOURCES = [
     // shapeID is an opaque hash, so labels show the name only; the hover popup keeps it.
     labelCode: false,
     countryCodeField: "iso3",
+    globalBuild: false,
   },
   {
     id: "overture",
@@ -99,6 +100,7 @@ export const ADMIN_SOURCES = [
     codeField: "adm{level}_pcode",
     labelCode: false,
     countryCodeField: "iso3",
+    globalBuild: false,
   },
   {
     id: "eurogeographics",
@@ -110,6 +112,11 @@ export const ADMIN_SOURCES = [
     countryCodeField: "iso3",
   },
 ];
+
+// The sources a pick may name: those the global build takes.
+export const PICK_SOURCES = ADMIN_SOURCES.filter(
+  (s) => !("globalBuild" in s && s.globalBuild === false),
+);
 
 export function getLevelsForSource(sourceId: string): AdminLevel[] {
   return ADMIN_SOURCES.find((s) => s.id === sourceId)?.levels ?? [];
