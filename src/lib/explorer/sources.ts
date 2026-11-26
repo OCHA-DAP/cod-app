@@ -83,6 +83,7 @@ export const ADMIN_SOURCES = [
   {
     id: "eurogeographics",
     label: "EuroGeographics",
+    shortLabel: "EuroGeo",
     levels: [1, 2, 3, 4] as AdminLevel[],
     nameField: "adm{level}_name",
     codeField: "adm{level}_pcode",
