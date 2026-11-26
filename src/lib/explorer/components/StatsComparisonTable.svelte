@@ -11,7 +11,7 @@
   import { getStatsForCountry, type SourceStat } from "$lib/explorer/parquet/sourceStats";
   import { getDecision, pickSource } from "$lib/explorer/decisions";
   import { formatDate } from "$lib/utils/date";
-  import { ADMIN_SOURCES, PICK_SOURCES } from "$lib/explorer/sources";
+  import { ADMIN_SOURCES } from "$lib/explorer/sources";
   import { get } from "svelte/store";
 
   interface Props {
@@ -27,11 +27,9 @@
   let mapboxBoundaries: MapboxBoundaries | null = $state(null);
   let matches: SourceMatch[] = $state([]);
 
-  const pickable = new Set(PICK_SOURCES.map((s) => s.id));
-
-  // In dev, clicking the header of a source the global build takes also makes it the pick.
+  // In dev, clicking a source header also makes it the pick.
   function devPick(sourceId: string) {
-    if (import.meta.env.DEV && pickable.has(sourceId)) pickSource(iso3, sourceId);
+    if (import.meta.env.DEV) pickSource(iso3, sourceId);
   }
 
   function onSourceClick(sourceId: string) {
