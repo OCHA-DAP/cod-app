@@ -16,7 +16,17 @@ from cod_data.shared.geoparquet import TABLE_OPTIONS
 
 load_dotenv(".env")
 CATALOG = Path(os.environ.get("CATALOG", "catalog"))
-SOURCES = ("ocha", "wfp", "unicef", "unhcr", "fao", "wb", "eurogeographics", "basemap")
+SOURCES = (
+    "ocha",
+    "wfp",
+    "unicef",
+    "unhcr",
+    "fao",
+    "wb",
+    "eurogeographics",
+    "geoboundaries",
+    "basemap",
+)
 DECISIONS_CSV = Path("src/lib/explorer/decisions.csv")
 # Normalized as in src/lib/explorer/decisions.ts.
 DECISIONS = f"""(
@@ -91,6 +101,12 @@ PARTNERS = {
         "url": "https://www.mapsforeurope.org/",
         "source_url": "https://www.mapsforeurope.org/datasets",
     },
+    "geoboundaries": {
+        "label": "geoBoundaries",
+        "provider": "geoBoundaries (gbOpen)",
+        "url": "https://www.geoboundaries.org/",
+        "source_url": "https://www.geoboundaries.org/globalDownloads.html",
+    },
 }
 
 
@@ -132,6 +148,7 @@ BOUNDARY_SOURCES = [
         "wb", "ISO_A3", [1, 2], "NAM_{level}", ["Administrative unit not available"]
     ),
     BoundarySource("eurogeographics", "iso3", [1, 2, 3, 4]),
+    BoundarySource("geoboundaries", "iso3", [1, 2, 3, 4]),
 ]
 
 

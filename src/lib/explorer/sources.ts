@@ -80,6 +80,17 @@ export const ADMIN_SOURCES = [
     junkNameValues: ["Administrative unit not available"],
   },
   {
+    id: "geoboundaries",
+    label: "geoBoundaries",
+    shortLabel: "geoB",
+    levels: [1, 2, 3, 4] as AdminLevel[],
+    nameField: "adm{level}_name",
+    codeField: "adm{level}_pcode",
+    // shapeID is an opaque hash, so labels show the name only; the hover popup keeps it.
+    labelCode: false,
+    countryCodeField: "iso3",
+  },
+  {
     id: "eurogeographics",
     label: "EuroGeographics",
     shortLabel: "EuroGeo",
