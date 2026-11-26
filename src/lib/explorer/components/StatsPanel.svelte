@@ -33,12 +33,17 @@
       {/if}
     </div>
     <div class="header-controls">
-      <button class="download-link" onclick={downloadComparison} disabled={downloading}>
-        Download all countries comparison (CSV)
+      <button
+        class="download-link"
+        onclick={downloadComparison}
+        disabled={downloading}
+        title="Download all countries comparison (CSV)"
+      >
+        CSV
       </button>
       {#if iso3}
         <p class="hint">
-          [ ] to cycle sources
+          <kbd>[</kbd> <kbd>]</kbd>
           <span class="tooltip">Use [ and ] to cycle through boundary sources</span>
         </p>
         <LabelsToggle />
@@ -68,14 +73,18 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 6px 16px;
     margin-bottom: 10px;
   }
 
+  /* Controls keep a fixed size; the title and note take the rest and wrap. */
   .title-group {
     display: flex;
+    flex: 1 1 16rem;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: 6px;
+    gap: 2px 6px;
     min-width: 0;
   }
 
@@ -89,6 +98,7 @@
 
   .header-controls {
     display: flex;
+    margin-left: auto;
     align-items: center;
     gap: 16px;
   }
@@ -111,7 +121,15 @@
     font-size: 10px;
     color: var(--cd-grey--600);
     font-family: var(--brand-font-mono);
+    white-space: nowrap;
     cursor: default;
+  }
+
+  kbd {
+    padding: 0 4px;
+    border: 1px solid var(--cd-grey--300);
+    border-radius: 3px;
+    font-family: inherit;
   }
 
   .tooltip {

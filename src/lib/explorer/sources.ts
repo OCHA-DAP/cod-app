@@ -91,6 +91,16 @@ export const ADMIN_SOURCES = [
     countryCodeField: "iso3",
   },
   {
+    id: "overture",
+    label: "Overture Maps",
+    shortLabel: "OVM",
+    levels: [1, 2, 3] as AdminLevel[],
+    nameField: "adm{level}_name",
+    codeField: "adm{level}_pcode",
+    labelCode: false,
+    countryCodeField: "iso3",
+  },
+  {
     id: "eurogeographics",
     label: "EuroGeographics",
     shortLabel: "EuroGeo",

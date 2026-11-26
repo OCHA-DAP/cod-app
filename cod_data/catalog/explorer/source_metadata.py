@@ -15,11 +15,13 @@ from cod_data.catalog.common import (
 )
 from cod_data.catalog.explorer.eurogeographics import CACHE as EG_CACHE
 from cod_data.catalog.explorer.geoboundaries import META as GB_META
+from cod_data.catalog.explorer.overture import BUCKET as OV_BUCKET
+from cod_data.catalog.explorer.overture import META as OV_META
 from cod_data.shared.geoparquet import TABLE_OPTIONS
 
 RAW_DIR = Path(__file__).parent / "data" / "provenance"
 OUT = path_of("source_metadata")
-PARTNER_SOURCES = ("wfp", "unicef", "unhcr", "fao", "wb", "geoboundaries")
+PARTNER_SOURCES = ("wfp", "unicef", "unhcr", "fao", "wb", "geoboundaries", "overture")
 
 
 def sidecars(root: Path) -> str:
@@ -45,6 +47,7 @@ def main() -> None:
         (WB_DATES, "wb"),
         (COD_AB_COLLECTIONS, "ocha"),
         (GB_META, "geoboundaries"),
+        (OV_META, "overture"),
     ):
         if not path.exists():
             raise FileNotFoundError(f"{path} missing: run the {step} step first")
@@ -117,6 +120,13 @@ def main() -> None:
             LEFT JOIN read_csv('{RAW_DIR / "geoboundaries_licences.csv"}', header = true, all_varchar = true) l
                 ON l.boundaryLicense = g.licence
             JOIN partners p ON p.source = 'geoboundaries'
+        UNION ALL
+            -- Overture gives no date the data represents, only its release date.
+            SELECT 'overture', o.iso3, o.datasets, p.publisher, p.licence,
+                's3://{OV_BUCKET}/release/' || o.release || '/theme=divisions/', NULL::DATE,
+                strptime(split_part(o.release, '.', 1), '%Y-%m-%d')::DATE
+            FROM read_parquet('{OV_META}') o
+            JOIN partners p ON p.source = 'overture'
         UNION ALL
             SELECT {partner("fao", "f.iso3", "f.provider", "a.accessed", "NULL::DATE")}
             FROM read_csv('{RAW_DIR / "fao.csv"}', header = true) f

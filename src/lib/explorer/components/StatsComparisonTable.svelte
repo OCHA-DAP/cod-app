@@ -180,146 +180,148 @@
 {#if loading}
   <p class="muted">Loading stats…</p>
 {:else}
-  <table>
-    <colgroup>
-      <col class="level-col" />
-      <col class="mapbox-col" />
-      {#each cols as col (col.id)}
-        <col />
-      {/each}
-    </colgroup>
-    <thead>
-      <tr>
-        <th class="plain-cell">Level</th>
-        <th class="mapbox-col"></th>
+  <div class="table-scroll">
+    <table style:--cols={cols.length}>
+      <colgroup>
+        <col class="level-col" />
+        <col class="mapbox-col" />
         {#each cols as col (col.id)}
-          <th
-            class:active-col={col.id === $selectedSource}
-            class:team-pick={col.id === decision?.selectedSource}
-            class:accepted={col.id === decision?.selectedSource && decision?.accepted}
-          >
-            <button class="source-btn" onclick={() => onSourceClick(col.id)}>
-              {col.label}
-              {#if col.id === decision?.selectedSource}
-                <span
-                  class="team-badge"
-                  class:accepted={decision?.accepted}
-                  title={decision?.accepted
-                    ? "Team's accepted source"
-                    : "Team's selected source (not yet accepted)"}>✓</span
-                >
-              {/if}
-              {#if col.metadata?.validFrom}
-                <span class="source-updated">{formatDate(col.metadata.validFrom)}</span>
-              {/if}
-            </button>
-          </th>
+          <col />
         {/each}
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="plain-cell">Source</td>
-        <td class="mapbox-col">
-          {#if mapboxBoundaries?.iso2}
-            <a
-              class="mapbox-link"
-              href="https://demos.mapbox.com/boundaries-explorer/?country={mapboxBoundaries.iso2}"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Mapbox
-              <span class="iso-ref-tip"
-                >Mapbox Boundaries admin unit counts — opens the Mapbox Boundaries Explorer for this
-                country</span
-              >
-            </a>
-          {:else}
-            <span class="muted">Mapbox</span>
-          {/if}
-        </td>
-        {#each cols as col (col.id)}
-          <td class="provider-cell" class:active-col={col.id === $selectedSource}>
-            {#if col.metadata?.producer}
-              {col.metadata.producer}
-            {:else}
-              <span class="muted">—</span>
-            {/if}
-          </td>
-        {/each}
-      </tr>
-      {#each LEVELS as level (level)}
+      </colgroup>
+      <thead>
         <tr>
-          <td class="plain-cell">
-            Adm {level}
-            {#if level === 1 && iso3166?.subdivisionCount != null}
+          <th class="plain-cell">Level</th>
+          <th class="mapbox-col"></th>
+          {#each cols as col (col.id)}
+            <th
+              class:active-col={col.id === $selectedSource}
+              class:team-pick={col.id === decision?.selectedSource}
+              class:accepted={col.id === decision?.selectedSource && decision?.accepted}
+            >
+              <button class="source-btn" onclick={() => onSourceClick(col.id)}>
+                {col.label}
+                {#if col.id === decision?.selectedSource}
+                  <span
+                    class="team-badge"
+                    class:accepted={decision?.accepted}
+                    title={decision?.accepted
+                      ? "Team's accepted source"
+                      : "Team's selected source (not yet accepted)"}>✓</span
+                  >
+                {/if}
+                {#if col.metadata?.validFrom}
+                  <span class="source-updated">{formatDate(col.metadata.validFrom)}</span>
+                {/if}
+              </button>
+            </th>
+          {/each}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="plain-cell">Source</td>
+          <td class="mapbox-col">
+            {#if mapboxBoundaries?.iso2}
               <a
-                class="iso-ref"
-                href="https://www.iso.org/obp/ui/#iso:code:3166:{iso3166.iso2}"
+                class="mapbox-link"
+                href="https://demos.mapbox.com/boundaries-explorer/?country={mapboxBoundaries.iso2}"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                ISO: {iso3166.subdivisionCount}
+                Mapbox
                 <span class="iso-ref-tip"
-                  >ISO 3166-2 subdivision count for this country — opens iso.org/obp</span
+                  >Mapbox Boundaries admin unit counts — opens the Mapbox Boundaries Explorer for this
+                  country</span
                 >
               </a>
-            {/if}
-          </td>
-          <td class="mapbox-col">
-            {#if mapboxBoundaries?.iso2 && mapboxBoundaries.counts[level] != null}
-              <a
-                class="mapbox-cell-link"
-                href="https://demos.mapbox.com/boundaries-explorer/?country={mapboxBoundaries.iso2}&layer=adm{level}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {mapboxBoundaries.counts[level].toLocaleString()}
-              </a>
             {:else}
-              <span class="muted">—</span>
+              <span class="muted">Mapbox</span>
             {/if}
           </td>
           {#each cols as col (col.id)}
-            <td
-              class:active-col={col.id === $selectedSource}
-              class:active-cell={col.id === $selectedSource && level === $selectedAdmin}
-              class:team-pick={col.id === decision?.selectedSource}
-            >
-              {#if col.levels[level]}
-                <button
-                  class="cell-btn"
-                  aria-pressed={col.id === $selectedSource && level === $selectedAdmin}
-                  onclick={() => onCellClick(col.id, level)}
-                >
-                  <span class="unit-count"
-                    >{col.levels[level]?.featureCount.toLocaleString()} units</span
-                  >
-                  <span
-                    class="muted vertex-hint"
-                    role="note"
-                    onmouseenter={showTooltip}
-                    onmouseleave={hideTooltip}
-                    >{formatCount(col.levels[level]?.internalVertices ?? 0)} in / {formatCount(
-                      col.levels[level]?.edgeVertices ?? 0,
-                    )} out</span
-                  >
-                  <span class="match-rate"
-                    >{#if col.id !== decision?.selectedSource && col.matches[level] && col.levels[level]?.featureCount}{@const total =
-                        Number(col.levels[level]?.featureCount ?? 1)}{Math.round(
-                        (col.matches[level].matchedCount / total) * 100,
-                      )}% match ({col.matches[level].matchedCount}/{total}){/if}</span
-                  >
-                </button>
+            <td class="provider-cell" class:active-col={col.id === $selectedSource}>
+              {#if col.metadata?.producer}
+                {col.metadata.producer}
               {:else}
-                <span class="muted empty-cell">—</span>
+                <span class="muted">—</span>
               {/if}
             </td>
           {/each}
         </tr>
-      {/each}
-    </tbody>
-  </table>
+        {#each LEVELS as level (level)}
+          <tr>
+            <td class="plain-cell">
+              Adm {level}
+              {#if level === 1 && iso3166?.subdivisionCount != null}
+                <a
+                  class="iso-ref"
+                  href="https://www.iso.org/obp/ui/#iso:code:3166:{iso3166.iso2}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  ISO: {iso3166.subdivisionCount}
+                  <span class="iso-ref-tip"
+                    >ISO 3166-2 subdivision count for this country — opens iso.org/obp</span
+                  >
+                </a>
+              {/if}
+            </td>
+            <td class="mapbox-col">
+              {#if mapboxBoundaries?.iso2 && mapboxBoundaries.counts[level] != null}
+                <a
+                  class="mapbox-cell-link"
+                  href="https://demos.mapbox.com/boundaries-explorer/?country={mapboxBoundaries.iso2}&layer=adm{level}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {mapboxBoundaries.counts[level].toLocaleString()}
+                </a>
+              {:else}
+                <span class="muted">—</span>
+              {/if}
+            </td>
+            {#each cols as col (col.id)}
+              <td
+                class:active-col={col.id === $selectedSource}
+                class:active-cell={col.id === $selectedSource && level === $selectedAdmin}
+                class:team-pick={col.id === decision?.selectedSource}
+              >
+                {#if col.levels[level]}
+                  <button
+                    class="cell-btn"
+                    aria-pressed={col.id === $selectedSource && level === $selectedAdmin}
+                    onclick={() => onCellClick(col.id, level)}
+                  >
+                    <span class="unit-count"
+                      >{col.levels[level]?.featureCount.toLocaleString()} units</span
+                    >
+                    <span
+                      class="muted vertex-hint"
+                      role="note"
+                      onmouseenter={showTooltip}
+                      onmouseleave={hideTooltip}
+                      >{formatCount(col.levels[level]?.internalVertices ?? 0)} in / {formatCount(
+                        col.levels[level]?.edgeVertices ?? 0,
+                      )} out</span
+                    >
+                    <span class="match-rate"
+                      >{#if col.id !== decision?.selectedSource && col.matches[level] && col.levels[level]?.featureCount}{@const total =
+                          Number(col.levels[level]?.featureCount ?? 1)}{Math.round(
+                          (col.matches[level].matchedCount / total) * 100,
+                        )}% match ({col.matches[level].matchedCount}/{total}){/if}</span
+                    >
+                  </button>
+                {:else}
+                  <span class="muted empty-cell">—</span>
+                {/if}
+              </td>
+            {/each}
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
 {/if}
 
 {#if tooltipPos}
@@ -336,10 +338,29 @@
 {/if}
 
 <style>
+  .table-scroll {
+    overflow-x: auto;
+  }
+
   table {
     width: 100%;
+    min-width: calc(108px + var(--cols) * 120px);
     table-layout: fixed;
     border-collapse: collapse;
+  }
+
+  /* Level and Mapbox stay in view while the source columns scroll. */
+  th:nth-child(-n + 2),
+  td:nth-child(-n + 2) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--cd-white);
+  }
+
+  th:nth-child(2),
+  td:nth-child(2) {
+    left: 56px;
   }
 
   .level-col {

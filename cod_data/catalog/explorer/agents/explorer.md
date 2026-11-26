@@ -4,7 +4,7 @@ Admin boundaries from OCHA and several partner sources, one collection per sourc
 
 ## Boundaries
 
-Each `{{source}}/{{source}}_adm{{n}}/` collection holds `{{source}}_adm{{n}}.parquet`, its polygon tiles (layer `{{source}}_adm{{n}}`) and label points (layer `{{source}}_adm{{n}}_labels`). `hover_id` is a row index, not an admin code. `ocha` merges COD-AB's per-location original layers (https://source.coop/hdx/cod-ab), keeping partial levels, and adds legacy COD-AB layers for locations COD-AB lacks, with their provider in `src_name`. `eurogeographics` dissolves EuroGeographics EuroRegionalMap and EuroGlobalMap (https://www.mapsforeurope.org/datasets) to each level, keeping partial levels, with each location's languages in `lang` to `lang3`. Columns differ by source:
+Each `{{source}}/{{source}}_adm{{n}}/` collection holds `{{source}}_adm{{n}}.parquet`, its polygon tiles (layer `{{source}}_adm{{n}}`) and label points (layer `{{source}}_adm{{n}}_labels`). `hover_id` is a row index, not an admin code. `ocha` merges COD-AB's per-location original layers (https://source.coop/hdx/cod-ab), keeping partial levels, and adds legacy COD-AB layers for locations COD-AB lacks, with their provider in `src_name`. `eurogeographics` dissolves EuroGeographics EuroRegionalMap and EuroGlobalMap (https://www.mapsforeurope.org/datasets) to each level, keeping partial levels, with each location's languages in `lang` to `lang3`. `overture` places each Overture Maps division at its depth under its country or dependency in `parent_division_id`, land polygons as served, with the division id as `adm{{n}}_pcode`. Columns differ by source:
 
 | Source | Location column | Name column | Code column | Levels |
 |---|---|---|---|---|
@@ -16,6 +16,7 @@ Each `{{source}}/{{source}}_adm{{n}}/` collection holds `{{source}}_adm{{n}}.par
 | `wb` | `ISO_A3` | `NAM_{{n}}` | `ADM{{n}}CD_c` | 1 to 2 |
 | `eurogeographics` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 4 |
 | `geoboundaries` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 4 |
+| `overture` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 3 |
 
 Some sources include filler units such as "Under National Administration", "N/A" or "Waterbody" that aren't real subdivisions.
 
