@@ -15,7 +15,7 @@ describe("decisions", () => {
 
   test("parses none, quoted rationale and accepted", () => {
     const parsed = parseDecisions(
-      'iso3,selected_source,accepted,rationale\nabc,none,false,"a, b"\nDEF,ERM,true,x\n',
+      'iso3,selected_source,accepted,rationale\nabc,none,false,"a, b"\nDEF,EuroGeographics,true,x\n',
     );
     expect(parsed.get("ABC")).toEqual({
       iso3: "ABC",
@@ -24,7 +24,7 @@ describe("decisions", () => {
       accepted: false,
       rationale: "a, b",
     });
-    expect(parsed.get("DEF")?.selectedSource).toBe("erm");
+    expect(parsed.get("DEF")?.selectedSource).toBe("eurogeographics");
     expect(parsed.get("DEF")?.accepted).toBe(true);
   });
 });

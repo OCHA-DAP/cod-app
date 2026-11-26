@@ -11,7 +11,6 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   polygon with the ADM0 name and code, written without schema-fill or
   package, with one point per level and no boundary lines.
 - The build MUST raise when a pick names a source it doesn't take.
-  World Bank layers are for comparison in the explorer only.
 - The build MUST read the ADM0 layer named by `--adm0` (`improved` by
   default, `gaul` or `fieldmaps`) from the adm0-app catalog
   (`ADM0_CATALOG`), and source layers from the explorer catalog.
@@ -28,11 +27,11 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
 - Units with no name MUST be kept, and counted in the run report.
 - A location's depth MUST be its deepest level with more units than the
   level above and at least 99% of level 1's area (`FULL_COVER`), unless
-  `DEPTH` sets it for that location and source. For an
-  OCHA pick it MUST NOT exceed the deepest level that has a cod-ab extended
+  `DEPTH` sets it for that location and source. For a
+  current COD-AB pick it MUST NOT exceed the deepest level that has a cod-ab extended
   layer, and only units in that layer MUST be kept.
-- `lang` MUST come from the source for OCHA, from the subnational layers
-  for ERM, and MUST be `en` for every other source and for fill rows.
+- `lang` MUST come from the source for OCHA and EuroGeographics, and MUST
+  be `en` for every other source and for fill rows.
   Locations in `PRIMARY_NAME1` MUST swap `name` with `name1` and `lang`
   with `lang1`.
 - Each row MUST carry one `lang1`..`lang3`, the tag nearest the deepest
@@ -46,11 +45,12 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   (identical units excepted), and MUST be cleaned with `topo_clean` when
   `topo_detect` finds overlaps or gaps (with the `GAP_WIDTH` entry for the
   location, if any).
-- An OCHA pick MUST then take its geometry from the cod-ab catalog's
+- A current COD-AB pick (an OCHA pick whose `ocha_adm1` rows have a null
+  `src_name`) MUST then take its geometry from the cod-ab catalog's
   `extended/<iso3>/latest` layer, joined by P-code, MUST raise unless every
   unit matches exactly one extended unit with none left over, and MUST be
   cleaned with `topo_clean` when `topo_detect` finds any defect.
-- Any other pick MUST then be extended with `edge_extend` and cleaned with
+- Any other pick, legacy COD-AB included, MUST then be extended with `edge_extend` and cleaned with
   `topo_clean` when `topo_detect` finds any defect. Extensions MUST be
   cached by input content, the DuckDB, spatial extension and topo-tools
   versions, and the extend code.
@@ -81,9 +81,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `valid_from` MUST be recorded when the location is built, as its
   `source_updated` in the explorer's `source_provenance`: the latest
   `valid_on` for OCHA (provenance MUST raise when a location has more than
-  one), `src_date` for ERM, `update_date` for UNHCR, `source_date` for WFP,
-  `start_date` for UNICEF, and the "Accessed on" date of GAUL's metadata
-  spreadsheets for FAO. It MUST be null on or before 1900-01-01, when
+  one), `src_date` for EuroGeographics, `update_date` for UNHCR, `source_date` for WFP,
+  `start_date` for UNICEF, the "Accessed on" date of GAUL's metadata
+  spreadsheets for FAO, and the latest admin 2 `P_DATE` for World Bank. It MUST be null on or before 1900-01-01, when
   there is no date, and when the location is ADM0 fill.
 - `lang1` to `lang3` MUST be constant within a location: the source's tag
   wherever any of its units has that `name{i}`, and null otherwise.
@@ -102,16 +102,14 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   successful build when that build has every output the merge needs and
   its ADM0 rows match the current ADM0 layer, and otherwise MUST fall back
   to ADM0 fill, built in the main
-  process after the pool. An error reading the ERM catalog MUST fail only
-  the ERM picks. A location whose fill also fails MUST count as
+  process after the pool. A location whose fill also fails MUST count as
   unbuilt. It MUST be listed before the merge,
   and MUST make the run exit non-zero.
 - Each location's build MUST record a fingerprint of its inputs: its
   pick, its rows in the ADM0 layer and in each of the pick's explorer
-  layers, the cod-ab extended layers (OCHA), the ERM original layers' size
-  and modification time (ERM), the pick's `BOUNDARY_SOURCES` entry, the
+  layers, the cod-ab extended layers (OCHA), the pick's `BOUNDARY_SOURCES` entry, the
   code its build runs (the global build modules except the merge and
-  staging, `common.py`, `erm.py` and `geoparquet.py`), and the DuckDB,
+  staging, `common.py`, `eurogeographics.py` and `geoparquet.py`), and the DuckDB,
   spatial extension and topo-tools versions. A run MUST skip a
   built location whose fingerprint is unchanged, rewriting only its
   `valid_from`.
@@ -139,7 +137,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   inputs (so an ADM0 fill or kept build of a failed pick blocks it), or
   when the merged layers hold a location the ADM0 layer no longer has, or
   lack one it has.
-  It therefore needs every build input: the adm0-app, cod-ab and ERM
+  It therefore needs every build input: the adm0-app and cod-ab
   catalogs and the explorer layers. A missing or unreadable
   `parents.parquet` MUST count as not current. It MUST
   write `catalog/global/adm{n}-{geom}/adm{n}_{geom}.parquet` for levels 1

@@ -1,15 +1,20 @@
-"""OCHA admin 1-4 boundaries from COD-AB's per-location original layers on source.coop."""
+"""OCHA admin 1-4 boundaries from COD-AB's per-location original layers on source.coop, plus the
+legacy COD-AB layers in COD_AB_LEGACY_DIR (copied once from fieldmaps/subnational) for locations COD-AB lacks."""
 
+import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from cod_data.catalog.common import COD_AB_BASE, COD_AB_CACHE, connect
 from cod_data.catalog.explorer.boundaries import write_boundary
+from cod_data.catalog.explorer.dissolve import check_all, dissolved, rows
 from cod_data.shared import http
 
 ORIGINAL = f"{COD_AB_BASE}/original"
 CACHE = COD_AB_CACHE / "original"
 LEVELS = (1, 2, 3, 4)
+LEGACY_DIR = Path(os.environ.get("COD_AB_LEGACY_DIR", "tmp/cod-ab-legacy"))
 
 
 def children(url: str) -> list[str]:
@@ -44,6 +49,17 @@ def columns(level: int) -> list[str]:
 
 
 locations = [href.split("/")[1] for href in children(f"{ORIGINAL}/catalog.json")]
+if not LEGACY_DIR.is_dir():
+    sys.exit(f"{LEGACY_DIR} not found, set COD_AB_LEGACY_DIR to the legacy COD-AB copy")
+legacy = [
+    v
+    for k, v in sorted(rows(LEGACY_DIR, ["cod-ab-legacy"]).items())
+    if k not in locations
+]
+check_all(legacy)
+LEGACY_COLUMNS = (
+    "lang, lang1, lang2, lang3, src_date AS valid_on, valid_to, version, src_name"
+)
 with ThreadPoolExecutor(8) as pool:
     layers = dict(
         zip(
@@ -68,7 +84,7 @@ with ThreadPoolExecutor(8) as pool:
         }
         con.close()
         keep = ", ".join(f'"{c}"' for c in columns(level) if c in present)
-        write_boundary(
-            f"SELECT upper(parse_filename(filename)[:3]) AS iso3, {keep}, geometry FROM {source}",
-            f"ocha_adm{level}",
-        )
+        current = f"SELECT upper(parse_filename(filename)[:3]) AS iso3, {keep}, NULL::VARCHAR AS src_name, geometry FROM {source}"
+        if any(lvl >= level for _, lvl, *_ in legacy):
+            current = f"({current}) UNION ALL BY NAME ({dissolved(legacy, level, LEGACY_COLUMNS)})"
+        write_boundary(current, f"ocha_adm{level}")
