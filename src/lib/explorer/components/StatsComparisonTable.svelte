@@ -29,7 +29,7 @@
 
   const pickable = new Set(PICK_SOURCES.map((s) => s.id));
 
-  // In dev, viewing a source the global build takes also makes it the pick.
+  // In dev, clicking the header of a source the global build takes also makes it the pick.
   function devPick(sourceId: string) {
     if (import.meta.env.DEV && pickable.has(sourceId)) pickSource(iso3, sourceId);
   }
@@ -41,7 +41,6 @@
 
   function onCellClick(sourceId: string, level: number) {
     selectSourceLevel(get(mapStore), iso3, sourceId, level);
-    devPick(sourceId);
   }
 
   const LEVELS = [1, 2, 3, 4];
