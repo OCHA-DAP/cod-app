@@ -83,7 +83,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `valid_on` for OCHA (`source_metadata` MUST raise when a location has more than
   one), `src_date` for EuroGeographics, `update_date` for UNHCR, `source_date` for WFP,
   `start_date` for UNICEF, the "Accessed on" date of GAUL's metadata
-  spreadsheets for FAO, and the latest admin 2 `P_DATE` for World Bank. It MUST be null on or before 1900-01-01, when
+  spreadsheets for FAO, the latest admin 2 `P_DATE` for World Bank. It MUST be null on or before 1900-01-01, when
   there is no date, and when the location is ADM0 fill.
 - `lang1` to `lang3` MUST be constant within a location: the source's tag
   wherever any of its units has that `name{i}`, and null otherwise.
@@ -158,12 +158,19 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   other data file, and MUST remove the folder of a location with no
   source layers. A `none` pick MUST have no folder.
 - The explorer's `source_metadata` MUST hold one row per `source` and
-  `iso3`, upper case for every location with a pick, with `product` (`COD`, `ERM`, `EGM` or null),
-  `producer`, `publisher`, `licence`, `url`, `valid_from`, `updated` and
-  `picked`. `picked` MUST be true on exactly the row of each location's
-  `decisions.csv` pick. A partner's `publisher` and `licence` MUST come
-  from `data/provenance/licences.csv`, null where the publisher's page
-  states no licence.
+  `iso3`, upper case for every location with a pick, with `producer`,
+  `publisher`, `licence`, `licence_url`, `notice`, `url`, `valid_from`,
+  `updated` and `picked`. `picked` MUST be true on exactly the row of each
+  location's `decisions.csv` pick. A partner's `publisher` and `licence`
+  MUST come from `data/provenance/licences.csv`, except geoBoundaries,
+  whose `producer`, `licence`, `url`, `valid_from` (1 January of the year
+  represented) and `updated` MUST come from its deepest level in the
+  current release, with `licence` mapped to its SPDX id by
+  `data/provenance/geoboundaries_licences.csv` where one exists.
+  `licence_url` MUST come from `data/provenance/licence_terms.csv` for
+  every SPDX `licence` and for EuroGeographics.
+  `notice` MUST hold the attribution text the publisher gives in
+  `licences.csv`, null where the publisher gives none.
 - Published polygons MUST be ordered by `adm{n}_pcode` and points by
   `pcode`. Lines MUST be in Hilbert order, over the world box in the global
   layers and over the location's extent per location. Row groups MUST be

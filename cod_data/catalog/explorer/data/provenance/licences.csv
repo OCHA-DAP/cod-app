@@ -1,6 +1,8 @@
-source,publisher,licence,licence_url,checked_on
-fao,Food and Agriculture Organization of the United Nations (FAO),CC-BY-4.0,https://data.apps.fao.org/catalog/dataset/global-administrative-unit-layers-gaul-2025,2026-11-26
-unhcr,UNHCR,CC-BY,https://data.humdata.org/dataset/first-level-administrative-divisions-admin1,2026-11-26
-unicef,UNICEF,,,
-wb,World Bank,CC-BY-4.0,https://datacatalog.worldbank.org/search/dataset/0038272,2026-11-26
-wfp,World Food Programme (WFP),,,
+source,publisher,licence,notice,checked_url,checked_on
+fao,Food and Agriculture Organization of the United Nations (FAO),CC-BY-4.0,,https://data.apps.fao.org/catalog/dataset/global-administrative-unit-layers-gaul-2025,2026-11-26
+unhcr,UNHCR,CC-BY-4.0,,https://data.humdata.org/dataset/first-level-administrative-divisions-admin1,2026-11-26
+unicef,UNICEF,CC-BY-4.0,,,
+wb,World Bank,CC-BY-4.0,,https://datacatalog.worldbank.org/search/dataset/0038272,2026-11-26
+wfp,World Food Programme (WFP),CC-BY-4.0,,,
+geoboundaries,William & Mary geoLab,,geoBoundaries (www.geoboundaries.org),https://www.geoboundaries.org/,2026-11-26
+eurogeographics,,,This dataset includes Intellectual Property from European National Mapping and Cadastral Authorities and is licensed on behalf of these by EuroGeographics. Original dataset is available for free at https://www.mapsforeurope.org. Terms of the licence available at https://www.mapsforeurope.org/licence.,https://www.mapsforeurope.org/licence,2026-11-26

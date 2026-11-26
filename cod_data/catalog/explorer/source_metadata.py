@@ -1,4 +1,4 @@
-"""Per-source metadata for each location (product, producer, publisher, licence, URL, dates, pick).
+"""Per-source metadata for each location (producer, publisher, licence and its terms, notice, URL, dates, pick).
 Run after every source download; valid_from is the latest value of each source's date field."""
 
 from pathlib import Path
@@ -14,11 +14,12 @@ from cod_data.catalog.common import (
     path_of,
 )
 from cod_data.catalog.explorer.eurogeographics import CACHE as EG_CACHE
+from cod_data.catalog.explorer.geoboundaries import META as GB_META
 from cod_data.shared.geoparquet import TABLE_OPTIONS
 
 RAW_DIR = Path(__file__).parent / "data" / "provenance"
 OUT = path_of("source_metadata")
-PARTNER_SOURCES = ("wfp", "unicef", "unhcr", "fao", "wb")
+PARTNER_SOURCES = ("wfp", "unicef", "unhcr", "fao", "wb", "geoboundaries")
 
 
 def sidecars(root: Path) -> str:
@@ -35,7 +36,7 @@ def partner(
     source: str, iso3: str, producer: str, valid_from: str, updated: str
 ) -> str:
     """Columns after (source, iso3) for a partner row, joined to the partner table as p."""
-    return f"'{source}', {iso3}, NULL, {producer}, p.publisher, p.licence, p.url, {valid_from}, {updated}"
+    return f"'{source}', {iso3}, {producer}, p.publisher, p.licence, p.url, {valid_from}, {updated}"
 
 
 def main() -> None:
@@ -43,6 +44,7 @@ def main() -> None:
         (FAO_ACCESSED, "fao"),
         (WB_DATES, "wb"),
         (COD_AB_COLLECTIONS, "ocha"),
+        (GB_META, "geoboundaries"),
     ):
         if not path.exists():
             raise FileNotFoundError(f"{path} missing: run the {step} step first")
@@ -70,11 +72,10 @@ def main() -> None:
         ],
     )
     con.execute(f"""
+        CREATE TABLE licences AS
+            SELECT * FROM read_csv('{RAW_DIR / "licences.csv"}', header = true, all_varchar = true);
         CREATE TABLE partners AS
-            SELECT p.*, l.publisher, l.licence
-            FROM partner p
-            LEFT JOIN read_csv('{RAW_DIR / "licences.csv"}', header = true, all_varchar = true) l
-                USING (source);
+            SELECT p.*, l.publisher, l.licence FROM partner p LEFT JOIN licences l USING (source);
         CREATE TABLE ocha AS
             SELECT iso3, coalesce(c.provider, v.src_name) AS producer,
                 v.valid_on::DATE AS valid_from, v.src_name IS NOT NULL AS legacy
@@ -84,7 +85,7 @@ def main() -> None:
                 FROM read_parquet('{path_of("ocha_adm1")}') GROUP BY iso3
             ) v USING (iso3);
         CREATE TABLE metadata AS
-            SELECT 'ocha' AS source, o.iso3, 'COD' AS product, o.producer,
+            SELECT 'ocha' AS source, o.iso3, o.producer,
                 CASE WHEN o.legacy THEN l.src_name1 ELSE c.publisher END AS publisher,
                 CASE WHEN o.legacy THEN replace(l.src_lic,
                     'Creative Commons Attribution for Intergovernmental Organisations', 'CC-BY-3.0-IGO')
@@ -97,7 +98,7 @@ def main() -> None:
             LEFT JOIN read_parquet('{COD_AB_COLLECTIONS}') c USING (iso3)
             LEFT JOIN {sidecars(COD_AB_LEGACY_DIR)} l USING (iso3)
         UNION ALL
-            SELECT 'eurogeographics', e.iso3, s.src_grp, e.producer, s.src_name1, s.src_lic,
+            SELECT 'eurogeographics', e.iso3, e.producer, s.src_name1, s.src_lic,
                 '{PARTNERS["eurogeographics"]["source_url"]}', e.valid_from, NULL::DATE
             FROM (
                 SELECT iso3, array_to_string(list_sort(list_distinct(list(src_name))), '; ') AS producer,
@@ -105,6 +106,17 @@ def main() -> None:
                 FROM read_parquet('{path_of("eurogeographics_adm1")}') GROUP BY iso3
             ) e
             LEFT JOIN {sidecars(EG_CACHE)} s USING (iso3)
+        UNION ALL
+            -- Each location's deepest level; geoBoundaries gives only the year it represents.
+            SELECT 'geoboundaries', g.iso3, g.source, p.publisher, coalesce(l.licence, g.licence),
+                g.url, make_date(g.year, 1, 1), g.built
+            FROM (
+                SELECT * FROM read_parquet('{GB_META}')
+                QUALIFY row_number() OVER (PARTITION BY iso3 ORDER BY level DESC) = 1
+            ) g
+            LEFT JOIN read_csv('{RAW_DIR / "geoboundaries_licences.csv"}', header = true, all_varchar = true) l
+                ON l.boundaryLicense = g.licence
+            JOIN partners p ON p.source = 'geoboundaries'
         UNION ALL
             SELECT {partner("fao", "f.iso3", "f.provider", "a.accessed", "NULL::DATE")}
             FROM read_csv('{RAW_DIR / "fao.csv"}', header = true) f
@@ -141,11 +153,15 @@ def main() -> None:
 
         -- UNHCR fills unknown dates with spreadsheet placeholders (1899-12-30, 1900-01-01).
         COPY (
-            SELECT m.* REPLACE (
+            SELECT m.source, m.iso3, m.producer, m.publisher, m.licence, t.licence_url, l.notice, m.url,
                 CASE WHEN m.valid_from > DATE '1900-01-01' THEN m.valid_from END AS valid_from,
-                CASE WHEN m.updated > DATE '1900-01-01' THEN m.updated END AS updated
-            ), coalesce(d.selected_source = m.source, false) AS picked
-            FROM metadata m LEFT JOIN {DECISIONS} d USING (iso3)
+                CASE WHEN m.updated > DATE '1900-01-01' THEN m.updated END AS updated,
+                coalesce(d.selected_source = m.source, false) AS picked
+            FROM metadata m
+            LEFT JOIN read_csv('{RAW_DIR / "licence_terms.csv"}', header = true, all_varchar = true) t
+                USING (licence)
+            LEFT JOIN licences l ON l.source = m.source
+            LEFT JOIN {DECISIONS} d ON d.iso3 = m.iso3
             ORDER BY m.source, m.iso3
         ) TO '{OUT}' {TABLE_OPTIONS};
     """)

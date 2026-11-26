@@ -25,6 +25,7 @@ EXPLORER_STEPS = [
     "wb",
     "unicef",
     "eurogeographics",
+    "geoboundaries",
     "ocha",
     "source_metadata",
     "stats",

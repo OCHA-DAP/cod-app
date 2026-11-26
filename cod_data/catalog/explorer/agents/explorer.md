@@ -15,6 +15,7 @@ Each `{{source}}/{{source}}_adm{{n}}/` collection holds `{{source}}_adm{{n}}.par
 | `fao` | `ISO3_CODE` | `GAUL{{n}}_NAME` | `GAUL{{n}}_CODE` | 1 to 2 |
 | `wb` | `ISO_A3` | `NAM_{{n}}` | `ADM{{n}}CD_c` | 1 to 2 |
 | `eurogeographics` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 4 |
+| `geoboundaries` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 4 |
 
 Some sources include filler units such as "Under National Administration", "N/A" or "Waterbody" that aren't real subdivisions.
 

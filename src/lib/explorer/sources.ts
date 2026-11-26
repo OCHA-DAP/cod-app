@@ -88,6 +88,15 @@ export const ADMIN_SOURCES = [
     codeField: "adm{level}_pcode",
     countryCodeField: "iso3",
   },
+  {
+    id: "geoboundaries",
+    label: "geoBoundaries",
+    shortLabel: "geoB",
+    levels: [1, 2, 3, 4] as AdminLevel[],
+    nameField: "adm{level}_name",
+    codeField: "adm{level}_pcode",
+    countryCodeField: "iso3",
+  },
 ];
 
 export function getLevelsForSource(sourceId: string): AdminLevel[] {
