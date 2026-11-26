@@ -175,12 +175,24 @@
       metadata: metadata.find((m) => m.source === source.id),
     })),
   );
+
+  let scroller: HTMLDivElement | undefined = $state();
+
+  // Keep the active source column in view, clear of the pinned Level and Mapbox columns.
+  $effect(() => {
+    const th = $selectedSource && !loading && scroller?.querySelector<HTMLElement>("th.active-col");
+    if (!scroller || !th) return;
+    const pinned = 108;
+    const right = th.offsetLeft + th.offsetWidth - scroller.clientWidth;
+    if (th.offsetLeft - pinned < scroller.scrollLeft) scroller.scrollLeft = th.offsetLeft - pinned;
+    else if (right > scroller.scrollLeft) scroller.scrollLeft = right;
+  });
 </script>
 
 {#if loading}
   <p class="muted">Loading stats…</p>
 {:else}
-  <div class="table-scroll">
+  <div class="table-scroll" bind:this={scroller}>
     <table style:--cols={cols.length}>
       <colgroup>
         <col class="level-col" />
@@ -361,6 +373,11 @@
   th:nth-child(2),
   td:nth-child(2) {
     left: 56px;
+  }
+
+  th:nth-child(-n + 2):hover,
+  td:nth-child(-n + 2):hover {
+    z-index: 3;
   }
 
   .level-col {

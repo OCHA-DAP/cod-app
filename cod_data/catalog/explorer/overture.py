@@ -53,6 +53,7 @@ def fetch(release: str) -> None:
 def stage(release: str) -> None:
     """Write each level by depth under its country or dependency, and per-location metadata."""
     folder = CACHE / release
+    META.unlink(missing_ok=True)
     con = connect()
     con.execute(f"""
         CREATE TABLE level AS
@@ -62,17 +63,18 @@ def stage(release: str) -> None:
             UNION ALL
             SELECT d.id, t.root, t.level + 1
             FROM '{folder / "divisions.parquet"}' d JOIN t ON d.parent_division_id = t.id
-            WHERE d.subtype NOT IN ('country', 'dependency')
+            WHERE d.subtype NOT IN ('country', 'dependency') AND t.level < 10
         )
         SELECT t.id, t.level, coalesce(m."ISO-alpha3 Code", CASE r.country WHEN 'XK' THEN 'XKX' WHEN 'TW' THEN 'TWN' END) AS iso3
         FROM t
         JOIN '{folder / "divisions.parquet"}' r ON r.id = t.root
         LEFT JOIN '{path_of("m49")}' m ON m."ISO-alpha2 Code" = r.country
     """)
-    skipped = con.execute(
-        "SELECT count(*) FROM level WHERE level > 0 AND iso3 IS NULL"
-    ).fetchall()[0][0]
-    print(f"Left out {skipped} units with no ISO3 (Overture's X-coded areas)")
+    skipped = con.execute(f"""
+        SELECT count(*) FROM '{folder / "divisions.parquet"}' d LEFT JOIN level l USING (id)
+        WHERE l.id IS NULL OR (l.level > 0 AND l.iso3 IS NULL)
+    """).fetchall()[0][0]
+    print(f"Left out {skipped} units with no country or no ISO3 (X-coded areas, CP)")
     con.execute(f"""
         CREATE TABLE units AS
         SELECT l.iso3, l.level, a.division_id, a.name, a.sources, a.geometry
@@ -82,8 +84,7 @@ def stage(release: str) -> None:
     con.execute(f"""
         COPY (
             SELECT iso3, '{release}' AS release,
-                array_to_string(list_sort(list_distinct(flatten(list(list_transform(sources, lambda s: s.dataset))))), '; ') AS datasets,
-                array_to_string(list_sort(list_distinct(flatten(list(list_transform(sources, lambda s: s.license))))), '; ') AS licences
+                array_to_string(list_sort(list_distinct(flatten(list(list_transform(sources, lambda s: s.dataset))))), '; ') AS datasets
             FROM units GROUP BY iso3 ORDER BY iso3
         ) TO '{META}' (FORMAT PARQUET)
     """)
@@ -104,10 +105,10 @@ def stage(release: str) -> None:
 def main() -> None:
     release = latest_release()
     print(f"Overture release {release}")
+    fetch(release)
     for old in CACHE.glob("*/"):
         if old.name != release:
             shutil.rmtree(old)
-    fetch(release)
     stage(release)
 
 
