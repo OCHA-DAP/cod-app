@@ -63,7 +63,7 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
           src.id,
           l,
           src.nameField.replace("{level}", String(l)),
-          src.codeField.replace("{level}", String(l)),
+          "labelCode" in src && !src.labelCode ? "" : src.codeField.replace("{level}", String(l)),
           src.countryCodeField,
         ),
       ),
