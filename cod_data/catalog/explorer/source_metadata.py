@@ -86,7 +86,9 @@ def main() -> None:
         CREATE TABLE metadata AS
             SELECT 'ocha' AS source, o.iso3, 'COD' AS product, o.producer,
                 CASE WHEN o.legacy THEN l.src_name1 ELSE c.publisher END AS publisher,
-                CASE WHEN o.legacy THEN l.src_lic ELSE c.licence END AS licence,
+                CASE WHEN o.legacy THEN replace(l.src_lic,
+                    'Creative Commons Attribution for Intergovernmental Organisations', 'CC-BY-3.0-IGO')
+                    ELSE c.licence END AS licence,
                 CASE WHEN o.legacy THEN l.src_url
                     ELSE 'https://data.humdata.org/dataset/cod-ab-' || lower(o.iso3) END AS url,
                 o.valid_from,
