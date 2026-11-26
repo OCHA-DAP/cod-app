@@ -63,6 +63,9 @@ COLUMNS = {
         type='"type"',
     ),
     "unhcr": Columns("iso3", "pcode", "adm{p}_pcode", "gis_name", "adm{n}_source_code"),
+    "wb": Columns(
+        '"ISO_A3"', '"ADM{n}CD_c"', '"ADM{p}CD_c"', '"NAM_{n}"', '"ADM{n}CD_c"'
+    ),
     "fao": Columns(
         '"ISO3_CODE"',
         '"GAUL{n}_CODE"',

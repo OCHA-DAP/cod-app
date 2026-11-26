@@ -15,7 +15,7 @@ ATF,none,false,No subnational units available
 ATG,fao,false,"FAO, but it uses GADM"
 AUS,fao,false,FAO closly matches ISO and Mapbox
 AUT,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-AZE,ocha,false,OCHA most correct source
+AZE,wb,false,2021 decree forms 14 economic zones
 BDI,ocha,false,OCHA will update in 2026
 BEL,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 BEN,fao,false,FAO has best source
