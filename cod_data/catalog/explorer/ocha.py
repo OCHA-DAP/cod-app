@@ -38,9 +38,10 @@ def fetch(stem: str) -> Path:
 
 def collection(iso3: str, hrefs: list[str]) -> list:
     """iso3, licence, publisher (the producer role) and update date from its shallowest collection."""
-    level = min(
-        n for n in (0, *LEVELS) if f"./{iso3}_admin{n}/collection.json" in hrefs
-    )
+    found = [n for n in (0, *LEVELS) if f"./{iso3}_admin{n}/collection.json" in hrefs]
+    if not found:
+        raise ValueError(f"{iso3}: no admin0 to admin4 collection in its catalog")
+    level = found[0]
     c = http.get(f"{ORIGINAL}/{iso3}/latest/{iso3}_admin{level}/collection.json").json()
     producer = next(
         (p["name"] for p in c.get("providers", []) if "producer" in p.get("roles", [])),

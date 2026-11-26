@@ -158,7 +158,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   other data file, and MUST remove the folder of a location with no
   source layers. A `none` pick MUST have no folder.
 - The explorer's `source_metadata` MUST hold one row per `source` and
-  upper-case `iso3`, with `product` (`COD`, `ERM`, `EGM` or null),
+  `iso3`, upper case for every location with a pick, with `product` (`COD`, `ERM`, `EGM` or null),
   `producer`, `publisher`, `licence`, `url`, `valid_from`, `updated` and
   `picked`. `picked` MUST be true on exactly the row of each location's
   `decisions.csv` pick. A partner's `publisher` and `licence` MUST come
