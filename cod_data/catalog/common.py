@@ -25,6 +25,7 @@ SOURCES = (
     "wb",
     "eurogeographics",
     "geoboundaries",
+    "overture",
     "basemap",
 )
 DECISIONS_CSV = Path("src/lib/explorer/decisions.csv")
@@ -107,6 +108,12 @@ PARTNERS = {
         "url": "https://www.geoboundaries.org/",
         "source_url": "https://www.geoboundaries.org/globalDownloads.html",
     },
+    "overture": {
+        "label": "Overture Maps",
+        "provider": "Overture Maps (divisions)",
+        "url": "https://overturemaps.org/",
+        "source_url": "https://docs.overturemaps.org/guides/divisions/",
+    },
 }
 
 
@@ -149,6 +156,7 @@ BOUNDARY_SOURCES = [
     ),
     BoundarySource("eurogeographics", "iso3", [1, 2, 3, 4]),
     BoundarySource("geoboundaries", "iso3", [1, 2, 3, 4]),
+    BoundarySource("overture", "iso3", [1, 2, 3]),
 ]
 
 

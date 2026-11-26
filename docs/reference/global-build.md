@@ -167,6 +167,9 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   represented) and `updated` MUST come from its deepest level in the
   current release, with `licence` mapped to its SPDX id by
   `data/provenance/geoboundaries_licences.csv` where one exists.
+  Overture's `producer` MUST list the datasets its units cite, `url`
+  MUST be the release's divisions path, `valid_from` MUST be null and
+  `updated` MUST be the release date.
   `licence_url` MUST come from `data/provenance/licence_terms.csv` for
   every SPDX `licence` and for EuroGeographics.
   `notice` MUST hold the attribution text the publisher gives in
