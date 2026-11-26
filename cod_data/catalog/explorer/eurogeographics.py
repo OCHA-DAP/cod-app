@@ -1,7 +1,6 @@
 """EuroGeographics admin 1-4 boundaries: EuroRegionalMap (ERM_DIR) per country, EuroGlobalMap
 (EGM_DIR) for BIH, GRL and SRB, each ingested from its GeoPackage and dissolved per level."""
 
-import importlib.metadata
 import json
 import os
 import re
@@ -391,7 +390,7 @@ def _write(
 
 def ingest(product: Product, iso3: dict[str, str]) -> None:
     """Rewrite product's CACHE layers unless they are newer than every input and were
-    cleaned with the installed topo-tools."""
+    cleaned with the installed DuckDB, spatial extension and topo-tools."""
     gpkg = _gpkg(product)
     stamp = CACHE / f".{product.src}.done"
     inputs = [
@@ -402,7 +401,7 @@ def ingest(product: Product, iso3: dict[str, str]) -> None:
         *product.root.glob("Metadata/Countries/*.xml"),
     ]
     newest = max(p.stat().st_mtime for p in inputs)
-    tools = importlib.metadata.version("topo-tools")
+    tools = extend.engine()
     if stamp.exists() and stamp.stat().st_mtime > newest and stamp.read_text() == tools:
         return
     for key in rows(CACHE, [product.src]):

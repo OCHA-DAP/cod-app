@@ -11,7 +11,6 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   polygon with the ADM0 name and code, written without schema-fill or
   package, with one point per level and no boundary lines.
 - The build MUST raise when a pick names a source it doesn't take.
-  World Bank layers are for comparison in the explorer only.
 - The build MUST read the ADM0 layer named by `--adm0` (`improved` by
   default, `gaul` or `fieldmaps`) from the adm0-app catalog
   (`ADM0_CATALOG`), and source layers from the explorer catalog.
