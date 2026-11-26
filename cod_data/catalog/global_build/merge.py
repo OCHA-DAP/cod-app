@@ -174,9 +174,19 @@ def merge(out: Path, iso3s: list[str]) -> list[str]:
         union = " UNION ALL BY NAME ".join(
             f"({polygons_sql(out / 'iso3' / i.lower(), n)})" for i in iso3s
         )
-        write_geoparquet(
-            con, f"SELECT * FROM ({union})", dest, f"adm{n}_pcode", GLOBAL_ROW_GROUP
-        )
+        # Dissolving, clipping and sorting in one query runs out of memory at adm3 on DuckDB 2.0.1.
+        raw = out / f".adm{n}_unsorted.parquet"
+        try:
+            con.execute(f"COPY ({union}) TO '{raw}' (FORMAT parquet, COMPRESSION zstd)")
+            write_geoparquet(
+                con,
+                f"SELECT * FROM read_parquet('{raw}')",
+                dest,
+                f"adm{n}_pcode",
+                GLOBAL_ROW_GROUP,
+            )
+        finally:
+            raw.unlink(missing_ok=True)
         report += check(con, dest, n)
     for geom, order in (("points", "pcode"), ("lines", HILBERT)):
         files = [str(out / "iso3" / i.lower() / f"{geom}.parquet") for i in iso3s]
