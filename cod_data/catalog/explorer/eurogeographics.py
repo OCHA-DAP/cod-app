@@ -56,7 +56,6 @@ class Product(NamedTuple):
     extra: dict[str, tuple[str, str]]
     agencies: Callable[[Path, list[str]], list[str]]
     only: set[str] | None
-    clean: bool
 
 
 _ORG = re.compile(r"<gmd:organisationName>\s*<gco:CharacterString>([^<]+)")
@@ -110,7 +109,6 @@ ERM = Product(
     extra={},
     agencies=_erm_agencies,
     only=None,
-    clean=False,
 )
 EGM = Product(
     src="egm",
@@ -129,8 +127,6 @@ EGM = Product(
     extra={"RS": ("PolbndA_optionRS", "EBM_NAM_optionRS")},
     agencies=lambda _root, iccs: [_EGM_AGENCIES[i] for i in iccs if i in _EGM_AGENCIES],
     only={"BA", "GL", "RS"},
-    # BIH and SRB come with overlaps and gaps that ST_CoverageUnion_Agg rejects.
-    clean=True,
 )
 
 
@@ -336,7 +332,7 @@ def _write(
     lvl: int,
     agencies: list[str],
 ) -> None:
-    """Dissolve `pt` per leaf into CACHE/<key>/, cleaned if product.clean, with its metadata sidecar."""
+    """Dissolve `pt` per leaf into CACHE/<key>/, cleaned, with its metadata sidecar."""
     langs, valid_from = _names(con, lvl)
     key = iso3.lower()
     out = CACHE / key
@@ -375,8 +371,8 @@ def _write(
         """,
         raw,
     )
-    final = clean_layer(con, raw, work) if product.clean else raw
-    shutil.move(final, out / f"{key}_original.parquet")
+    # Cleaned at ingest: EGM BIH and SRB overlap and leave gaps, and ERM has small gaps.
+    shutil.move(clean_layer(con, raw, work), out / f"{key}_original.parquet")
     shutil.rmtree(work)
     meta = {
         "key": key,
