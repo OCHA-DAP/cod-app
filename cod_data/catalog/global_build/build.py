@@ -87,6 +87,20 @@ def _pad(
     write_geoparquet(con, f"SELECT {', '.join(cols)} FROM '{src}' WHERE {where}", out)
 
 
+def _source_layer(
+    con: duckdb.DuckDBPyConnection, paths: list[Path], lvl: int, out: Path
+) -> None:
+    """Write the pick's parts as one layer in the Specification's fields down to level lvl."""
+    cols = [f"adm{n}_{c}" for n in range(lvl, -1, -1) for c in LEVEL_COLS]
+    parts = " UNION ALL BY NAME ".join(f"SELECT * FROM '{p}'" for p in paths)
+    write_geoparquet(
+        con,
+        f"SELECT {', '.join([*cols, *LANG])}, geometry FROM ({parts})",
+        out,
+        order_by=f"adm{lvl}_pcode",
+    )
+
+
 def _punch(con: duckdb.DuckDBPyConnection, path: Path, work: Path) -> Path:
     """path with each unit that fully covers another (a missing hole) cut around it."""
     con.execute(f"""
@@ -352,6 +366,8 @@ def _build(
             if _cod_ab(con, source, iso3)
             else [extend_layer(con, o, work) for o in originals]
         )
+        for tier, paths in (("original", originals), ("extended", inputs)):
+            _source_layer(con, paths, lvl, work / f"source_{tier}.parquet")
         edge_mosaic(
             input_paths=inputs,
             overlay_path=parents,

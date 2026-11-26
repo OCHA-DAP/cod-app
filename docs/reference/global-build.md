@@ -149,6 +149,17 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `catalog/iso3/<iso3>/`, polygons cut from the merged layer by
   `adm0_pcode` and points and lines from the location's build, and MUST
   remove the folder of a location the merge no longer has.
+- Each location built from a source MUST write `source_original.parquet`
+  (the cleaned and coded parts) and `source_extended.parquet` (the same
+  units extended, before edge-matching) to its build folder, with the
+  level columns from `adm{n}` down to `adm0` and `lang` to `lang3`, ordered
+  by `adm{n}_pcode`. Staging MUST copy them to
+  `catalog/source/<iso3>/<iso3>_{original,extended}.parquet` with a
+  `<iso3>_metadata.json` holding one row per tier (`key`, `tier`, `iso3`,
+  `src`, `src_lvl`, `src_name`, `src_date`, the last two from
+  `source_provenance`, with `src_name` falling back to the source's
+  provider), MUST rewrite them when those two values change, and MUST remove the folder of a location with no
+  source layers. A `none` pick MUST have no folder.
 - Published polygons MUST be ordered by `adm{n}_pcode` and points by
   `pcode`. Lines MUST be in Hilbert order, over the world box in the global
   layers and over the location's extent per location. Row groups MUST be
@@ -159,10 +170,10 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   polygons as a copy of the merged layer. A location's layers MUST be
   rewritten only when its build id, its `valid_from`, the merge code (with
   the build settings and `geoparquet.py`) or the staging code changed since they were last written, or a layer is
-  missing. A layer MUST be tiled only when its tiles are missing or older.
+  missing. The same rule MUST apply to a location's `source/` files. A layer MUST be tiled only when its tiles are missing or older.
 - Each level's points MUST pair 1:1 with its polygons by P-code, or the
   step MUST fail.
 - It MUST write the portolan `metadata.yaml` for `global/`,
-  `iso3/`, each collection and each location (titled with its
-  `adm0_name`, naming its picked source's provider), and
-  `global/TERMS.md` and `iso3/TERMS.md`.
+  `iso3/`, `source/`, each collection and each location (titled with its
+  `adm0_name`, naming its picked source's provider, or with its ISO3 code
+  in `source/`), and `TERMS.md` in `global/`, `iso3/` and `source/`.

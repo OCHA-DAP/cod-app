@@ -103,10 +103,16 @@ def add_all() -> None:
         if (demo / ".portolan").is_dir():
             add(demo, DEMO_DATETIME)
     add(TOOLS / "sources", SOURCES_DATETIME)
-    from cod_data.catalog.global_build.publish import GLOBAL, ISO3
+    from cod_data.catalog.global_build.publish import GLOBAL, ISO3, SOURCE
 
-    for collection in [*sorted(GLOBAL.glob("adm*-*/")), *sorted(ISO3.glob("[a-z]*/"))]:
-        parquet = next(collection.glob("adm[1-4]_*.parquet"), None)
+    for collection in [
+        *sorted(GLOBAL.glob("adm*-*/")),
+        *sorted(ISO3.glob("[a-z]*/")),
+        *sorted(SOURCE.glob("[a-z]*/")),
+    ]:
+        parquet = next(collection.glob("*_original.parquet"), None) or next(
+            collection.glob("adm[1-4]_*.parquet"), None
+        )
         if parquet:
             add(collection, file_date(parquet))
 
