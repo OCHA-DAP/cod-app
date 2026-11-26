@@ -406,12 +406,12 @@ def _build(
 
 
 def valid_from(source: str | None, iso3: str) -> str:
-    """The location's source date from the explorer's source_provenance; empty when unknown or ADM0 fill."""
+    """The location's source date from the explorer's source_metadata; empty when unknown or ADM0 fill."""
     if not source:
         return ""
     con = connect()
     rows = con.execute(
-        f"SELECT source_updated FROM '{path_of('source_provenance')}' WHERE source = ? AND iso3 = ?",
+        f"SELECT valid_from FROM '{path_of('source_metadata')}' WHERE source = ? AND iso3 = ?",
         [source, iso3],
     ).fetchall()
     con.close()

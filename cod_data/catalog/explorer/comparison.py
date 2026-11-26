@@ -1,5 +1,5 @@
 """Flatten the per-source/level comparison data StatsComparisonTable shows in the UI into a
-downloadable dataset. Must run after m49, iso3166, mapbox_boundaries, provenance, stats and match."""
+downloadable dataset. Must run after m49, iso3166, mapbox_boundaries, source_metadata, stats and match."""
 
 from cod_data.catalog.common import DECISIONS, connect, path_of
 from cod_data.shared.geoparquet import TABLE_OPTIONS
@@ -17,8 +17,8 @@ COMPARISON_QUERY = f"""
         s.avg_vertices,
         s.edge_vertices,
         s.internal_vertices,
-        p.provider,
-        p.source_updated,
+        p.producer AS provider,
+        p.valid_from AS source_updated,
         CASE WHEN s.level = 1 THEN i.subdivision_count END AS iso3166_adm1_subdivision_count,
         mb.feature_count AS mapbox_feature_count,
         d.selected_source AS team_selected_source,
@@ -29,7 +29,7 @@ COMPARISON_QUERY = f"""
             THEN ROUND(100.0 * match.matched_count / s.feature_count, 1) END AS match_rate_pct
     FROM read_parquet('{path_of("source_stats")}') s
     JOIN read_parquet('{path_of("m49")}') m ON m."ISO-alpha3 Code" = s.iso3
-    LEFT JOIN read_parquet('{path_of("source_provenance")}') p
+    LEFT JOIN read_parquet('{path_of("source_metadata")}') p
         ON p.source = s.source AND p.iso3 = s.iso3
     LEFT JOIN read_parquet('{path_of("iso3166")}') i ON i.iso3 = s.iso3
     LEFT JOIN read_parquet('{path_of("mapbox_boundaries")}') mb

@@ -1,13 +1,13 @@
 <script lang="ts">
   import { getDecision } from "$lib/explorer/decisions";
-  import { getProvenanceForCountry } from "$lib/explorer/parquet/sourceProvenance";
+  import { getSourceMetadataForCountry, type SourceMetadata } from "$lib/explorer/parquet/sourceMetadata";
   import { ADMIN_SOURCES } from "$lib/explorer/sources";
   import { formatDate } from "$lib/utils/date";
   import type { CodMetadata } from "./metadata";
 
   let { iso3, meta }: { iso3: string; meta: CodMetadata | null } = $props();
 
-  let provider = $state<{ provider: string; sourceUpdated: string | null } | null>(null);
+  let provider = $state<SourceMetadata | null>(null);
 
   const decision = $derived(getDecision(iso3));
   const pick = $derived(decision?.selectedSource ?? null);
@@ -16,7 +16,7 @@
   $effect(() => {
     const i = iso3;
     provider = null;
-    getProvenanceForCountry(i)
+    getSourceMetadataForCountry(i)
       .then((rows) => {
         if (i !== iso3) return;
         provider = rows.find((r) => r.source === getDecision(i)?.selectedSource) ?? null;
@@ -61,7 +61,7 @@
               Admin 0 only (no suitable source)
             {:else}
               {pickLabel}{#if provider}<span class="muted"
-                  >, {provider.provider}{provider.sourceUpdated ? `, ${formatDate(provider.sourceUpdated)}` : ""}</span
+                  >, {provider.producer}{provider.validFrom ? `, ${formatDate(provider.validFrom)}` : ""}</span
                 >{/if}
             {/if}
           </dd>

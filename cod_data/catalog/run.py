@@ -26,7 +26,7 @@ EXPLORER_STEPS = [
     "unicef",
     "eurogeographics",
     "ocha",
-    "provenance",
+    "source_metadata",
     "stats",
     "match",
     "comparison",
