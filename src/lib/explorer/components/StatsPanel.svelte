@@ -1,7 +1,7 @@
 <script lang="ts">
   import { downloadBlob } from "$lib/utils/download";
   import { sourceComparisonCsv } from "$lib/explorer/parquet/comparisonCsv";
-  import { getDecision, pickEdits, pickEditsCsv } from "$lib/explorer/decisions";
+  import { getDecision, pickEdits, sheetBlock } from "$lib/explorer/decisions";
   import LabelsToggle from "./LabelsToggle.svelte";
   import StatsComparisonTable from "./StatsComparisonTable.svelte";
   import PickEditor from "./PickEditor.svelte";
@@ -13,6 +13,13 @@
   let { iso3 }: Props = $props();
   const decision = $derived(iso3 ? getDecision(iso3) : null);
   let downloading = $state(false);
+  let copied = $state(false);
+
+  async function copyPicks() {
+    await navigator.clipboard.writeText(sheetBlock());
+    copied = true;
+    setTimeout(() => (copied = false), 1500);
+  }
 
   async function downloadComparison() {
     downloading = true;
@@ -45,11 +52,10 @@
       {#if import.meta.env.DEV && pickEdits.size}
         <button
           class="download-link"
-          onclick={() =>
-            downloadBlob(new Blob([pickEditsCsv()], { type: "text/csv" }), "pick_edits.csv")}
-          title="Download edited picks (dev)"
+          onclick={copyPicks}
+          title="Copies selected_source, rationale and accepted for every sheet row. Pull the sheet first, then paste on the first selected_source cell."
         >
-          Edited picks ({pickEdits.size})
+          {copied ? "Copied" : `Copy picks (${pickEdits.size} edited)`}
         </button>
       {/if}
       {#if iso3}

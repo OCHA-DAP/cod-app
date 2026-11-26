@@ -78,7 +78,8 @@ def main() -> None:
     with DECISIONS_CSV.open("w", newline="") as f:
         writer = csv.writer(f, lineterminator="\n")
         writer.writerow(COLUMNS)
-        writer.writerows(rows[k] for k in sorted(rows))
+        # Sheet row order, so the explorer's dev editor can copy a block that pastes back in place.
+        writer.writerows(rows.values())
     print(f"Wrote {len(rows)} rows to {DECISIONS_CSV}")
 
 

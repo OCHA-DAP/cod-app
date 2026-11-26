@@ -1,250 +1,250 @@
 iso3,selected_source,accepted,rationale
-ABW,unhcr,false,UNHCR has only source
 AFG,ocha,true,OCHA updated in 2026
+BFA,ocha,true,OCHA updated in 2025
+CMR,ocha,true,"sources all similar, defaulting to OCHA"
+CAF,ocha,true,OCHA updated in 2026
+TCD,ocha,true,"OCHA updated in 2025, but names need cleaning"
+COL,ocha,true,OCHA will be updating in 2026
+COD,ocha,false,OCHA updated in 2026
+HTI,ocha,true,"Mostly same sources, defaulting to OCHA"
+MLI,ocha,true,OCHA updated in 2026
+MOZ,ocha,true,OCHA updated in 2026
+MMR,ocha,true,"Mostly same sources, defaulting to OCHA"
+NER,ocha,true,"Mostly same sources, defaulting to OCHA"
+NGA,ocha,true,"Mostly same sources, defaulting to OCHA"
+SOM,ocha,false,"OCHA selected based on CO presence, but verify data differences"
+SSD,ocha,true,OCHA will be updating in 2026
+SDN,ocha,true,"Mostly same sources, defaulting to OCHA"
+SYR,ocha,true,OCHA will be updating in 2026
+UKR,ocha,true,OCHA updated in 2025
+VEN,ocha,true,OCHA updated in 2026
+YEM,ocha,true,"OCHA will be updating in 2026, current ADM3 not recognized by govt"
+ETH,ocha,true,OCHA updated in 2026
+PSE,ocha,true,WFP has more detailed data than others
+PAK,wfp,false,OCHA is known to be needing an update
+LBN,ocha,true,"Mostly same sources, defaulting to OCHA"
+TUR,ocha,true,"Mostly same sources, defaulting to OCHA"
+ERI,ocha,true,"Mostly same sources, defaulting to OCHA"
+SEN,ocha,false,OCHA has ADM3
+KEN,ocha,false,"Mostly same sources, defaulting to OCHA"
+EGY,wfp,false,WFP identified as best positioned to provide data
+JOR,wfp,false,"WFP sources SALB, but has ADM3"
+PAN,unhcr,false,"UNHCR has govt source, but OCHA has ADM3"
+THA,ocha,false,OCHA has most admin levels
+SLV,ocha,false,"OCHA for admin levels, UNHCR for precision"
+GTM,ocha,false,"All similar sources, defaulting to OCHA"
+HND,ocha,false,"OCHA / UNHCR have current sources, defaulting to OCHA"
+BDI,ocha,false,OCHA will update in 2026
+MDG,ocha,false,OCHA will be updating in 2026
+PER,ocha,false,"All similar sources, defaulting to OCHA"
+PHL,ocha,false,"Mostly same sources, defaulting to OCHA"
+KGZ,ocha,false,OCHA needs data cleaning on ADM2-3 to fill in city gaps
+GEO,ocha,false,"OCHA best for areas it covers, but ADM2 has gaps"
+TJK,wfp,false,"WFP, but ADM1 seems to have 5, not 4 units"
+IRN,ocha,false,"Mostly same sources (OSM), defaulting to OCHA"
+MEX,ocha,false,OCHA has govt source matching Mapbox
+BRB,unhcr,false,"UNHCR uses GADM, find a better source"
+KAZ,fao,false,FAO closly matches Mapbox
+WSM,unicef,false,UNICEF matches Mapbox most closely
+IRQ,wfp,false,"OCHA has been flagged as inaccurate, WFP may be current, but requires in-country verification"
+LBY,ocha,false,"Mostly same sources, defaulting to OCHA"
+ZWE,ocha,false,"Mostly same sources, defaulting to OCHA"
+COG,wfp,false,WFP appears to have most detailed source but needs cleaning
+DJI,wfp,false,WFP appers to have best source
+MRT,wfp,false,WFP has same source as OCHA but includes ADM3
+GMB,ocha,false,OCHA has ADM3
+MWI,ocha,false,"Mostly same sources, defaulting to OCHA"
+ZMB,ocha,false,OCHA has ADM4
+GRD,ocha,false,OCHA source needs cleaning to match ISO/Mapbox
+VCT,ocha,false,"OCHA by default, but try to find a better source than GADM"
+LSO,wfp,false,"WFP uses OCHA, but OCHA no longer has original"
+DMA,unicef,false,"UNICEF highest resolution, but drop ADM2"
+ECU,ocha,false,"All similar sources, defaulting to OCHA. Note HDX has ADM4"
+FJI,wfp,false,"All similar sources, defaulting to WFP. Note HDX has ADM3"
+NPL,ocha,false,"All similar sources, defaulting to OCHA. Note WFP has ADM4 but source is offset"
+VUT,ocha,false,"Mostly same sources, defaulting to OCHA"
+NAM,wfp,false,"WFP seems to have best source, but verify"
+NIC,ocha,false,"OCHA source is not GADM, appears to be govt"
+LKA,ocha,false,"All similar sources, defaulting to OCHA. Note WFP has ADM4 but source is offset"
+IDN,ocha,false,"Mostly same sources, defaulting to OCHA"
+LAO,ocha,false,"Mostly same sources, defaulting to OCHA"
+BOL,ocha,false,OCHA matches Mapbox source
+PRK,ocha,false,"Mostly same sources, defaulting to OCHA"
+DOM,wfp,false,"WFP sources OCHA, but ADM1 apears to have 32 units"
+SWZ,wfp,false,WFP matches Mapbox
+GHA,fao,false,FAO is more detailed than OCHA
+UGA,ocha,false,"Mostly same sources, defaulting to OCHA"
+GNB,ocha,false,OCHA matches mapbox
+TLS,ocha,false,OCHA matches Mapbox
 AGO,ocha,false,OCHA will be updating in 2026
+BEN,fao,false,FAO has best source
+GUY,wfp,false,same source for almost all
+BGD,ocha,false,"OCHA updated in 2025, but WFP has ADM4"
+ARG,unhcr,false,"UNHCR seems to have detailed source, but it doesn't match Mapbox"
+ABW,unhcr,false,UNHCR has only source
+BRA,unhcr,false,"UNHCR has only govt source, matches Mapbox"
+CHL,ocha,false,"OCHA and UNHCR has same source, but OCHA has ADM3"
+CRI,ocha,false,OCHA has govt source at ADM3 matching Mapbox
+CUW,none,false,No subnational units available
+PRY,ocha,false,OCHA has admin 3 and 4
+TTO,unhcr,false,"No source of good, but UNHCR matches Mapbox, drop ADM2"
+TZA,wfp,false,"WFP uses govt source, but remove lakes"
+URY,unhcr,false,"UNHCR has a detailed govt source to ADM2, but doesn't match Mapbox"
+BGR,ocha,false,"OCHA and UNHCR has same source, default to OCHA"
+CZE,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+EST,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+HUN,ocha,false,"OCHA and UNHCR has same source, default to OCHA"
+LVA,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+LTU,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+POL,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+MDA,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+ROU,ocha,false,"OCHA and UNHCR have good sources, but ADM1 should have 42 units"
+RWA,wfp,false,WFP matches Mapbox
+SVK,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+TKM,wfp,false,"WFP, but it doesn't match Mapbox representation"
+UZB,fao,false,FAO matches ISO and Mapbox most closely
 AIA,wfp,false,"No source is good, but WFP is ok"
+ATG,fao,false,"FAO, but it uses GADM"
+BHS,fao,false,"FAO, but it uses GADM"
+VGB,unhcr,false,"Territory uses 5 island system, not 7"
+BLM,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+KNA,unhcr,false,"UNHCR, but ADM1 has 2 units"
+MAF,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+SXM,ocha,false,"Mostly same sources, defaulting to OCHA"
+TCA,fao,false,"FAO uses OCHA source, but only ADM1 available"
+HRV,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+GRC,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+MKD,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+SRB,eurogeographics,true,"EuroGlobalMap, from the national mapping agency"
+SVN,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+GIN,ocha,false,OCHA closely matches ISO and Mapbox
+LBR,ocha,false,"Mostly same sources, defaulting to OCHA"
+SLE,ocha,false,"OCHA, but it's curious that WFP modified OCHA data"
+CIV,ocha,false,"OCHA, but ADM1 -> ADM2 etc, using other source for 14 unit ADM1"
+TUN,ocha,false,"OCHA, but ADM2 -> ADM1 etc"
+TGO,ocha,false,OCHA is only one with ADM3
+CPV,ocha,false,"Mostly same sources, defaulting to OCHA"
+CUB,fao,false,"FAO is actually different from WFP, most closely matches Mapbox"
+VNM,fao,false,FAO is same source as OCHA but with ADM2
+MNG,ocha,false,"OCHA has govt source, matches Mapbox"
+RUS,unhcr,false,"UNHCR, but ADM2 -> ADM1"
+SLB,wfp,false,"WFP only one with ADM3, original data on HDX"
 ALA,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 ALB,ocha,false,"UNHCR for ADM2, OCHA for ADM3"
-AND,unhcr,false,UNHCR most detailed
-ARE,ocha,false,"Mostly same source, default to OCHA"
-ARG,unhcr,false,"UNHCR seems to have detailed source, but it doesn't match Mapbox"
-ARM,ocha,false,"Mostly same sources, defaulting to OCHA"
+DZA,wfp,false,"WFP ADM3 -> ADM2 correctly georeferenced, but use UNHCR for AMD1 aggregation"
 ASM,wfp,false,WFP only source
+AND,unhcr,false,UNHCR most detailed
 ATA,none,false,No subnational units available
-ATF,none,false,No subnational units available
-ATG,fao,false,"FAO, but it uses GADM"
+ARM,ocha,false,"Mostly same sources, defaulting to OCHA"
 AUS,fao,false,FAO closly matches ISO and Mapbox
 AUT,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 AZE,wb,false,2021 decree forms 14 economic zones
-BDI,ocha,false,OCHA will update in 2026
-BEL,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-BEN,fao,false,FAO has best source
-BES,unhcr,false,UNHCR and FAO use correct names
-BFA,ocha,true,OCHA updated in 2025
-BGD,ocha,false,"OCHA updated in 2025, but WFP has ADM4"
-BGR,ocha,false,"OCHA and UNHCR has same source, default to OCHA"
 BHR,unhcr,false,"UNHCR matches ISO and Mapbox, only ADM1"
-BHS,fao,false,"FAO, but it uses GADM"
-BIH,eurogeographics,true,"EuroGlobalMap, from the national mapping agency"
-BLM,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 BLR,ocha,false,"Mostly same sources, defaulting to OCHA"
+BEL,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 BLZ,wfp,false,WFP has highest quality source
 BMU,unhcr,false,UNHCR matches Mapbox most closely
-BOL,ocha,false,OCHA matches Mapbox source
-BRA,unhcr,false,"UNHCR has only govt source, matches Mapbox"
-BRB,unhcr,false,"UNHCR uses GADM, find a better source"
-BRN,wfp,false,WFP only source
 BTN,wfp,false,WFP has ADM3 with partial names
-BVT,none,false,No subnational units available
+BES,unhcr,false,UNHCR and FAO use correct names
+BIH,eurogeographics,true,"EuroGlobalMap, from the national mapping agency"
 BWA,fao,false,"FAO uses OCHA, check HDX for original"
-CAF,ocha,true,OCHA updated in 2026
-CAN,wfp,false,WFP captures water correctly
-CCK,none,false,No subnational units available
-CHE,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-CHL,ocha,false,"OCHA and UNHCR has same source, but OCHA has ADM3"
-CHN,unhcr,false,UNHCR appears closely aligned to Mapbox
-CIV,ocha,false,"OCHA, but ADM1 -> ADM2 etc, using other source for 14 unit ADM1"
-CMR,ocha,true,"sources all similar, defaulting to OCHA"
-COD,ocha,false,OCHA updated in 2026
-COG,wfp,false,WFP appears to have most detailed source but needs cleaning
-COK,none,false,No subnational units available
-COL,ocha,true,OCHA will be updating in 2026
-COM,ocha,false,OCHA has most detailed source
-CPV,ocha,false,"Mostly same sources, defaulting to OCHA"
-CRI,ocha,false,OCHA has govt source at ADM3 matching Mapbox
-CUB,fao,false,"FAO is actually different from WFP, most closely matches Mapbox"
-CUW,none,false,No subnational units available
-CXR,none,false,No subnational units available
-CYM,unhcr,false,"UMHCR, but no source matches Mapbox"
-CYP,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-CZE,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-DEU,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-DJI,wfp,false,WFP appers to have best source
-DMA,unicef,false,"UNICEF highest resolution, but drop ADM2"
-DNK,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-DOM,wfp,false,"WFP sources OCHA, but ADM1 apears to have 32 units"
-DZA,wfp,false,"WFP ADM3 -> ADM2 correctly georeferenced, but use UNHCR for AMD1 aggregation"
-ECU,ocha,false,"All similar sources, defaulting to OCHA. Note HDX has ADM4"
-EGY,wfp,false,WFP identified as best positioned to provide data
-ERI,ocha,true,"Mostly same sources, defaulting to OCHA"
-ESH,ocha,false,"OCHA, but uses GADM"
-ESP,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-EST,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-ETH,ocha,true,OCHA updated in 2026
-FIN,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-FJI,wfp,false,"All similar sources, defaulting to WFP. Note HDX has ADM3"
-FLK,none,false,No subnational units available
-FRA,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-FRO,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-FSM,unicef,false,UNICEF includes most islands
-GAB,unhcr,false,"All same source, UNHCR most original"
-GBR,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-GEO,ocha,false,"OCHA best for areas it covers, but ADM2 has gaps"
-GGY,wfp,false,"WFP has most detailed source, but none match Mapbox"
-GHA,fao,false,FAO is more detailed than OCHA
-GIB,none,false,No subnational units available
-GIN,ocha,false,OCHA closely matches ISO and Mapbox
-GLP,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-GMB,ocha,false,OCHA has ADM3
-GNB,ocha,false,OCHA matches mapbox
-GNQ,ocha,false,"No sources are ideal, OCHA by default"
-GRC,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-GRD,ocha,false,OCHA source needs cleaning to match ISO/Mapbox
-GRL,eurogeographics,true,"EuroGlobalMap, from the national mapping agency"
-GTM,ocha,false,"All similar sources, defaulting to OCHA"
-GUF,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-GUM,none,false,No subnational units available
-GUY,wfp,false,same source for almost all
-HKG,none,false,No subnational units available
-HMD,none,false,No subnational units available
-HND,ocha,false,"OCHA / UNHCR have current sources, defaulting to OCHA"
-HRV,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-HTI,ocha,true,"Mostly same sources, defaulting to OCHA"
-HUN,ocha,false,"OCHA and UNHCR has same source, default to OCHA"
-IDN,ocha,false,"Mostly same sources, defaulting to OCHA"
-IMN,wfp,false,"All sources same, defaulting to WFP"
-IND,fao,false,FAO closly matches Mapbox
+BVT,none,false,No subnational units available
 IOT,none,false,No subnational units available
-IRL,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-IRN,ocha,false,"Mostly same sources (OSM), defaulting to OCHA"
-IRQ,wfp,false,"OCHA has been flagged as inaccurate, WFP may be current, but requires in-country verification"
+BRN,wfp,false,WFP only source
+KHM,ocha,false,OCHA most closest follows Mapbox
+CAN,wfp,false,WFP captures water correctly
+CYM,unhcr,false,"UMHCR, but no source matches Mapbox"
+CHN,unhcr,false,UNHCR appears closely aligned to Mapbox
+HKG,none,false,No subnational units available
+MAC,none,false,No subnational units available
+CXR,none,false,No subnational units available
+CCK,none,false,No subnational units available
+COM,ocha,false,OCHA has most detailed source
+COK,none,false,No subnational units available
+CYP,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+DNK,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+GNQ,ocha,false,"No sources are ideal, OCHA by default"
+FLK,none,false,No subnational units available
+FRO,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+FIN,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+FRA,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+GUF,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+PYF,none,false,No subnational units available
+ATF,none,false,No subnational units available
+GAB,unhcr,false,"All same source, UNHCR most original"
+DEU,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+GIB,none,false,No subnational units available
+GRL,eurogeographics,true,"EuroGlobalMap, from the national mapping agency"
+GLP,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+GUM,none,false,No subnational units available
+GGY,wfp,false,"WFP has most detailed source, but none match Mapbox"
+HMD,none,false,No subnational units available
+VAT,none,false,No subnational units available
 ISL,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+IND,fao,false,FAO closly matches Mapbox
+IRL,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+IMN,wfp,false,"All sources same, defaulting to WFP"
 ISR,wfp,false,"All sources same, defaulting to WFP"
 ITA,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 JAM,ocha,false,OCHA will be updating in 2026
-JEY,fao,false,"All same source, FAO most original"
-JOR,wfp,false,"WFP sources SALB, but has ADM3"
 JPN,fao,false,FAO closly matches Mapbox
-KAZ,fao,false,FAO closly matches Mapbox
-KEN,ocha,false,"Mostly same sources, defaulting to OCHA"
-KGZ,ocha,false,OCHA needs data cleaning on ADM2-3 to fill in city gaps
-KHM,ocha,false,OCHA most closest follows Mapbox
+JEY,fao,false,"All same source, FAO most original"
 KIR,unicef,false,"UNICEF has most units, matches ISO"
-KNA,unhcr,false,"UNHCR, but ADM1 has 2 units"
-KOR,wfp,false,WFP looks closest to Mapbox
 KWT,unhcr,false,UNHCR matches Mapbox most closely
-LAO,ocha,false,"Mostly same sources, defaulting to OCHA"
-LBN,ocha,true,"Mostly same sources, defaulting to OCHA"
-LBR,ocha,false,"Mostly same sources, defaulting to OCHA"
-LBY,ocha,false,"Mostly same sources, defaulting to OCHA"
-LCA,fao,false,"All OCHA, FAO closest to original"
 LIE,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-LKA,ocha,false,"All similar sources, defaulting to OCHA. Note WFP has ADM4 but source is offset"
-LSO,wfp,false,"WFP uses OCHA, but OCHA no longer has original"
-LTU,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 LUX,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-LVA,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-MAC,none,false,No subnational units available
-MAF,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-MAR,fao,false,FAO has most detailed source
-MCO,unhcr,false,UNHCR matches Mapbox most closely
-MDA,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-MDG,ocha,false,OCHA will be updating in 2026
+MYS,ocha,false,"All GADM, defaulting to OCHA"
 MDV,ocha,false,"OCHA uses govt source, but each island is it's own ADM2"
-MEX,ocha,false,OCHA has govt source matching Mapbox
-MHL,unicef,false,"UNICEF has most units, matches ISO"
-MKD,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-MLI,ocha,true,OCHA updated in 2026
 MLT,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-MMR,ocha,true,"Mostly same sources, defaulting to OCHA"
-MNE,fao,false,"Mostly same source, default to FAO"
-MNG,ocha,false,"OCHA has govt source, matches Mapbox"
-MNP,wfp,false,WFP only source
-MOZ,ocha,true,OCHA updated in 2026
-MRT,wfp,false,WFP has same source as OCHA but includes ADM3
-MSR,fao,false,"Mostly same source, default to FAO"
+MHL,unicef,false,"UNICEF has most units, matches ISO"
 MTQ,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 MUS,fao,false,"Multiple use OCHA source, default to FAO"
-MWI,ocha,false,"Mostly same sources, defaulting to OCHA"
-MYS,ocha,false,"All GADM, defaulting to OCHA"
 MYT,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-NAM,wfp,false,"WFP seems to have best source, but verify"
-NCL,none,false,No subnational units available
-NER,ocha,true,"Mostly same sources, defaulting to OCHA"
-NFK,none,false,No subnational units available
-NGA,ocha,true,"Mostly same sources, defaulting to OCHA"
-NIC,ocha,false,"OCHA source is not GADM, appears to be govt"
-NIU,unicef,false,UNICEF only source
-NLD,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-NOR,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-NPL,ocha,false,"All similar sources, defaulting to OCHA. Note WFP has ADM4 but source is offset"
+FSM,unicef,false,UNICEF includes most islands
+MCO,unhcr,false,UNHCR matches Mapbox most closely
+MNE,fao,false,"Mostly same source, default to FAO"
+MSR,fao,false,"Mostly same source, default to FAO"
+MAR,fao,false,FAO has most detailed source
 NRU,unhcr,false,UNHCR matches Mapbox most closely
+NLD,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+NCL,none,false,No subnational units available
 NZL,fao,false,FAO uses govt data
+NIU,unicef,false,UNICEF only source
+NFK,none,false,No subnational units available
+MNP,wfp,false,WFP only source
+NOR,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
 OMN,unhcr,false,UNHCR matches Mapbox most closely
-PAK,wfp,false,OCHA is known to be needing an update
-PAN,unhcr,false,"UNHCR has govt source, but OCHA has ADM3"
-PCN,none,false,No subnational units available
-PER,ocha,false,"All similar sources, defaulting to OCHA"
-PHL,ocha,false,"Mostly same sources, defaulting to OCHA"
 PLW,unicef,false,UNICEF matches Mapbox most closely
 PNG,ocha,false,OCHA has most detailed source
-POL,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-PRI,wfp,false,WFP is main source
-PRK,ocha,false,"Mostly same sources, defaulting to OCHA"
+PCN,none,false,No subnational units available
 PRT,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-PRY,ocha,false,OCHA has admin 3 and 4
-PSE,ocha,true,WFP has more detailed data than others
-PYF,none,false,No subnational units available
+PRI,wfp,false,WFP is main source
 QAT,ocha,false,"OCHA most detailed, ADM2/3 fixed file on HDX"
+KOR,wfp,false,WFP looks closest to Mapbox
 REU,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-ROU,ocha,false,"OCHA and UNHCR have good sources, but ADM1 should have 42 units"
-RUS,unhcr,false,"UNHCR, but ADM2 -> ADM1"
-RWA,wfp,false,WFP matches Mapbox
-SAU,fao,false,FAO matches ISO and Mapbox most closely
-SDN,ocha,true,"Mostly same sources, defaulting to OCHA"
-SEN,ocha,false,OCHA has ADM3
-SGP,unicef,false,UNICEF has most detailed ADM2
-SGS,none,false,No subnational units available
 SHN,fao,false,FAO matches ISO and Mapbox most closely
-SJM,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-SLB,wfp,false,"WFP only one with ADM3, original data on HDX"
-SLE,ocha,false,"OCHA, but it's curious that WFP modified OCHA data"
-SLV,ocha,false,"OCHA for admin levels, UNHCR for precision"
-SMR,unhcr,false,UNHCR matches Mapbox and ISO most closely
-SOM,ocha,false,"OCHA selected based on CO presence, but verify data differences"
+LCA,fao,false,"All OCHA, FAO closest to original"
 SPM,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-SRB,eurogeographics,true,"EuroGlobalMap, from the national mapping agency"
-SSD,ocha,true,OCHA will be updating in 2026
+SMR,unhcr,false,UNHCR matches Mapbox and ISO most closely
 STP,ocha,false,OCHA updated in 2026 with new structure but still GADM
-SUR,unhcr,false,"UNHCR closest to Mapbox, but source could be improved"
-SVK,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-SVN,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-SWE,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
-SWZ,wfp,false,WFP matches Mapbox
-SXM,ocha,false,"Mostly same sources, defaulting to OCHA"
+SAU,fao,false,FAO matches ISO and Mapbox most closely
 SYC,unhcr,false,"UNHCR matches number of units, but GADM source"
-SYR,ocha,true,OCHA will be updating in 2026
-TCA,fao,false,"FAO uses OCHA source, but only ADM1 available"
-TCD,ocha,true,"OCHA updated in 2025, but names need cleaning"
-TGO,ocha,false,OCHA is only one with ADM3
-THA,ocha,false,OCHA has most admin levels
-TJK,wfp,false,"WFP, but ADM1 seems to have 5, not 4 units"
-TKL,none,false,No subnational units available
-TKM,wfp,false,"WFP, but it doesn't match Mapbox representation"
-TLS,ocha,false,OCHA matches Mapbox
-TON,wfp,false,WFP uses OCHA source
-TTO,unhcr,false,"No source of good, but UNHCR matches Mapbox, drop ADM2"
-TUN,ocha,false,"OCHA, but ADM2 -> ADM1 etc"
-TUR,ocha,true,"Mostly same sources, defaulting to OCHA"
-TUV,unicef,false,UNICEF has most island detail
-TWN,none,false,No subnational units available
-TZA,wfp,false,"WFP uses govt source, but remove lakes"
-UGA,ocha,false,"Mostly same sources, defaulting to OCHA"
-UKR,ocha,true,OCHA updated in 2025
-UMI,wfp,false,"WFP has all islands including Navassa, but FAO has names"
-URY,unhcr,false,"UNHCR has a detailed govt source to ADM2, but doesn't match Mapbox"
-USA,fao,false,FAO has most detailed govt data
-UZB,fao,false,FAO matches ISO and Mapbox most closely
-VAT,none,false,No subnational units available
-VCT,ocha,false,"OCHA by default, but try to find a better source than GADM"
-VEN,ocha,true,OCHA updated in 2026
-VGB,unhcr,false,"Territory uses 5 island system, not 7"
-VIR,fao,false,"FAO and UNICEF same, defaulting to FAO"
-VNM,fao,false,FAO is same source as OCHA but with ADM2
-VUT,ocha,false,"Mostly same sources, defaulting to OCHA"
-WLF,none,false,No subnational units available
-WSM,unicef,false,UNICEF matches Mapbox most closely
-YEM,ocha,true,"OCHA will be updating in 2026, current ADM3 not recognized by govt"
+SGP,unicef,false,UNICEF has most detailed ADM2
 ZAF,ocha,false,OCHA only has ADM4
-ZMB,ocha,false,OCHA has ADM4
-ZWE,ocha,false,"Mostly same sources, defaulting to OCHA"
+SGS,none,false,No subnational units available
+ESP,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+SUR,unhcr,false,"UNHCR closest to Mapbox, but source could be improved"
+SJM,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+SWE,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+CHE,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+TKL,none,false,No subnational units available
+TON,wfp,false,WFP uses OCHA source
+TUV,unicef,false,UNICEF has most island detail
+ARE,ocha,false,"Mostly same source, default to OCHA"
+GBR,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
+UMI,wfp,false,"WFP has all islands including Navassa, but FAO has names"
+USA,fao,false,FAO has most detailed govt data
+VIR,fao,false,"FAO and UNICEF same, defaulting to FAO"
+WLF,none,false,No subnational units available
+ESH,ocha,false,"OCHA, but uses GADM"
+TWN,none,false,No subnational units available

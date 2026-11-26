@@ -1,5 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { decisions, parseDecisions } from "$lib/explorer/decisions";
+import {
+  decisions,
+  getDecision,
+  parseDecisions,
+  pickSource,
+  resetDecision,
+  sheetBlock,
+} from "$lib/explorer/decisions";
 import { ADMIN_SOURCES } from "$lib/explorer/sources";
 
 describe("decisions", () => {
@@ -26,5 +33,21 @@ describe("decisions", () => {
     });
     expect(parsed.get("DEF")?.selectedSource).toBe("eurogeographics");
     expect(parsed.get("DEF")?.accepted).toBe(true);
+  });
+
+  test("a dev pick of another source starts unaccepted and copies back in sheet order", () => {
+    const [iso3, original] = [...decisions].find(([, d]) => d.accepted && d.selectedSource)!;
+    const other = ADMIN_SOURCES.find((s) => s.id !== original.selectedSource)!.id;
+    pickSource(iso3, other);
+    expect(getDecision(iso3)).toMatchObject({ selectedSource: other, accepted: false });
+    const lines = sheetBlock().split("\n");
+    expect(lines).toHaveLength(decisions.size);
+    expect(lines[[...decisions.keys()].indexOf(iso3)].split("\t")).toEqual([
+      other,
+      original.rationale.includes('"') ? expect.any(String) : original.rationale,
+      "FALSE",
+    ]);
+    resetDecision(iso3);
+    expect(getDecision(iso3)).toEqual(original);
   });
 });

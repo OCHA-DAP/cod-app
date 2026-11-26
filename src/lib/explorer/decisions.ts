@@ -43,7 +43,7 @@ export function getDecision(iso3: string): Decision | null {
   return decisions.get(iso3) ?? null;
 }
 
-// Dev-only pick edits, kept in localStorage until the sheet and decisions.csv catch up.
+// Dev-only pick edits, each kept with the CSV row it was made on until decisions.csv matches.
 const EDITS_KEY = "explorer-pick-edits";
 
 export type PickEdit = Pick<
@@ -51,32 +51,22 @@ export type PickEdit = Pick<
   "selectedSource" | "noSourceSuitable" | "accepted" | "rationale"
 >;
 
-function same(a: PickEdit, b: PickEdit | undefined): boolean {
-  return (
-    !!b &&
-    a.selectedSource === b.selectedSource &&
-    a.noSourceSuitable === b.noSourceSuitable &&
-    a.accepted === b.accepted &&
-    a.rationale === b.rationale
-  );
-}
-
-function storedEdits(): Record<string, PickEdit> {
-  try {
-    return JSON.parse(localStorage.getItem(EDITS_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
+function key(d: PickEdit | undefined): string {
+  return d ? JSON.stringify([d.selectedSource, d.noSourceSuitable, d.accepted, d.rationale]) : "";
 }
 
 export const pickEdits = new SvelteMap<string, PickEdit>();
 
 function save() {
-  localStorage.setItem(EDITS_KEY, JSON.stringify(Object.fromEntries(pickEdits)));
+  const stored = Object.fromEntries(
+    [...pickEdits].map(([iso3, edit]) => [iso3, { edit, base: key(sheet.get(iso3)) }]),
+  );
+  localStorage.setItem(EDITS_KEY, JSON.stringify(stored));
 }
 
 export function editDecision(iso3: string, edit: PickEdit) {
-  if (same(edit, sheet.get(iso3))) {
+  if (!sheet.has(iso3)) return;
+  if (key(edit) === key(sheet.get(iso3))) {
     resetDecision(iso3);
     return;
   }
@@ -85,13 +75,14 @@ export function editDecision(iso3: string, edit: PickEdit) {
   save();
 }
 
+// A new source starts unaccepted, unless it is the sheet's own pick.
 export function pickSource(iso3: string, sourceId: string) {
-  const d = decisions.get(iso3);
+  const original = sheet.get(iso3);
   editDecision(iso3, {
     selectedSource: sourceId,
     noSourceSuitable: false,
-    accepted: d?.accepted ?? false,
-    rationale: d?.rationale ?? "",
+    accepted: original?.selectedSource === sourceId && original.accepted,
+    rationale: decisions.get(iso3)?.rationale ?? "",
   });
 }
 
@@ -99,36 +90,44 @@ export function resetDecision(iso3: string) {
   pickEdits.delete(iso3);
   const original = sheet.get(iso3);
   if (original) decisions.set(iso3, original);
-  else decisions.delete(iso3);
   save();
-}
-
-// selected_source, rationale and accepted in the sheet's column order.
-export function pickEditsCsv(): string {
-  const quote = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-  const rows = [...pickEdits].sort(([a], [b]) => a.localeCompare(b));
-  return [
-    "iso3,selected_source,rationale,accepted",
-    ...rows.map(([iso3, e]) =>
-      [
-        iso3,
-        e.noSourceSuitable ? "none" : (e.selectedSource ?? ""),
-        quote(e.rationale),
-        e.accepted ? "TRUE" : "FALSE",
-      ].join(","),
-    ),
-  ].join("\n");
 }
 
 export function sheetDecision(iso3: string): Decision | null {
   return sheet.get(iso3) ?? null;
 }
 
+// selected_source, rationale and accepted for every row in sheet order, to paste at the first one.
+export function sheetBlock(): string {
+  const cell = (v: string) => {
+    const text = /^[=+\-@]/.test(v) ? `'${v}` : v;
+    return /[\t\n"]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  return [...sheet.keys()]
+    .map((iso3) => {
+      const d = decisions.get(iso3)!;
+      const source = d.noSourceSuitable ? "none" : (d.selectedSource ?? "");
+      return [source, cell(d.rationale), d.accepted ? "TRUE" : "FALSE"].join("\t");
+    })
+    .join("\n");
+}
+
 if (import.meta.env.DEV && typeof localStorage !== "undefined") {
-  for (const [iso3, edit] of Object.entries(storedEdits())) {
-    if (same(edit, sheet.get(iso3))) continue;
-    pickEdits.set(iso3, edit);
-    decisions.set(iso3, { iso3, ...edit });
+  let stored: unknown;
+  try {
+    stored = JSON.parse(localStorage.getItem(EDITS_KEY) ?? "{}");
+  } catch {
+    stored = {};
+  }
+  if (stored && typeof stored === "object") {
+    for (const [iso3, value] of Object.entries(stored)) {
+      const { edit, base } = (value ?? {}) as { edit?: PickEdit; base?: string };
+      const original = sheet.get(iso3);
+      // Dropped once decisions.csv holds it, or when the sheet changed under it.
+      if (!edit || !original || base !== key(original) || key(edit) === key(original)) continue;
+      pickEdits.set(iso3, edit);
+      decisions.set(iso3, { iso3, ...edit });
+    }
   }
   save();
 }

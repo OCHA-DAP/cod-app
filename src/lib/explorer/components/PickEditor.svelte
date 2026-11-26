@@ -34,13 +34,17 @@
 
 <div class="pick-editor">
   <span class="tag">Dev</span>
-  <input
-    class="rationale"
-    type="text"
-    placeholder="Rationale"
-    value={current?.rationale ?? ""}
-    onchange={(e) => setRationale(e.currentTarget.value)}
-  />
+  {#if sheetDecision(iso3)}
+    <input
+      class="rationale"
+      type="text"
+      placeholder="Rationale"
+      value={current?.rationale ?? ""}
+      onchange={(e) => setRationale(e.currentTarget.value)}
+    />
+  {:else}
+    <span class="edits">Not in the sheet</span>
+  {/if}
   {#if pickEdits.has(iso3)}
     <button
       class="link"
