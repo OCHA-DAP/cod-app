@@ -83,7 +83,7 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   `valid_on` for OCHA (`source_metadata` MUST raise when a location has more than
   one), `src_date` for EuroGeographics, `update_date` for UNHCR, `source_date` for WFP,
   `start_date` for UNICEF, the "Accessed on" date of GAUL's metadata
-  spreadsheets for FAO, the latest admin 2 `P_DATE` for World Bank. It MUST be null on or before 1900-01-01, when
+  spreadsheets for FAO, and the latest admin 2 `P_DATE` for World Bank. It MUST be null on or before 1900-01-01, when
   there is no date, and when the location is ADM0 fill.
 - `lang1` to `lang3` MUST be constant within a location: the source's tag
   wherever any of its units has that `name{i}`, and null otherwise.

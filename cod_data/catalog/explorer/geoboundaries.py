@@ -2,7 +2,7 @@
 
 import json
 import re
-import sys
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -16,12 +16,12 @@ META = CACHE / "meta.parquet"
 LEVELS = range(1, 5)
 
 
-def catalogue(only: set[str] | None = None) -> list[dict]:
+def catalogue() -> list[dict]:
     """The current release's admin 1-4 boundaries, each with its snapshot and cached file path."""
     rows = []
     for r in http.get(API).json():
         n = int(r["boundaryType"].removeprefix("ADM"))
-        if n not in LEVELS or (only and r["boundaryISO"] not in only):
+        if n not in LEVELS:
             continue
         snapshot = re.search(r"/snapshots/([0-9a-f]+)/", r["gjDownloadURL"]).group(1)
         rows.append(
@@ -63,7 +63,7 @@ def stage(rows: list[dict]) -> None:
     con = connect()
     for n in LEVELS:
         reads = " UNION ALL ".join(
-            f"SELECT '{r['boundaryISO']}' AS iso3, trim(shapeName) AS name, shapeID AS pcode, "
+            f"SELECT '{r['boundaryISO']}' AS iso3, nullif(trim(shapeName), '') AS name, shapeID AS pcode, "
             f"ST_SetCRS(ST_CollectionExtract(ST_MakeValid(geom), 3), 'OGC:CRS84') AS geometry "
             f"FROM ST_Read('/vsizip/{r['path']}')"
             for r in rows
@@ -73,7 +73,7 @@ def stage(rows: list[dict]) -> None:
             CREATE TABLE raw{n} AS
             SELECT iso3, name,
                 pcode || CASE WHEN count(*) OVER (PARTITION BY iso3, pcode) > 1
-                    THEN '-' || row_number() OVER (PARTITION BY iso3, pcode ORDER BY name) ELSE '' END AS pcode,
+                    THEN '-' || row_number() OVER (PARTITION BY iso3, pcode ORDER BY name, ST_AsWKB(geometry)) ELSE '' END AS pcode,
                 geometry
             FROM ({reads})
         """)
@@ -107,12 +107,16 @@ def stage(rows: list[dict]) -> None:
     con.close()
 
 
-def main(only: set[str] | None = None) -> None:
-    rows = catalogue(only)
+def main() -> None:
+    rows = catalogue()
     snapshots = {r["snapshot"] for r in rows}
     if len(snapshots) != 1:
         raise ValueError(f"geoBoundaries current spans several snapshots: {snapshots}")
-    print(f"geoBoundaries current snapshot {snapshots.pop()}: {len(rows)} files")
+    snapshot = snapshots.pop()
+    print(f"geoBoundaries current snapshot {snapshot}: {len(rows)} files")
+    for old in CACHE.glob("*/"):
+        if old.name != snapshot:
+            shutil.rmtree(old)
     with ThreadPoolExecutor(4) as pool:
         list(pool.map(fetch, rows))
     listing = CACHE / "catalogue.json"
@@ -121,7 +125,7 @@ def main(only: set[str] | None = None) -> None:
         COPY (
             SELECT boundaryISO AS iso3, level, snapshot, boundaryLicense AS licence,
                 boundarySource AS source, boundarySourceURL AS url,
-                regexp_extract(boundaryYearRepresented, '(19|20)\\d\\d')::INTEGER AS year,
+                list_max(regexp_extract_all(boundaryYearRepresented, '(?:19|20)\\d\\d'))::INTEGER AS year,
                 strptime(buildDate, '%b %d, %Y')::DATE AS built
             FROM read_json_auto('{listing}')
             ORDER BY iso3, level
@@ -131,4 +135,4 @@ def main(only: set[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main(set(sys.argv[1].split(",")) if len(sys.argv) > 1 else None)
+    main()
