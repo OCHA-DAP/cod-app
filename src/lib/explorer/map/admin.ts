@@ -6,7 +6,7 @@ import { ADMIN_SOURCES, adminTiles, getLevelsForSource } from "$lib/explorer/sou
 import type { ViewState } from "$lib/explorer/urlState";
 import type * as maplibregl from "maplibre-gl";
 import { get } from "svelte/store";
-import { labelsEnabled, selectedAdmin, selectedIso3, selectedSource } from "./store";
+import { allLocations, labelsEnabled, selectedAdmin, selectedIso3, selectedSource } from "./store";
 
 function sourceHasData(stats: SourceStat[], source: string): boolean {
   return stats.some((s) => s.source === source && s.featureCount > 0);
@@ -143,8 +143,8 @@ export async function selectCountry(
   iso3: string,
   view: { source?: string; level?: number } = {},
 ): Promise<void> {
+  if (!iso3) return selectGlobal(map, view);
   selectedIso3.set(iso3);
-  if (!iso3) return;
 
   const [, stats] = await Promise.all([
     map ? fitCountryBounds(map, iso3) : Promise.resolve(),
@@ -163,6 +163,39 @@ export async function selectCountry(
   applyMismatchHighlight(map, iso3);
 }
 
+// The source's level nearest to `level` among those it serves, for views with no location's stats.
+function sourceLevel(source: string, level: number): number {
+  const levels: number[] = getLevelsForSource(source);
+  return levels.includes(level) ? level : (levels[0] ?? level);
+}
+
+// Global mode: no location selected, the active source and level drawn for every location.
+export function selectGlobal(
+  map: maplibregl.Map | null,
+  view: { source?: string; level?: number } = {},
+): void {
+  selectedIso3.set("");
+  allLocations.set(true);
+  const source = view.source ?? get(selectedSource);
+  selectedSource.set(source);
+  selectedAdmin.set(sourceLevel(source, view.level ?? get(selectedAdmin)));
+  if (!map) return;
+  fitWorld(map);
+  applyAdminFilter(map, "");
+}
+
+export function fitWorld(map: maplibregl.Map): void {
+  keptIso3 = null;
+  fittedIso3 = null;
+  map.fitBounds(
+    [
+      [-180, -60],
+      [180, 80],
+    ],
+    { padding: 20 },
+  );
+}
+
 // Switches to a source, keeping the current admin level if it has data for
 // this country, otherwise falling back to the deepest level that does. Used
 // by CountrySidebar's [ ]-keyboard cycling and StatsComparisonTable's row
@@ -173,12 +206,13 @@ export async function selectSource(
   source: string,
 ): Promise<void> {
   selectedSource.set(source);
+  if (!iso3 && !get(allLocations)) return;
 
-  if (iso3) {
-    selectedAdmin.set(await pickLevel(iso3, source, get(selectedAdmin)));
-  }
+  selectedAdmin.set(
+    iso3 ? await pickLevel(iso3, source, get(selectedAdmin)) : sourceLevel(source, get(selectedAdmin)),
+  );
 
-  if (!map || !iso3) return;
+  if (!map) return;
   applyAdminFilter(map, iso3);
   applyMismatchHighlight(map, iso3);
 }
@@ -194,7 +228,7 @@ export function selectSourceLevel(
   selectedSource.set(source);
   selectedAdmin.set(level);
 
-  if (!map || !iso3) return;
+  if (!map) return;
   applyAdminFilter(map, iso3);
   applyMismatchHighlight(map, iso3);
 }
@@ -202,6 +236,7 @@ export function selectSourceLevel(
 // Applies a URL view (see $lib/explorer/urlState): a new country goes through
 // selectCountry, the same country only switches source/level.
 export async function applyView(map: maplibregl.Map | null, view: ViewState): Promise<void> {
+  if (view.iso3 === "ALL") return selectGlobal(map, view);
   if (!view.iso3) return;
   if (view.iso3 !== get(selectedIso3)) return selectCountry(map, view.iso3, view);
   if (view.source && view.level) selectSourceLevel(map, view.iso3, view.source, view.level);
@@ -237,11 +272,10 @@ export function applyAdminFilter(map: maplibregl.Map, iso3: string): void {
         // function) decides whether there's anything to highlight.
         map.setLayoutProperty(`${src.id}-adm${l}-mismatch`, "visibility", "none");
 
-        const countryFilter: maplibregl.ExpressionSpecification = [
-          "==",
-          ["slice", ["get", src.countryCodeField], 0, 3],
-          iso3,
-        ];
+        // An empty iso3 is global mode: every location.
+        const countryFilter: maplibregl.ExpressionSpecification = iso3
+          ? ["==", ["slice", ["get", src.countryCodeField], 0, 3], iso3]
+          : ["literal", true];
         const excludeNames = [...(src.junkNameValues ?? []), ...(src.namedWaterBodies ?? [])];
         const filter: maplibregl.FilterSpecification = excludeNames.length
           ? [
@@ -296,7 +330,7 @@ export async function applyMismatchHighlight(map: maplibregl.Map, iso3: string):
   const activeLevel = get(selectedAdmin);
   const src = ADMIN_SOURCES.find((s) => s.id === activeSource);
   const layerId = `${activeSource}-adm${activeLevel}-mismatch`;
-  if (!src) return;
+  if (!src || !iso3) return;
 
   const decision = getDecision(iso3);
   const matches = await getMatchForCountry(iso3);
@@ -334,8 +368,7 @@ export async function applyMismatchHighlight(map: maplibregl.Map, iso3: string):
 
 export function initLabelsToggle(map: maplibregl.Map): void {
   labelsEnabled.subscribe((enabled) => {
-    const iso3 = get(selectedIso3);
-    if (!iso3) return;
+    if (!get(selectedIso3) && !get(allLocations)) return;
     const activeSource = get(selectedSource);
     const activeLevel = get(selectedAdmin);
     map.setLayoutProperty(

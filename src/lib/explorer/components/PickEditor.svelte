@@ -33,7 +33,6 @@
 </script>
 
 <div class="pick-editor">
-  <span class="tag">Dev</span>
   {#if sheetDecision(iso3)}
     <input
       class="rationale"
@@ -69,19 +68,11 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px 10px;
-    margin-bottom: 10px;
-    padding: 6px 8px;
-    border: 1px dashed var(--cd-grey--400);
-    border-radius: 4px;
+    flex: 1 1 16rem;
+    min-width: 0;
+    gap: 4px 8px;
     font-size: 12px;
     color: var(--cd-grey--800);
-  }
-
-  .tag {
-    font-family: var(--brand-font-mono);
-    font-size: 10px;
-    color: var(--cd-grey--600);
   }
 
   input,

@@ -4,8 +4,8 @@
   let { current, iso3 }: { current: "cod-ab" | "partners"; iso3: string } = $props();
 
   const TABS = [
-    { id: "cod-ab", label: "Current boundaries", path: "explorer/", blurb: "Each location's COD-AB from 2027 on" },
-    { id: "partners", label: "Compare sources", path: "explorer/compare/", blurb: "How partner agencies' boundaries compared in 2026" },
+    { id: "cod-ab", label: "Current boundaries", path: "explorer/" },
+    { id: "partners", label: "Compare sources", path: "explorer/compare/" },
   ] as const;
   const href = (path: string) => `${base}${path}${iso3 ? `?iso3=${iso3}` : ""}`;
 </script>
@@ -14,7 +14,6 @@
   {#each TABS as tab (tab.id)}
     <a href={href(tab.path)} aria-current={tab.id === current ? "page" : undefined}>
       <strong>{tab.label}</strong>
-      <span>{tab.blurb}</span>
     </a>
   {/each}
 </nav>
@@ -24,13 +23,13 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-    margin: 12px 16px 0;
+    margin: 8px 12px 0;
   }
   .cards a {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 8px 10px;
+    padding: 5px 8px;
     border: 1px solid var(--cd-grey--400);
     border-radius: var(--brand-radius--sm);
     color: var(--cd-grey--800);
@@ -47,10 +46,5 @@
   .cards strong {
     color: var(--brand-primary--text);
     font-size: 13px;
-  }
-  .cards span {
-    font-size: 11px;
-    line-height: 1.35;
-    color: var(--cd-grey--700);
   }
 </style>

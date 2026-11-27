@@ -1,9 +1,13 @@
 <script lang="ts">
   import { downloadBlob } from "$lib/utils/download";
   import { sourceComparisonCsv } from "$lib/explorer/parquet/comparisonCsv";
-  import { getDecision, pickEdits, sheetBlock } from "$lib/explorer/decisions";
+  import { pickEdits, sheetBlock } from "$lib/explorer/decisions";
+  import { allLocations } from "$lib/explorer/map/store";
   import LabelsToggle from "./LabelsToggle.svelte";
   import StatsComparisonTable from "./StatsComparisonTable.svelte";
+  import GlobalStatsTable from "./GlobalStatsTable.svelte";
+  import SourceFilter from "./SourceFilter.svelte";
+
   import PickEditor from "./PickEditor.svelte";
 
   interface Props {
@@ -11,7 +15,6 @@
   }
 
   let { iso3 }: Props = $props();
-  const decision = $derived(iso3 ? getDecision(iso3) : null);
   let downloading = $state(false);
   let copied = $state(false);
 
@@ -36,8 +39,8 @@
   <div class="stats-header">
     <div class="title-group">
       <h2>Compare sources</h2>
-      {#if iso3 && decision?.rationale}
-        <span class="rationale">— {decision.rationale}</span>
+      {#if import.meta.env.DEV && iso3}
+        <PickEditor {iso3} />
       {/if}
     </div>
     <div class="header-controls">
@@ -58,7 +61,8 @@
           {copied ? "Copied" : `Copy picks (${pickEdits.size} edited)`}
         </button>
       {/if}
-      {#if iso3}
+      {#if iso3 || $allLocations}
+        <SourceFilter />
         <p class="hint">
           <kbd>[</kbd> <kbd>]</kbd>
           <span class="tooltip">Use [ and ] to cycle through boundary sources</span>
@@ -68,12 +72,11 @@
     </div>
   </div>
   {#if iso3}
-    {#if import.meta.env.DEV}
-      <PickEditor {iso3} />
-    {/if}
     <StatsComparisonTable {iso3} />
+  {:else if $allLocations}
+    <GlobalStatsTable />
   {:else}
-    <p class="muted">Select a country to compare sources.</p>
+    <p class="muted">Select a location to compare sources.</p>
   {/if}
 </div>
 
@@ -174,11 +177,5 @@
   .muted {
     color: var(--cd-grey--600);
     font-size: 12px;
-  }
-
-  .rationale {
-    font-size: 12px;
-    color: var(--cd-grey--700);
-    min-width: 0;
   }
 </style>

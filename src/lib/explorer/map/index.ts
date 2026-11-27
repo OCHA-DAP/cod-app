@@ -7,7 +7,7 @@ import {
   addHoverInteraction,
 } from "./interactions/index";
 import { createSpin } from "./spin";
-import { mapStore, selectedIso3 } from "./store";
+import { allLocations, mapStore, selectedIso3 } from "./store";
 import MAP_STYLE from "./style";
 import { MAP_DISCLAIMER } from "$lib/utils/mapDisclaimer";
 import { pmtilesProtocol } from "$lib/utils/pmtiles";
@@ -57,7 +57,7 @@ export function createExplorerMap(
   }
 
   map.once("load", () => {
-    if (!interacted && !get(selectedIso3)) spin.start();
+    if (!interacted && !get(selectedIso3) && !get(allLocations)) spin.start();
   });
   function onTouch() {
     stopSpinPermanently();
@@ -70,10 +70,13 @@ export function createExplorerMap(
   const unsubscribeSpin = selectedIso3.subscribe((iso3) => {
     if (iso3) stopSpinPermanently();
   });
+  const unsubscribeAllSpin = allLocations.subscribe((all) => {
+    if (all) stopSpinPermanently();
+  });
 
   function handleVisibilityChange() {
     if (document.hidden) spin.stop();
-    else if (!interacted && !get(selectedIso3)) spin.start();
+    else if (!interacted && !get(selectedIso3) && !get(allLocations)) spin.start();
   }
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
@@ -106,6 +109,7 @@ export function createExplorerMap(
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pagehide", saveCamera);
       unsubscribeSpin();
+      unsubscribeAllSpin();
       spin.stop();
       map.remove();
     },

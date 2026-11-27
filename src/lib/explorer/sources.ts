@@ -71,6 +71,7 @@ export const ADMIN_SOURCES = [
   },
   {
     id: "who",
+    hiddenByDefault: true,
     label: "WHO",
     levels: [1, 2] as AdminLevel[],
     nameField: "ADM{level}_NAME",
@@ -79,6 +80,8 @@ export const ADMIN_SOURCES = [
   },
   {
     id: "wb",
+    // Not an official partner yet, so Compare sources hides it unless the viewer turns it on.
+    hiddenByDefault: true,
     label: "World Bank",
     levels: [1, 2] as AdminLevel[],
     nameField: "NAM_{level}",
@@ -89,6 +92,7 @@ export const ADMIN_SOURCES = [
   },
   {
     id: "geoboundaries",
+    hiddenByDefault: true,
     label: "geoBoundaries",
     shortLabel: "geoB",
     levels: [1, 2, 3, 4] as AdminLevel[],
@@ -100,6 +104,7 @@ export const ADMIN_SOURCES = [
   },
   {
     id: "overture",
+    hiddenByDefault: true,
     label: "Overture Maps",
     shortLabel: "OVM",
     levels: [1, 2, 3] as AdminLevel[],
@@ -110,6 +115,7 @@ export const ADMIN_SOURCES = [
   },
   {
     id: "eurogeographics",
+    hiddenByDefault: true,
     label: "EuroGeographics",
     shortLabel: "EuroGeo",
     levels: [1, 2, 3, 4] as AdminLevel[],

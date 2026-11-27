@@ -3,13 +3,13 @@
   import "maplibre-gl/dist/maplibre-gl.css";
   import { onMount, untrack } from "svelte";
   import { createExplorerMap } from "$lib/explorer/map";
-  import { fitCountryBounds, whenSourceLoaded } from "$lib/explorer/map/admin";
+  import { fitCountryBounds, fitWorld, whenSourceLoaded } from "$lib/explorer/map/admin";
   import { createFeatureHover, featurePopupHtml } from "$lib/explorer/map/interactions/hover-admin";
   import { ADMIN_LAYER_SUFFIXES, adminLayers } from "$lib/explorer/map/layers/admin";
-  import { labelsEnabled, selectedIso3 } from "$lib/explorer/map/store";
+  import { allLocations, labelsEnabled, selectedIso3 } from "$lib/explorer/map/store";
   import { COUNTRY_LAYERS, COUNTRY_SOURCES } from "$lib/explorer/map/style";
   import { loadMaplibre, loadStyle } from "$lib/utils/mapStyle";
-  import { iso3Url } from "$lib/utils/data";
+  import { globalUrl, iso3Url } from "$lib/utils/data";
   import { polygonsUrl } from "./metadata";
 
   let {
@@ -19,7 +19,7 @@
     map = $bindable(),
   }: {
     iso3: string;
-    // The location and level to draw (level null draws none); null keeps what is drawn while a new location resolves.
+    // The location (empty for the global layers) and level to draw (level null draws none); null keeps what is drawn while a new location resolves.
     units: { iso3: string; level: number | null } | null;
     hidden?: boolean;
     map?: MaplibreMap;
@@ -62,18 +62,18 @@
       current = null;
       return;
     }
-    const id = `units-${u.iso3.toLowerCase()}-adm${n}`;
+    const id = `units-${u.iso3.toLowerCase() || "global"}-adm${n}`;
     if (!drawn.has(id)) {
       const layer = `adm${n}_polygons`;
       const points = `adm${n}_points`;
       m.addSource(id, {
         type: "vector",
-        url: `pmtiles://${polygonsUrl(u.iso3, n, "pmtiles")}`,
+        url: `pmtiles://${u.iso3 ? polygonsUrl(u.iso3, n, "pmtiles") : globalUrl(`adm${n}-polygons/${layer}.pmtiles`)}`,
         promoteId: { [layer]: `adm${n}_pcode` },
       });
       m.addSource(`${id}-labels`, {
         type: "vector",
-        url: `pmtiles://${iso3Url(u.iso3, `${points}.pmtiles`)}`,
+        url: `pmtiles://${u.iso3 ? iso3Url(u.iso3, `${points}.pmtiles`) : globalUrl(`adm${n}-points/${points}.pmtiles`)}`,
       });
       const specs = adminLayers({
         id,
@@ -144,6 +144,7 @@
     const m = map;
     const i = iso3;
     if (m && i) fitCountryBounds(m, i);
+    else if (m && $allLocations) fitWorld(m);
   });
 </script>
 

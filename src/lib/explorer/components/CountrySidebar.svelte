@@ -1,6 +1,7 @@
 <script lang="ts">
   import { selectCountry, selectSource } from "$lib/explorer/map/admin";
-  import { mapStore, selectedIso3, selectedSource } from "$lib/explorer/map/store";
+  import { shownSources } from "$lib/explorer/hiddenSources";
+  import { allLocations, mapStore, selectedIso3, selectedSource } from "$lib/explorer/map/store";
   import { getCountries } from "$lib/explorer/parquet/countries";
   import { getAllOfficeTypes, type OfficeType } from "$lib/explorer/parquet/officeType";
   import { getAllPlanStatus, type PlanStatus } from "$lib/explorer/parquet/planStatus";
@@ -16,6 +17,7 @@
   import RelevanceBadge from "./RelevanceBadge.svelte";
 
   let { view = "partners" }: { view?: "cod-ab" | "partners" } = $props();
+
 
   interface Row {
     iso3: string;
@@ -134,9 +136,12 @@
   );
 
   function selectRow(iso3: string) {
-    skipNextCenter = true;
+    skipNextCenter = !!iso3;
     if (view === "partners") selectCountry(get(mapStore), iso3);
-    else selectedIso3.set(iso3);
+    else {
+      selectedIso3.set(iso3);
+      allLocations.set(!iso3);
+    }
   }
 
   function onKeydown(e: KeyboardEvent) {
@@ -144,28 +149,19 @@
     if (e.target instanceof HTMLInputElement && e.target.type !== "checkbox") return;
     if (e.key !== "[" && e.key !== "]") return;
 
-    const idx = ADMIN_SOURCES.findIndex((s) => s.id === get(selectedSource));
+    const sources = get(shownSources);
+    const idx = sources.findIndex((s) => s.id === get(selectedSource));
     const next =
-      e.key === "]"
-        ? (idx + 1) % ADMIN_SOURCES.length
-        : (idx - 1 + ADMIN_SOURCES.length) % ADMIN_SOURCES.length;
-    selectSource(get(mapStore), get(selectedIso3), ADMIN_SOURCES[next].id);
+      e.key === "]" ? (idx + 1) % sources.length : (idx - 1 + sources.length) % sources.length;
+    selectSource(get(mapStore), get(selectedIso3), sources[next].id);
   }
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
 <aside class="sidebar">
-  <ToolHeader title="Boundaries Explorer" back={{ href: base, label: "Home" }}>
-    {#if view === "partners"}
-      Compare boundaries from OCHA and partner agencies for each location, and see which one the
-      global layers use.
-    {:else}
-      See the current boundaries for each location, download them from HDX, and drop in your own
-      version to see what changed.
-    {/if}
-  </ToolHeader>
-  <ExplorerTabs current={view} iso3={$selectedIso3} />
+  <ToolHeader title="Boundaries Explorer" back={{ href: base, label: "Home" }} />
+  <ExplorerTabs current={view} iso3={$selectedIso3 || ($allLocations ? "all" : "")} />
 
   <div class="toolbar" class:partners={view === "partners"}>
     <input
@@ -195,7 +191,6 @@
   {:else}
     <div class="country-row-header">
       <span class="header-label">Country or Area</span>
-      <span class="header-label">ISO3</span>
       <span class="header-label tooltip"
         >Type<span class="tooltip-text">OCHA office type</span></span
       >
@@ -207,6 +202,16 @@
       >
     </div>
     <ul class="country-list" bind:this={listEl}>
+      <li>
+        <button
+          type="button"
+          class="country-row all-row"
+          class:selected={$allLocations && !$selectedIso3}
+          onclick={() => selectRow("")}
+        >
+          <span class="name">All locations</span>
+        </button>
+      </li>
       {#each sorted as row (row.iso3)}
         <li>
           <button
@@ -217,7 +222,6 @@
             onclick={() => selectRow(row.iso3)}
           >
             <span class="name">{row.name}</span>
-            <span class="iso3">{row.iso3}</span>
             <OfficeTypeBadge officeType={row.officeType} />
             <RelevanceBadge
               rank={row.plan?.rank ?? 5}
@@ -227,7 +231,12 @@
             {#if row.decision?.noSourceSuitable}
               <span class="decision-source none" title="None suitable">None</span>
             {:else if row.decision?.selectedSource}
-              <span class="decision-source">{sourceLabel(row.decision.selectedSource)}</span>
+              {@const accepted = import.meta.env.DEV && row.decision.accepted}
+              <span
+                class="decision-source"
+                class:accepted
+                title={accepted ? "Accepted" : undefined}>{sourceLabel(row.decision.selectedSource)}</span
+              >
             {:else}
               <span class="decision-source" aria-hidden="true"></span>
             {/if}
@@ -240,7 +249,7 @@
 
 <style>
   .sidebar {
-    width: 400px;
+    width: 300px;
     flex-shrink: 0;
     height: 100%;
     display: flex;
@@ -248,14 +257,23 @@
     background: white;
     border-right: 1px solid var(--cd-grey--400);
     color: var(--cd-grey--900);
-    --tool-header-margin: 16px 16px 0;
+    --tool-header-margin: 12px 12px 0;
+  }
+
+  .sidebar :global(.tool-header) {
+    padding: 0.625rem 0.75rem 0.625rem 1.125rem;
+  }
+
+  .sidebar :global(.tool-header h1) {
+    font-size: 1.25rem;
+    margin-block: 0.25rem 0;
   }
 
   .toolbar {
     display: grid;
     grid-template-columns: 1fr;
     gap: 8px;
-    padding: 12px 16px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--cd-grey--400);
   }
 
@@ -284,10 +302,10 @@
 
   .country-row-header {
     display: grid;
-    grid-template-columns: 1fr 32px 28px 28px 44px;
+    grid-template-columns: 1fr 28px 28px 44px;
     align-items: center;
-    gap: 14px;
-    padding: 6px 16px;
+    gap: 8px;
+    padding: 6px 12px;
     border-bottom: 1px solid var(--cd-grey--400);
   }
 
@@ -336,18 +354,22 @@
     overflow-y: auto;
   }
 
+  .all-row .name {
+    font-weight: 600;
+  }
+
   .country-row {
     width: 100%;
     text-align: left;
     background: none;
     border: none;
     border-bottom: 1px solid var(--cd-grey--300);
-    padding: 6px 16px;
+    padding: 6px 12px;
     cursor: pointer;
     display: grid;
-    grid-template-columns: 1fr 32px 28px 28px 44px;
+    grid-template-columns: 1fr 28px 28px 44px;
     align-items: center;
-    gap: 14px;
+    gap: 8px;
     font-family: inherit;
   }
 
@@ -368,10 +390,6 @@
     min-width: 0;
   }
 
-  .iso3 {
-    font-size: 10px;
-    color: var(--cd-grey--600);
-  }
 
   .decision-source {
     font-size: 10px;
@@ -380,6 +398,12 @@
     white-space: nowrap;
     color: var(--cd-grey--800);
     font-weight: 600;
+  }
+
+  .decision-source.accepted::after {
+    content: "✓";
+    margin-left: 2px;
+    color: var(--brand-success);
   }
 
   .decision-source.none {
