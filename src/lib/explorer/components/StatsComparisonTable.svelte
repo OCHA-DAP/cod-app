@@ -11,7 +11,7 @@
   import { getStatsForCountry, type SourceStat } from "$lib/explorer/parquet/sourceStats";
   import { getDecision, pickSource } from "$lib/explorer/decisions";
   import { formatDate } from "$lib/utils/date";
-  import { ADMIN_SOURCES } from "$lib/explorer/sources";
+  import { shownSources } from "$lib/explorer/hiddenSources";
   import { get } from "svelte/store";
 
   interface Props {
@@ -158,7 +158,7 @@
   // A stored match row is only trusted while its preferredSource still matches the
   // sheet's live pick, since the sheet may have changed since download:match last ran.
   let cols: SourceCol[] = $derived(
-    ADMIN_SOURCES.map((source) => ({
+    $shownSources.map((source) => ({
       id: source.id,
       label: source.label,
       levels: Object.fromEntries(
@@ -215,17 +215,21 @@
             <th
               class:active-col={col.id === $selectedSource}
               class:team-pick={col.id === decision?.selectedSource}
-              class:accepted={col.id === decision?.selectedSource && decision?.accepted}
+              class:accepted={import.meta.env.DEV &&
+                col.id === decision?.selectedSource &&
+                decision?.accepted}
             >
               <button class="source-btn" onclick={() => onSourceClick(col.id)}>
                 {col.label}
                 {#if col.id === decision?.selectedSource}
                   <span
                     class="team-badge"
-                    class:accepted={decision?.accepted}
-                    title={decision?.accepted
-                      ? "Team's accepted source"
-                      : "Team's selected source (not yet accepted)"}>✓</span
+                    class:accepted={import.meta.env.DEV && decision?.accepted}
+                    title={!import.meta.env.DEV
+                      ? "Source the global layers use"
+                      : decision?.accepted
+                        ? "Team's accepted source"
+                        : "Team's selected source (not yet accepted)"}>✓</span
                   >
                 {/if}
                 {#if col.metadata?.validFrom}
@@ -491,6 +495,7 @@
   .source-btn {
     font-weight: 600;
   }
+
 
   .cell-btn {
     display: grid;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import CountrySidebar from "$lib/explorer/components/CountrySidebar.svelte";
   import { levelWithMostUnits } from "$lib/explorer/map/admin";
-  import { selectedIso3 } from "$lib/explorer/map/store";
+  import { allLocations, selectedIso3 } from "$lib/explorer/map/store";
   import { isPartnersView, viewFromUrl } from "$lib/explorer/urlState";
   import { base } from "$lib/utils/paths";
   import ChangeApp from "$lib/tools/change/App.svelte";
@@ -31,7 +31,8 @@
     }
     const view = viewFromUrl(location);
     urlLevel = view.level ?? null;
-    if (view.iso3) selectedIso3.set(view.iso3);
+    if (view.iso3 === "ALL") allLocations.set(true);
+    else if (view.iso3) selectedIso3.set(view.iso3);
   });
 
   // A new location opens on its level with the most units, or on a valid ?level= the first time.
@@ -39,7 +40,11 @@
     const i = $selectedIso3;
     counts = null;
     meta = null;
-    if (!i) return;
+    if (!i) {
+      if (LEVELS.includes(urlLevel as Level)) level = urlLevel as Level;
+      urlLevel = null;
+      return;
+    }
     const want = urlLevel as Level;
     urlLevel = null;
     codAbOnHdx()
@@ -55,22 +60,29 @@
     unitCounts(i).then(resolve, () => resolve(null));
   });
 
+  // Global mode draws the global layers.
   const units = $derived(
-    resolved && resolved === $selectedIso3 ? { iso3: resolved, level: missing ? null : level } : null,
+    !$selectedIso3
+      ? $allLocations
+        ? { iso3: "", level }
+        : null
+      : resolved && resolved === $selectedIso3
+        ? { iso3: resolved, level: missing ? null : level }
+        : null,
   );
 
   $effect(() => {
     if (!units?.level) return;
     const params = new URLSearchParams(location.search);
     params.delete("country");
-    params.set("iso3", units.iso3);
+    params.set("iso3", units.iso3 || "all");
     params.set("level", String(units.level));
     history.replaceState(history.state, "", `?${params}`);
   });
 
   // Version A is the location's current boundaries at the shown level.
   const presetA = $derived.by(() => {
-    if (!units?.level) return null;
+    if (!units?.level || !units.iso3) return null;
     const { iso3, level: n } = units;
     return {
       key: iso3,
@@ -92,7 +104,7 @@
     {#snippet details()}<Details iso3={$selectedIso3!} {meta} />{/snippet}
     <ChangeApp {presetA} {map} bind:hasResult allowB={!missing && !!$selectedIso3} info={$selectedIso3 ? details : undefined}>
       {#snippet header()}
-        {#if $selectedIso3}
+        {#if $selectedIso3 || $allLocations}
           <Panel iso3={$selectedIso3} {counts} {meta} {missing} bind:level />
         {:else}
           <p class="hint">Pick a location from the list to see its current boundaries.</p>

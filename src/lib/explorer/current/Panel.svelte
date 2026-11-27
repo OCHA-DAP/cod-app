@@ -1,6 +1,7 @@
 <script lang="ts">
   import SegmentedControl from "$lib/components/SegmentedControl.svelte";
   import LabelsToggle from "$lib/explorer/components/LabelsToggle.svelte";
+  import { dismiss } from "$lib/utils/dismiss";
   import { hdxDatasetUrl, hdxDownloads, type HdxDownload } from "$lib/utils/hdx";
   import { LEVELS, type CodMetadata, type Level } from "./metadata";
 
@@ -43,17 +44,19 @@
       <SegmentedControl
         bind:value={level}
         label="Admin level"
-        options={LEVELS.filter((n) => counts && counts[n] > 0).map((n) => ({
+        options={LEVELS.filter((n) => !iso3 || (counts && counts[n] > 0)).map((n) => ({
           value: n,
           label: levelLabel(n),
-          count: counts![n].toLocaleString("en"),
+          count: counts?.[n].toLocaleString("en"),
         }))}
       />
     {/if}
 
     <div class="hdx">
-      {#if meta}
-        <details class="download">
+      {#if !iso3}
+        <span class="muted">All locations from the last global build</span>
+      {:else if meta}
+        <details class="download" use:dismiss>
           <summary>Download <span aria-hidden="true">▾</span></summary>
           <ul>
             {#if downloads === null}

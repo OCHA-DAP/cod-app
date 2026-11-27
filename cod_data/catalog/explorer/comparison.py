@@ -22,8 +22,6 @@ COMPARISON_QUERY = f"""
         CASE WHEN s.level = 1 THEN i.subdivision_count END AS iso3166_adm1_subdivision_count,
         mb.feature_count AS mapbox_feature_count,
         d.selected_source AS team_selected_source,
-        d.accepted AS team_accepted,
-        d.rationale AS team_rationale,
         match.matched_count,
         CASE WHEN match.matched_count IS NOT NULL AND s.feature_count > 0
             THEN ROUND(100.0 * match.matched_count / s.feature_count, 1) END AS match_rate_pct

@@ -3,7 +3,13 @@
   import StatsPanel from "$lib/explorer/components/StatsPanel.svelte";
   import { initMap } from "$lib/explorer/map";
   import { applyView } from "$lib/explorer/map/admin";
-  import { mapStore, selectedAdmin, selectedIso3, selectedSource } from "$lib/explorer/map/store";
+  import {
+    allLocations,
+    mapStore,
+    selectedAdmin,
+    selectedIso3,
+    selectedSource,
+  } from "$lib/explorer/map/store";
   import { viewFromUrl } from "$lib/explorer/urlState";
   import { loadMaplibre } from "$lib/utils/mapStyle";
   import type * as maplibregl from "maplibre-gl";
@@ -49,11 +55,12 @@
     const iso3 = $selectedIso3;
     const source = $selectedSource;
     const level = $selectedAdmin;
-    if (!iso3 || kiosk) return;
+    const all = $allLocations;
+    if ((!iso3 && !all) || kiosk) return;
     const page = new URL(location.href);
     page.hash = "";
     page.searchParams.delete("country");
-    page.searchParams.set("iso3", iso3);
+    page.searchParams.set("iso3", iso3 || "all");
     page.searchParams.set("source", source);
     page.searchParams.set("level", String(level));
     history.replaceState(history.state, "", page);

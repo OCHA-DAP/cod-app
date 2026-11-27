@@ -15,7 +15,7 @@
     demo?: string;
     back?: { href: string; label: string };
     hint?: string;
-    children: Snippet;
+    children?: Snippet;
   } = $props();
 </script>
 
@@ -26,7 +26,7 @@
   </a>
   <h1>{title}</h1>
   {#if demo}<DemoLink slug={demo} />{/if}
-  <p class="blurb">{@render children()}</p>
+  {#if children}<p class="blurb">{@render children()}</p>{/if}
   {#if hint}<p class="hint">{hint}</p>{/if}
 </header>
 
