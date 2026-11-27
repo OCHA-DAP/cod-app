@@ -206,6 +206,7 @@ export async function selectSource(
   source: string,
 ): Promise<void> {
   selectedSource.set(source);
+  if (!iso3 && !get(allLocations)) return;
 
   selectedAdmin.set(
     iso3 ? await pickLevel(iso3, source, get(selectedAdmin)) : sourceLevel(source, get(selectedAdmin)),

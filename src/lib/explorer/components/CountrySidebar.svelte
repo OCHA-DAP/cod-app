@@ -161,7 +161,7 @@
 
 <aside class="sidebar">
   <ToolHeader title="Boundaries Explorer" back={{ href: base, label: "Home" }} />
-  <ExplorerTabs current={view} iso3={$selectedIso3} />
+  <ExplorerTabs current={view} iso3={$selectedIso3 || ($allLocations ? "all" : "")} />
 
   <div class="toolbar" class:partners={view === "partners"}>
     <input

@@ -8,6 +8,7 @@
   const LEVELS = [1, 2, 3, 4];
   type Total = { units: number; locations: number };
   let totals: Map<string, Total> | null = $state(null);
+  let failed = $state(false);
 
   getAllSourceStats().then((stats) => {
     const map = new Map<string, Total>();
@@ -21,7 +22,7 @@
       map.set(key, t);
     }
     totals = map;
-  });
+  }, () => (failed = true));
 </script>
 
 {#if totals}
@@ -62,7 +63,7 @@
     </table>
   </div>
 {:else}
-  <p class="muted">Loading…</p>
+  <p class="muted">{failed ? "Could not load the source totals." : "Loading…"}</p>
 {/if}
 
 <style>

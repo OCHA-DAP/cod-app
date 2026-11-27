@@ -41,6 +41,7 @@
     counts = null;
     meta = null;
     if (!i) {
+      missing = false;
       if (LEVELS.includes(urlLevel as Level)) level = urlLevel as Level;
       urlLevel = null;
       return;
