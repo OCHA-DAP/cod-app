@@ -13,6 +13,7 @@ Each `{{source}}/{{source}}_adm{{n}}/` collection holds `{{source}}_adm{{n}}.par
 | `unicef` | `adm0_ucode` (starts with the ISO3 code) | `name` | `Source_ID` | 1 to 4 |
 | `unhcr` | `iso3` | `gis_name` | `adm{{n}}_source_code` | 1 to 2 |
 | `fao` | `ISO3_CODE` | `GAUL{{n}}_NAME` | `GAUL{{n}}_CODE` | 1 to 2 |
+| `who` | `ISO_3_CODE` | `ADM{{n}}_NAME` | `ADM{{n}}_CODE` | 1 to 2 |
 | `wb` | `ISO_A3` | `NAM_{{n}}` | `ADM{{n}}CD_c` | 1 to 2 |
 | `eurogeographics` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 4 |
 | `geoboundaries` | `iso3` | `adm{{n}}_name` | `adm{{n}}_pcode` | 1 to 4 |

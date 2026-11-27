@@ -73,6 +73,10 @@ COLUMNS = {
         '"GAUL{n}_NAME"',
         '"GAUL{n}_CODE"',
     ),
+    # WHO codes are sometimes null or repeated, so units key on GUID.
+    "who": Columns(
+        '"ISO_3_CODE"', '"GUID"', '"ADM{p}_GUID"', '"ADM{n}_NAME"', '"ADM{n}_CODE"'
+    ),
     "geoboundaries": Columns(
         "iso3", "adm{n}_pcode", "adm{p}_pcode", "adm{n}_name", "adm{n}_pcode"
     ),

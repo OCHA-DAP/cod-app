@@ -70,6 +70,14 @@ export const ADMIN_SOURCES = [
     junkNameValues: ["Waterbody", "Undefined", "Administrative Unit Not Available"],
   },
   {
+    id: "who",
+    label: "WHO",
+    levels: [1, 2] as AdminLevel[],
+    nameField: "ADM{level}_NAME",
+    codeField: "ADM{level}_CODE",
+    countryCodeField: "ISO_3_CODE",
+  },
+  {
     id: "wb",
     label: "World Bank",
     levels: [1, 2] as AdminLevel[],
