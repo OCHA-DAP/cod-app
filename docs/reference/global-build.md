@@ -35,6 +35,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   name MUST be its English name, else its primary name.
   Locations in `PRIMARY_NAME1` MUST swap `name` with `name1` and `lang`
   with `lang1`.
+- A WHO unit MUST be keyed by its `GUID`, with its `ADM1_GUID` as parent
+  and its `ADM{n}_CODE` as `srcid`.
 - A geoBoundaries unit's parent MUST be the unit one level up in the same
   location that holds its maximum inscribed circle center, else the one
   it overlaps most by area. A unit with neither MUST have no parent.
