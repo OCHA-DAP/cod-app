@@ -70,6 +70,15 @@ export const ADMIN_SOURCES = [
     junkNameValues: ["Waterbody", "Undefined", "Administrative Unit Not Available"],
   },
   {
+    id: "who",
+    hiddenByDefault: true,
+    label: "WHO",
+    levels: [1, 2] as AdminLevel[],
+    nameField: "ADM{level}_NAME",
+    codeField: "ADM{level}_CODE",
+    countryCodeField: "ISO_3_CODE",
+  },
+  {
     id: "wb",
     // Not an official partner yet, so Compare sources hides it unless the viewer turns it on.
     hiddenByDefault: true,

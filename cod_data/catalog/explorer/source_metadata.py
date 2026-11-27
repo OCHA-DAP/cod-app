@@ -21,7 +21,16 @@ from cod_data.shared.geoparquet import TABLE_OPTIONS
 
 RAW_DIR = Path(__file__).parent / "data" / "provenance"
 OUT = path_of("source_metadata")
-PARTNER_SOURCES = ("wfp", "unicef", "unhcr", "fao", "wb", "geoboundaries", "overture")
+PARTNER_SOURCES = (
+    "wfp",
+    "unicef",
+    "unhcr",
+    "fao",
+    "who",
+    "wb",
+    "geoboundaries",
+    "overture",
+)
 
 
 def sidecars(root: Path) -> str:
@@ -155,6 +164,15 @@ def main() -> None:
                 FROM read_parquet('{path_of("unhcr_adm1")}') GROUP BY iso3
             ) h
             JOIN partners p ON p.source = 'unhcr'
+        UNION ALL
+            -- WHO dates most units 2000-01-01, its start-of-record placeholder.
+            SELECT {partner("who", "w.iso3", "p.provider", "w.valid_from", "NULL::DATE")}
+            FROM (
+                SELECT ISO_3_CODE AS iso3,
+                    max(STARTDATE::DATE) FILTER (WHERE STARTDATE::DATE > DATE '2000-01-01') AS valid_from
+                FROM read_parquet('{path_of("who_adm1")}') GROUP BY 1
+            ) w
+            JOIN partners p ON p.source = 'who'
         UNION ALL
             SELECT {partner("wb", "b.iso3", "p.provider", "d.produced", "NULL::DATE")}
             FROM (SELECT DISTINCT ISO_A3 AS iso3 FROM read_parquet('{path_of("wb_adm1")}')) b
