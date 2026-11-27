@@ -6,6 +6,8 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import duckdb
+
 from cod_data.catalog.common import COD_AB_CACHE, connect
 from cod_data.catalog.explorer.boundaries import write_boundary
 from cod_data.shared import http
@@ -58,6 +60,34 @@ def unmangle(name: str) -> str:
         name = fixed
 
 
+def parents(con: duckdb.DuckDBPyConnection, n: int) -> None:
+    """Each unit's level n-1 unit by inscribed circle center, else largest overlap (geoBoundaries has no parent link)."""
+    # Joins on the spatial predicate alone keep the R-tree plan, so the location match runs after.
+    con.execute(f"""
+        CREATE TABLE center{n} AS
+        SELECT iso3, pcode, (ST_MaximumInscribedCircle(geometry)).center AS pt FROM raw{n};
+        CREATE TABLE hit{n} AS
+        SELECT c.iso3, c.pcode, p.iso3 AS parent_iso3, p.pcode AS parent
+        FROM center{n} c JOIN raw{n - 1} p ON ST_Contains(p.geometry, c.pt);
+        CREATE TABLE parent{n} AS
+        SELECT iso3, pcode, min(parent) AS parent FROM hit{n}
+        WHERE parent_iso3 = iso3 GROUP BY ALL;
+        CREATE TABLE rest{n} AS
+        SELECT * FROM raw{n} r ANTI JOIN parent{n} p USING (iso3, pcode);
+        CREATE TABLE overlap{n} AS
+        SELECT r.iso3, r.pcode, p.iso3 AS parent_iso3, p.pcode AS parent,
+            ST_Area(ST_Intersection(r.geometry, p.geometry)) AS area
+        FROM rest{n} r JOIN raw{n - 1} p ON ST_Intersects(r.geometry, p.geometry);
+        INSERT INTO parent{n}
+        SELECT iso3, pcode, arg_max(parent, area) FROM overlap{n}
+        WHERE parent_iso3 = iso3 GROUP BY ALL;
+    """)
+    missing = con.execute(
+        f"SELECT count(*) FROM raw{n} r ANTI JOIN parent{n} p USING (iso3, pcode)"
+    ).fetchall()[0][0]
+    print(f"adm{n}: {missing} units with no adm{n - 1} parent")
+
+
 def stage(rows: list[dict]) -> None:
     """Write each level as served, with duplicate shapeIDs suffixed and mis-encoded names repaired."""
     con = connect()
@@ -92,13 +122,16 @@ def stage(rows: list[dict]) -> None:
     print(
         f"Repaired {con.execute('SELECT count(*) FROM fixes').fetchall()[0][0]} mis-encoded names"
     )
+    for n in LEVELS[1:]:
+        parents(con, n)
     for n in LEVELS:
         path = CACHE / rows[0]["snapshot"] / f"adm{n}.parquet"
         con.execute(f"""
             COPY (
                 SELECT r.iso3, r.iso3 AS adm0_pcode, coalesce(f.good, r.name) AS adm{n}_name,
-                    r.pcode AS adm{n}_pcode, r.geometry
+                    r.pcode AS adm{n}_pcode, {f"p.parent AS adm{n - 1}_pcode," if n > 1 else ""} r.geometry
                 FROM raw{n} r LEFT JOIN fixes f ON f.bad = r.name
+                {f"LEFT JOIN parent{n} p ON p.iso3 = r.iso3 AND p.pcode = r.pcode" if n > 1 else ""}
                 ORDER BY r.iso3, r.pcode
             ) TO '{path}' (FORMAT PARQUET)
         """)

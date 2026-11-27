@@ -73,6 +73,17 @@ COLUMNS = {
         '"GAUL{n}_NAME"',
         '"GAUL{n}_CODE"',
     ),
+    "geoboundaries": Columns(
+        "iso3", "adm{n}_pcode", "adm{p}_pcode", "adm{n}_name", "adm{n}_pcode"
+    ),
+    # Overture's primary name has no language tag, so the build takes its English name.
+    "overture": Columns(
+        "iso3",
+        "adm{n}_pcode",
+        "adm{p}_pcode",
+        "coalesce(adm{n}_name_en, adm{n}_name)",
+        "adm{n}_pcode",
+    ),
 }
 SOURCE_LEVELS = {s.name: s.levels for s in BOUNDARY_SOURCES}
 
