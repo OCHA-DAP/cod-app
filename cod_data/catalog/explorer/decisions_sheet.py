@@ -8,12 +8,12 @@ import sys
 
 import duckdb
 
-from cod_data.catalog.common import CATALOG, DECISIONS_CSV
-from cod_data.catalog.global_build.conform import COLUMNS as BUILD_SOURCES
+from cod_data.catalog.common import BOUNDARY_SOURCES, CATALOG, DECISIONS_CSV
 from cod_data.shared.http import get
 
 COLUMNS = ["iso3", "selected_source", "accepted", "rationale"]
-KNOWN_SOURCES = set(BUILD_SOURCES) | {"none"}
+# Any explorer source; the global build raises on a pick it can't take.
+KNOWN_SOURCES = {s.name for s in BOUNDARY_SOURCES} | {"none"}
 ACCEPTED = {"true": "true", "false": "false", "": "false"}
 M49 = CATALOG / "explorer/reference/m49/m49.parquet"
 # Locations the explorer covers that M49 leaves out.
