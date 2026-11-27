@@ -22,6 +22,7 @@ SOURCES = (
     "unicef",
     "unhcr",
     "fao",
+    "who",
     "wb",
     "eurogeographics",
     "geoboundaries",
@@ -90,6 +91,12 @@ PARTNERS = {
         "url": "https://storage.googleapis.com/fao-maps-catalog-data/boundaries/",
         "source_url": "https://data.apps.fao.org/catalog/dataset/global-administrative-unit-layers-gaul-2025",
     },
+    "who": {
+        "label": "WHO",
+        "provider": "WHO GIS Centre for Health",
+        "url": None,
+        "source_url": "https://extranet.who.int/map/rest/services/GISC/WHO_ADMIN_BOUNDARIES/MapServer",
+    },
     "wb": {
         "label": "World Bank",
         "provider": "World Bank (Official Boundaries)",
@@ -151,6 +158,7 @@ BOUNDARY_SOURCES = [
         "GAUL{level}_NAME",
         ["Waterbody", "Undefined", "Administrative Unit Not Available"],
     ),
+    BoundarySource("who", "ISO_3_CODE", [1, 2]),
     BoundarySource(
         "wb", "ISO_A3", [1, 2], "NAM_{level}", ["Administrative unit not available"]
     ),

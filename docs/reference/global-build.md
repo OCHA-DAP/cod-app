@@ -174,6 +174,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   represented) and `updated` MUST come from its deepest level in the
   current release, with `licence` mapped to its SPDX id by
   `data/provenance/geoboundaries_licences.csv` where one exists.
+  WHO's `valid_from` MUST be the latest admin 1 `STARTDATE` after
+  2000-01-01, and its `updated` MUST be null.
   Overture's `producer` MUST list the datasets its units cite, `url`
   MUST be the release's divisions path, `valid_from` MUST be null and
   `updated` MUST be the release date.
