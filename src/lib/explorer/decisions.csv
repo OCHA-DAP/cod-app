@@ -23,27 +23,27 @@ ETH,ocha,true,OCHA updated in 2026
 PSE,ocha,true,WFP has more detailed data than others
 PAK,wfp,false,OCHA is known to be needing an update
 LBN,ocha,true,"Mostly same sources, defaulting to OCHA"
-TUR,ocha,true,"Mostly same sources, defaulting to OCHA"
+TUR,overture,true,"Mostly same sources, defaulting to OCHA"
 ERI,ocha,true,"Mostly same sources, defaulting to OCHA"
 SEN,ocha,false,OCHA has ADM3
 KEN,ocha,false,"Mostly same sources, defaulting to OCHA"
 EGY,wfp,false,WFP identified as best positioned to provide data
 JOR,wfp,false,"WFP sources SALB, but has ADM3"
-PAN,unhcr,false,"UNHCR has govt source, but OCHA has ADM3"
+PAN,ocha,false,"OCHA for levels, UNHCR for precision"
 THA,ocha,false,OCHA has most admin levels
 SLV,ocha,false,"OCHA for admin levels, UNHCR for precision"
 GTM,ocha,false,"All similar sources, defaulting to OCHA"
-HND,ocha,false,"OCHA / UNHCR have current sources, defaulting to OCHA"
+HND,wfp,false,"OCHA / UNHCR have current sources, defaulting to OCHA"
 BDI,ocha,false,OCHA will update in 2026
 MDG,ocha,false,OCHA will be updating in 2026
 PER,ocha,false,"All similar sources, defaulting to OCHA"
 PHL,ocha,false,"Mostly same sources, defaulting to OCHA"
 KGZ,ocha,false,OCHA needs data cleaning on ADM2-3 to fill in city gaps
-GEO,ocha,false,"OCHA best for areas it covers, but ADM2 has gaps"
+GEO,overture,false,"OCHA best for areas it covers, but ADM2 has gaps"
 TJK,wfp,false,"WFP, but ADM1 seems to have 5, not 4 units"
-IRN,ocha,false,"Mostly same sources (OSM), defaulting to OCHA"
+IRN,overture,false,"Mostly same sources (OSM), defaulting to OCHA"
 MEX,ocha,false,OCHA has govt source matching Mapbox
-BRB,unhcr,false,"UNHCR uses GADM, find a better source"
+BRB,overture,false,"UNHCR uses GADM, find a better source"
 KAZ,fao,false,FAO closly matches Mapbox
 WSM,unicef,false,UNICEF matches Mapbox most closely
 IRQ,wfp,false,"OCHA has been flagged as inaccurate, WFP may be current, but requires in-country verification"
@@ -55,14 +55,14 @@ MRT,wfp,false,WFP has same source as OCHA but includes ADM3
 GMB,ocha,false,OCHA has ADM3
 MWI,ocha,false,"Mostly same sources, defaulting to OCHA"
 ZMB,ocha,false,OCHA has ADM4
-GRD,ocha,false,OCHA source needs cleaning to match ISO/Mapbox
+GRD,overture,false,OCHA source needs cleaning to match ISO/Mapbox
 VCT,ocha,false,"OCHA by default, but try to find a better source than GADM"
-LSO,wfp,false,"WFP uses OCHA, but OCHA no longer has original"
+LSO,ocha,false,"WFP uses OCHA, but OCHA no longer has original"
 DMA,unicef,false,"UNICEF highest resolution, but drop ADM2"
 ECU,ocha,false,"All similar sources, defaulting to OCHA. Note HDX has ADM4"
-FJI,wfp,false,"All similar sources, defaulting to WFP. Note HDX has ADM3"
+FJI,geoboundaries,false,"All similar sources, defaulting to WFP. Note HDX has ADM3"
 NPL,ocha,false,"All similar sources, defaulting to OCHA. Note WFP has ADM4 but source is offset"
-VUT,ocha,false,"Mostly same sources, defaulting to OCHA"
+VUT,geoboundaries,false,"Mostly same sources, defaulting to OCHA"
 NAM,wfp,false,"WFP seems to have best source, but verify"
 NIC,ocha,false,"OCHA source is not GADM, appears to be govt"
 LKA,ocha,false,"All similar sources, defaulting to OCHA. Note WFP has ADM4 but source is offset"
@@ -71,24 +71,24 @@ LAO,ocha,false,"Mostly same sources, defaulting to OCHA"
 BOL,ocha,false,OCHA matches Mapbox source
 PRK,ocha,false,"Mostly same sources, defaulting to OCHA"
 DOM,wfp,false,"WFP sources OCHA, but ADM1 apears to have 32 units"
-SWZ,wfp,false,WFP matches Mapbox
+SWZ,ocha,false,WFP matches Mapbox
 GHA,fao,false,FAO is more detailed than OCHA
 UGA,ocha,false,"Mostly same sources, defaulting to OCHA"
-GNB,ocha,false,OCHA matches mapbox
+GNB,geoboundaries,false,OCHA matches mapbox
 TLS,ocha,false,OCHA matches Mapbox
-AGO,ocha,false,OCHA will be updating in 2026
+AGO,unicef,false,OCHA will be updating in 2026
 BEN,fao,false,FAO has best source
-GUY,wfp,false,same source for almost all
+GUY,overture,false,same source for almost all
 BGD,ocha,false,"OCHA updated in 2025, but WFP has ADM4"
-ARG,unhcr,false,"UNHCR seems to have detailed source, but it doesn't match Mapbox"
+ARG,ocha,false,"UNHCR seems to have detailed source, but it doesn't match Mapbox"
 ABW,unhcr,false,UNHCR has only source
-BRA,unhcr,false,"UNHCR has only govt source, matches Mapbox"
+BRA,ocha,false,"UNHCR has only govt source, matches Mapbox"
 CHL,ocha,false,"OCHA and UNHCR has same source, but OCHA has ADM3"
 CRI,ocha,false,OCHA has govt source at ADM3 matching Mapbox
 CUW,none,false,No subnational units available
 PRY,ocha,false,OCHA has admin 3 and 4
-TTO,unhcr,false,"No source of good, but UNHCR matches Mapbox, drop ADM2"
-TZA,wfp,false,"WFP uses govt source, but remove lakes"
+TTO,ocha,false,"No source of good, but UNHCR matches Mapbox, drop ADM2"
+TZA,ocha,false,"WFP uses govt source, but remove lakes"
 URY,unhcr,false,"UNHCR has a detailed govt source to ADM2, but doesn't match Mapbox"
 BGR,ocha,false,"OCHA and UNHCR has same source, default to OCHA"
 CZE,eurogeographics,true,"EuroRegionalMap, from the national mapping agency"
@@ -124,7 +124,7 @@ CIV,ocha,false,"OCHA, but ADM1 -> ADM2 etc, using other source for 14 unit ADM1"
 TUN,ocha,false,"OCHA, but ADM2 -> ADM1 etc"
 TGO,ocha,false,OCHA is only one with ADM3
 CPV,ocha,false,"Mostly same sources, defaulting to OCHA"
-CUB,fao,false,"FAO is actually different from WFP, most closely matches Mapbox"
+CUB,overture,false,"FAO is actually different from WFP, most closely matches Mapbox"
 VNM,fao,false,FAO is same source as OCHA but with ADM2
 MNG,ocha,false,"OCHA has govt source, matches Mapbox"
 RUS,unhcr,false,"UNHCR, but ADM2 -> ADM1"
