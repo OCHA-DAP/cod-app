@@ -33,11 +33,11 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
 - `lang` MUST come from the source for OCHA and EuroGeographics, and MUST
   be `en` for every other source and for fill rows. An Overture unit's
   name MUST be its English name, else its primary name.
-- A geoBoundaries unit's parent MUST be the unit one level up in the same
-  location that holds its maximum inscribed circle center, else the one
-  it overlaps most. A unit with neither MUST have no parent.
   Locations in `PRIMARY_NAME1` MUST swap `name` with `name1` and `lang`
   with `lang1`.
+- A geoBoundaries unit's parent MUST be the unit one level up in the same
+  location that holds its maximum inscribed circle center, else the one
+  it overlaps most by area. A unit with neither MUST have no parent.
 - Each row MUST carry one `lang1`..`lang3`, the tag nearest the deepest
   level. A level's `name1`..`name3` MUST be kept only where its own tag
   equals the row's, and `lang{i}` MUST be null on a row with no
@@ -88,7 +88,8 @@ See `docs/reference/README.md` for the MUST/SHOULD/MAY convention. Code in
   one), `src_date` for EuroGeographics, `update_date` for UNHCR, `source_date` for WFP,
   `start_date` for UNICEF, the "Accessed on" date of GAUL's metadata
   spreadsheets for FAO, the latest admin 2 `P_DATE` for World Bank,
-  1 January of the year its deepest level represents for geoBoundaries,
+  1 January of the year represented by the deepest level geoBoundaries
+  serves for the location,
   and null for Overture. It MUST be null on or before 1900-01-01, when
   there is no date, and when the location is ADM0 fill.
 - `lang1` to `lang3` MUST be constant within a location: the source's tag

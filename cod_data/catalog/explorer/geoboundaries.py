@@ -80,7 +80,7 @@ def parents(con: duckdb.DuckDBPyConnection, n: int) -> None:
         FROM rest{n} r JOIN raw{n - 1} p ON ST_Intersects(r.geometry, p.geometry);
         INSERT INTO parent{n}
         SELECT iso3, pcode, arg_max(parent, area) FROM overlap{n}
-        WHERE parent_iso3 = iso3 GROUP BY ALL;
+        WHERE parent_iso3 = iso3 AND area > 0 GROUP BY ALL;
     """)
     missing = con.execute(
         f"SELECT count(*) FROM raw{n} r ANTI JOIN parent{n} p USING (iso3, pcode)"
